@@ -30,7 +30,8 @@ function notes(keys: string[]): PresetTrack[] {
 }
 
 function preset(id: string, name: string, tracks: PresetTrack[]): TrackPreset {
-  return { id, name, tracks }
+  tracks.forEach((t) => Object.freeze(t))
+  return Object.freeze({ id, name, tracks: Object.freeze(tracks) as PresetTrack[] })
 }
 
 export const DEFAULT_PRESETS: readonly TrackPreset[] = Object.freeze([
@@ -165,7 +166,7 @@ export function resolveKeymap(tracks: readonly Track[], presets: readonly TrackP
 export function presetToChartTracks(p: TrackPreset): Track[] {
   return p.tracks.map((t) => {
     const out: Track = { id: t.id }
-    if (t.color !== undefined && t.color !== DEFAULT_NOTE_COLOR) out.color = t.color
+    if (t.color !== undefined && t.color.toLowerCase() !== DEFAULT_NOTE_COLOR) out.color = t.color
     if (t.width !== undefined && t.width !== 'normal') out.width = t.width
     return out
   })

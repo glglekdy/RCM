@@ -66,6 +66,30 @@ describe('presets', () => {
     expect(presetToChartTracks(DEFAULT_PRESETS[0])[0]).toEqual({ id: 'Note_1' })
   })
 
+  it('기본 프리셋은 바꿀 수 없다', () => {
+    const p = DEFAULT_PRESETS[0]
+    expect(() => { p.tracks[0].id = 'x' }).toThrow()
+    expect(() => { p.tracks.push({ id: 'y', key: null }) }).toThrow()
+    expect(() => { p.name = 'z' }).toThrow()
+    expect(p.tracks[0].id).toBe('Note_1')
+  })
+
+  it('검사: 트랙 수·색·빈 키', () => {
+    expect(presetErrors({ id: 'x', name: 'P', tracks: [] }).count).toBeDefined()
+    const many = Array.from({ length: 17 }, (_, i) => t(`T${i}`))
+    expect(presetErrors({ id: 'x', name: 'P', tracks: many }).count).toBeDefined()
+    const i = presetErrors({
+      id: 'x', name: 'P', tracks: [{ id: 'A', color: 'red', key: null }, { id: 'B', key: '' }]
+    })
+    expect(i.tracks[0].color).toBeDefined()
+    expect(i.tracks[1].key).toBeDefined()
+    expect(i.count).toBeUndefined()
+  })
+
+  it('기본 색은 대소문자 상관없이 생략', () => {
+    expect(presetToChartTracks({ id: 'x', name: 'P', tracks: [{ id: 'A', color: '#F2F2F2', key: null }] })).toEqual([{ id: 'A' }])
+  })
+
   it('새 프리셋 id는 겹치지 않는다', () => {
     const a = newPresetId([])
     expect(a).toMatch(/^p-[0-9a-z]+$/)

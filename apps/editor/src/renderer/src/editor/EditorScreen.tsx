@@ -5,11 +5,12 @@ import { laneForCode, laneForKey } from '@rcm/playfield'
 import type { ProjectFiles } from '../../../shared/api'
 import { NewProjectDialog } from '../home/NewProjectDialog'
 import { addMarker, neighborMarkerMs } from './commands/markers'
-import { applyRecording, type RecordSession } from './commands/record'
+import { applyRecording, recordingMessage, type RecordSession } from './commands/record'
 import { runEditAction } from './commands/editActions'
 import { pushTap } from './commands/tap'
 import { IconButton, TitleBar, useDialogs, useToast } from '../ui'
 import { AudioEngine } from './audio/AudioEngine'
+import { inputTimeMs } from './audio/inputTime'
 import { hitTimesForChart } from './audio/schedule'
 import { computePeaks, type WaveformPeaks } from './audio/waveform'
 import { Recorder } from './input/recorder'
@@ -198,19 +199,10 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       recordingRef.current = null
       const { session } = recording
       const presses = recording.recorder.finish(endMs)
-      const { doc, added, dropped } = applyRecording(
-        store.getState().doc,
-        session,
-        tmRef.current,
-        presses
-      )
+      const result = applyRecording(store.getState().doc, session, tmRef.current, presses)
       store.set({ mode: 'edit' })
-      if (added === 0) {
-        toast('추가된 노트가 없어요')
-        return
-      }
-      store.apply('녹음', doc, session.file)
-      toast(`${added}개 노트 추가${dropped > 0 ? ` · ${dropped}개는 겹쳐서 버림` : ''}`)
+      if (result.added > 0) store.apply('녹음', result.doc, session.file)
+      toast(recordingMessage(result))
     },
     [store, toast]
   )
@@ -466,12 +458,13 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       case 'tap': {
         const st = store.getState()
         if (!st.playing) break
-        store.set({ taps: pushTap(st.taps, st.playheadMs), panelOpen: true, panelTab: 'timing' })
+        const ms = inputTimeMs(engine, st.playheadMs)
+        store.set({ taps: pushTap(st.taps, ms), panelOpen: true, panelTab: 'timing' })
         break
       }
       case 'marker': {
         const st = store.getState()
-        store.apply('마커 추가', addMarker(st.doc, st.playheadMs))
+        store.apply('마커 추가', addMarker(st.doc, inputTimeMs(engine, st.playheadMs)))
         break
       }
       case 'toolDraw':
@@ -508,6 +501,8 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       if (s.mode !== 'recording' || !recording) return null
       return { lanes: getChart(s.doc, recording.session.file).lanes, recorder: recording.recorder }
     }
+    /** 입력을 처리하는 지금의 오디오 시계 (탭·마커와 같은 시계) */
+    const now = () => inputTimeMs(engine, store.getState().playheadMs)
     const onKeyDown = (e: KeyboardEvent) => {
       if (overlayOpen()) return
       // 입력 필드에서는 Ctrl+S(필드를 확정하고 저장)와 Esc만 받는다
@@ -517,7 +512,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       if (rec && laneForKey(rec.lanes, e) !== null) {
         // 키 반복(e.repeat)은 Recorder가 무시한다
         e.preventDefault()
-        rec.recorder.keyDown(e.code, engine.positionMs())
+        rec.recorder.keyDown(e.code, now())
         return
       }
       const input = { code: e.code, ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey }
@@ -533,14 +528,14 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       const rec = activeRecording()
       if (rec && laneForCode(rec.lanes, e.code) !== null) {
         e.preventDefault()
-        rec.recorder.keyUp(e.code, engine.positionMs())
+        rec.recorder.keyUp(e.code, now())
         return
       }
       // 버튼은 Space를 뗄 때 클릭되므로 keyup도 막는다
       if (e.code === 'Space' && !overlayOpen() && !isTyping(e.target)) e.preventDefault()
     }
     // 창이 포커스를 잃으면 keyup이 오지 않으므로 눌린 키를 모두 뗀 것으로 한다
-    const onBlur = () => recordingRef.current?.recorder.releaseAll(engine.positionMs())
+    const onBlur = () => recordingRef.current?.recorder.releaseAll(now())
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
     window.addEventListener('blur', onBlur)

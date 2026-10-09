@@ -4,15 +4,26 @@ import { getChart, replaceChart, type ProjectDoc } from '../state/doc'
 
 const byTickLane = (a: Note, b: Note): number => a.tick - b.tick || a.lane - b.lane
 
-/** 누름을 현재 스냅에 맞춘 노트로. 한 칸 이상 누르면 hold, 아니면 tap. tick < 0은 버린다. */
-export function quantizePresses(presses: Press[], tm: TimingMap, snap: SnapDivision): Note[] {
+/**
+ * 누름을 현재 스냅에 맞춘 노트로. 한 칸 이상 누르면 hold, 아니면 tap.
+ * tick < 0(곡 시작 전)은 버리고 그 개수를 `early`로 돌려준다.
+ */
+export function quantizePresses(
+  presses: Press[],
+  tm: TimingMap,
+  snap: SnapDivision
+): { notes: Note[]; early: number } {
   const step = snapStepTicks(snap)
   const notes: Note[] = []
+  let early = 0
   for (const p of presses) {
     const down = tm.msToTick(p.downMs)
     const up = tm.msToTick(p.upMs)
     const tick = snapTick(tm, down, snap)
-    if (tick < 0) continue
+    if (tick < 0) {
+      early++
+      continue
+    }
     if (up - down >= step) {
       const endTick = Math.max(snapTick(tm, up, snap), tick + step)
       notes.push({ tick, lane: p.lane, type: 'hold', endTick })
@@ -20,7 +31,7 @@ export function quantizePresses(presses: Press[], tm: TimingMap, snap: SnapDivis
       notes.push({ tick, lane: p.lane, type: 'tap' })
     }
   }
-  return notes
+  return { notes, early }
 }
 
 /** 녹음을 시작할 때 정해 둔 대상 채보와 스냅. 녹음 중 바뀐 상태 대신 이 값으로 합친다. */
@@ -35,8 +46,20 @@ export function applyRecording(
   session: RecordSession,
   tm: TimingMap,
   presses: Press[]
-): { doc: ProjectDoc; added: number; dropped: number } {
-  return mergeRecorded(doc, session.file, quantizePresses(presses, tm, session.snap))
+): { doc: ProjectDoc; added: number; dropped: number; early: number } {
+  const { notes, early } = quantizePresses(presses, tm, session.snap)
+  return { ...mergeRecorded(doc, session.file, notes), early }
+}
+
+/** 녹음을 끝낸 뒤 보여 줄 안내 문구. */
+export function recordingMessage(r: { added: number; dropped: number; early: number }): string {
+  return [
+    r.added > 0 ? `${r.added}개 노트 추가` : '추가된 노트가 없어요',
+    r.dropped > 0 ? `${r.dropped}개는 겹쳐서 버림` : '',
+    r.early > 0 ? `${r.early}개는 곡 시작 전이라 버림` : ''
+  ]
+    .filter((s) => s !== '')
+    .join(' · ')
 }
 
 /** 녹음한 노트를 채보에 합친다. 기존 노트나 앞서 넣은 녹음 노트와 겹치면 버린다. */

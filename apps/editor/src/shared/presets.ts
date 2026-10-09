@@ -1,0 +1,172 @@
+import {
+  DEFAULT_NOTE_COLOR,
+  MAX_TRACKS,
+  MIN_TRACKS,
+  TRACK_COLOR_PATTERN,
+  isValidTrackId,
+  type Track,
+  type TrackWidth
+} from '@rcm/core'
+
+export interface PresetTrack extends Track {
+  key: string | null
+}
+
+export interface TrackPreset {
+  id: string
+  name: string
+  tracks: PresetTrack[]
+}
+
+export const AUTO_KEYS: readonly string[] = [
+  'KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon',
+  'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyU', 'KeyI', 'KeyO', 'KeyP'
+]
+
+const SIDE_COLOR = '#f59e0b'
+
+function notes(keys: string[]): PresetTrack[] {
+  return keys.map((key, i) => ({ id: `Note_${i + 1}`, key }))
+}
+
+function preset(id: string, name: string, tracks: PresetTrack[]): TrackPreset {
+  return { id, name, tracks }
+}
+
+export const DEFAULT_PRESETS: readonly TrackPreset[] = Object.freeze([
+  preset('4k', '4K', notes(['KeyD', 'KeyF', 'KeyJ', 'KeyK'])),
+  preset('5k', '5K', notes(['KeyD', 'KeyF', 'Space', 'KeyJ', 'KeyK'])),
+  preset('6k', '6K', notes(['KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL'])),
+  preset('7k', '7K', notes(['KeyS', 'KeyD', 'KeyF', 'Space', 'KeyJ', 'KeyK', 'KeyL'])),
+  preset('8k', '8K', notes(['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon'])),
+  preset('6k-side', '6K + 사이드', [
+    { id: 'Side_L', color: SIDE_COLOR, width: 'wide', key: 'ShiftLeft' },
+    ...notes(['KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL']),
+    { id: 'Side_R', color: SIDE_COLOR, width: 'wide', key: 'ShiftRight' }
+  ])
+])
+
+function copyPreset(p: TrackPreset): TrackPreset {
+  return { id: p.id, name: p.name, tracks: p.tracks.map((t) => ({ ...t })) }
+}
+
+function defaultsCopy(): TrackPreset[] {
+  return DEFAULT_PRESETS.map(copyPreset)
+}
+
+export interface PresetIssues {
+  name?: string
+  tracks: { id?: string; color?: string; key?: string }[]
+  count?: string
+}
+
+export function presetErrors(p: TrackPreset): PresetIssues {
+  const issues: PresetIssues = { tracks: p.tracks.map(() => ({})) }
+  if (p.name.trim() === '') issues.name = '이름을 입력하세요'
+  if (p.tracks.length < MIN_TRACKS || p.tracks.length > MAX_TRACKS) {
+    issues.count = `트랙은 ${MIN_TRACKS}~${MAX_TRACKS}개여야 해요`
+  }
+  const ids = new Set<string>()
+  const keys = new Set<string>()
+  p.tracks.forEach((t, i) => {
+    const row = issues.tracks[i]
+    if (!isValidTrackId(t.id)) row.id = '영문·숫자·_·-만, 1~32자'
+    else if (ids.has(t.id)) row.id = '이미 있는 이름'
+    ids.add(t.id)
+    if (t.color !== undefined && !TRACK_COLOR_PATTERN.test(t.color)) row.color = '#rrggbb 형식이어야 해요'
+    if (t.key !== null) {
+      if (typeof t.key !== 'string' || t.key === '') row.key = '키가 올바르지 않아요'
+      else if (keys.has(t.key)) row.key = '다른 트랙과 같은 키'
+      else keys.add(t.key)
+    }
+  })
+  return issues
+}
+
+export function hasPresetErrors(i: PresetIssues): boolean {
+  return !!i.name || !!i.count || i.tracks.some((t) => !!t.id || !!t.color || !!t.key)
+}
+
+function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function parseTrack(v: unknown): PresetTrack | null {
+  if (!isObject(v) || typeof v.id !== 'string') return null
+  const key = v.key === undefined ? null : v.key
+  if (key !== null && typeof key !== 'string') return null
+  const t: PresetTrack = { id: v.id, key }
+  if (v.color !== undefined) {
+    if (typeof v.color !== 'string') return null
+    t.color = v.color
+  }
+  if (v.width !== undefined) {
+    if (v.width !== 'narrow' && v.width !== 'normal' && v.width !== 'wide') return null
+    t.width = v.width as TrackWidth
+  }
+  return t
+}
+
+function parsePreset(v: unknown): TrackPreset | null {
+  if (!isObject(v) || typeof v.id !== 'string' || typeof v.name !== 'string' || !Array.isArray(v.tracks)) {
+    return null
+  }
+  const tracks: PresetTrack[] = []
+  for (const raw of v.tracks) {
+    const t = parseTrack(raw)
+    if (!t) return null
+    tracks.push(t)
+  }
+  const p: TrackPreset = { id: v.id, name: v.name, tracks }
+  return hasPresetErrors(presetErrors(p)) ? null : p
+}
+
+export function sanitizePresets(raw: unknown): TrackPreset[] {
+  if (!Array.isArray(raw)) return defaultsCopy()
+  const out: TrackPreset[] = []
+  const seen = new Set<string>()
+  for (const item of raw) {
+    const p = parsePreset(item)
+    if (!p || seen.has(p.id)) continue
+    seen.add(p.id)
+    out.push(p)
+  }
+  return out.length > 0 ? out : defaultsCopy()
+}
+
+export function newPresetId(existing: readonly TrackPreset[]): string {
+  const base = `p-${Date.now().toString(36)}`
+  const used = new Set(existing.map((p) => p.id))
+  if (!used.has(base)) return base
+  let n = 2
+  while (used.has(`${base}-${n}`)) n++
+  return `${base}-${n}`
+}
+
+export interface ResolvedKeymap {
+  keys: Map<string, string | null>
+  source: { kind: 'preset'; name: string } | { kind: 'auto' }
+}
+
+export function resolveKeymap(tracks: readonly Track[], presets: readonly TrackPreset[]): ResolvedKeymap {
+  const ids = new Set(tracks.map((t) => t.id))
+  const match = presets.find(
+    (p) => p.tracks.length === ids.size && p.tracks.every((t) => ids.has(t.id))
+  )
+  const keys = new Map<string, string | null>()
+  if (match) {
+    for (const t of match.tracks) keys.set(t.id, t.key)
+    return { keys, source: { kind: 'preset', name: match.name } }
+  }
+  tracks.forEach((t, i) => keys.set(t.id, AUTO_KEYS[i] ?? null))
+  return { keys, source: { kind: 'auto' } }
+}
+
+export function presetToChartTracks(p: TrackPreset): Track[] {
+  return p.tracks.map((t) => {
+    const out: Track = { id: t.id }
+    if (t.color !== undefined && t.color !== DEFAULT_NOTE_COLOR) out.color = t.color
+    if (t.width !== undefined && t.width !== 'normal') out.width = t.width
+    return out
+  })
+}

@@ -11,6 +11,7 @@ import {
 } from '@rcm/core'
 import type { CreateProjectOptions, ProjectFiles, RecentProject } from '../../shared/api'
 import { sanitizeFolderName, uniqueChildName } from './folderName'
+import { writeFileAtomic } from './atomicWrite'
 
 export function resolveProjectDir(parentDir: string, title: string): string {
   const name = uniqueChildName(sanitizeFolderName(title), (c) => existsSync(path.join(parentDir, c)))
@@ -90,28 +91,35 @@ export async function openProjectFiles(dir: string): Promise<ProjectFiles> {
   }
 }
 
+const isChartFileName = (name: string): boolean => name.toLowerCase().endsWith('.chart.json')
+
 function isAllowedFileName(name: string): boolean {
-  return name === 'song.json' || name === 'editor.json' || name.toLowerCase().endsWith('.chart.json')
+  return name === 'song.json' || name === 'editor.json' || isChartFileName(name)
+}
+
+/** 모든 이름이 `dir` 바로 아래의 파일 이름(경로 없음)이고 `allowed`를 통과하는지 확인한다. 하나라도 아니면 throw. */
+function checkNames(dir: string, names: string[], allowed: (name: string) => boolean): void {
+  const root = path.resolve(dir)
+  for (const name of names) {
+    if (path.basename(name) !== name || path.dirname(path.resolve(root, name)) !== root || !allowed(name)) {
+      throw new Error(`허용되지 않는 파일 이름이에요: ${name}`)
+    }
+  }
 }
 
 export async function writeProjectFiles(dir: string, files: { name: string; text: string }[]): Promise<void> {
-  const root = path.resolve(dir)
-  for (const f of files) {
-    if (path.basename(f.name) !== f.name || path.dirname(path.resolve(root, f.name)) !== root || !isAllowedFileName(f.name)) {
-      throw new Error(`허용되지 않는 파일 이름이에요: ${f.name}`)
-    }
-  }
-  for (const f of files) {
-    const target = path.join(dir, f.name)
-    const tmp = `${target}.tmp-${process.pid}`
-    try {
-      await fs.writeFile(tmp, f.text, 'utf8')
-      await fs.rename(tmp, target)
-    } catch (e) {
-      await fs.rm(tmp, { force: true })
-      throw e
-    }
-  }
+  checkNames(
+    dir,
+    files.map((f) => f.name),
+    isAllowedFileName
+  )
+  for (const f of files) await writeFileAtomic(path.join(dir, f.name), f.text)
+}
+
+/** 문서에서 사라진 채보 파일을 지운다. `*.chart.json`만, 프로젝트 폴더 바로 아래 것만 지울 수 있다. */
+export async function deleteProjectFiles(dir: string, names: string[]): Promise<void> {
+  checkNames(dir, names, isChartFileName)
+  for (const name of names) await fs.rm(path.join(dir, name), { force: true })
 }
 
 export async function summarizeProject(dir: string): Promise<Omit<RecentProject, 'lastOpened'>> {

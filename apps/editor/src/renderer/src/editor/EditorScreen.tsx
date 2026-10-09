@@ -13,7 +13,7 @@ import { AudioEngine } from './audio/AudioEngine'
 import { hitTimesForChart } from './audio/schedule'
 import { computePeaks, type WaveformPeaks } from './audio/waveform'
 import { Recorder } from './input/recorder'
-import { resolveShortcut, type Action } from './input/shortcuts'
+import { resolveShortcut, resolveTypingShortcut, type Action } from './input/shortcuts'
 import { Minimap } from './minimap/Minimap'
 import { RightPanel } from './panels/RightPanel'
 import { PlaytestOverlay } from './playtest/PlaytestOverlay'
@@ -59,7 +59,6 @@ function LoadedEditor({ files, doc, onExit, onOpenProject }: LoadedEditorProps) 
   const [store] = useState(() => new EditorStore(files, doc))
   const [engine, setEngine] = useState<AudioEngine | null>(null)
   const dialogs = useDialogs()
-  const closing = useRef(false)
   const onExitRef = useRef(onExit)
   onExitRef.current = onExit
 
@@ -86,40 +85,8 @@ function LoadedEditor({ files, doc, onExit, onOpenProject }: LoadedEditorProps) 
     }
   }, [files.audioPath, dialogs])
 
-  useEffect(() => {
-    const off = window.rcm.onCloseRequested(async () => {
-      if (closing.current) return
-      closing.current = true
-      try {
-        const choice = await dialogs.choose({
-          title: '저장하지 않은 변경',
-          message: '변경 내용을 저장할까요?',
-          choices: [
-            { value: 'save', label: '저장', variant: 'primary' },
-            { value: 'discard', label: '저장 안 함', variant: 'danger' },
-            { value: 'cancel', label: '취소' }
-          ]
-        })
-        if (choice === 'discard') {
-          window.rcm.forceClose()
-        } else if (choice === 'save') {
-          try {
-            await store.save()
-            window.rcm.forceClose()
-          } catch (err) {
-            await dialogs.alert('저장하지 못했어요', err instanceof Error ? err.message : String(err))
-          }
-        }
-      } finally {
-        closing.current = false
-      }
-    })
-    return () => {
-      off()
-      // 홈으로 돌아가면 닫기 보호를 해제한다
-      window.rcm.setDirty(false)
-    }
-  }, [dialogs, store])
+  // 홈으로 돌아가면 닫기 보호를 해제한다 (닫기 요청 처리는 EditorBody가 한다)
+  useEffect(() => () => window.rcm.setDirty(false), [])
 
   return (
     <StoreContext.Provider value={store}>
@@ -167,6 +134,13 @@ function isTyping(target: EventTarget | null): boolean {
     target instanceof HTMLElement &&
     target.closest('input, textarea, select, [contenteditable="true"]') !== null
   )
+}
+
+/** 포커스된 입력 필드를 blur해서 고치던 값을 확정(onCommit)한다. 저장·닫기 전에 부른다. */
+function commitFocusedField(): void {
+  if (document.activeElement instanceof HTMLElement && isTyping(document.activeElement)) {
+    document.activeElement.blur()
+  }
 }
 
 function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
@@ -340,6 +314,8 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
 
   // ---- 파일 ----
   const save = useCallback(async () => {
+    // 입력 중인 필드 값까지 저장한다
+    commitFocusedField()
     try {
       await store.save()
       toast('저장했어요')
@@ -348,9 +324,14 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     }
   }, [store, toast, dialogs])
 
-  /** 이 프로젝트를 떠나도 되는지 묻는다. 저장 안 된 변경이 있으면 저장/버리기/취소. */
+  /**
+   * 이 프로젝트를 떠나도(창을 닫아도) 되는지 묻는다. 입력 중인 필드를 확정하고 녹음·테스트 플레이를
+   * 끝낸 뒤(녹음한 노트도 변경에 들어간다) 저장 안 된 변경이 있으면 저장/버리기/취소.
+   */
   const confirmLeave = useCallback(async (): Promise<boolean> => {
-    stop()
+    commitFocusedField()
+    if (store.getState().mode === 'playtest') exitPlaytest()
+    else stop()
     if (!store.isDirty()) return true
     const choice = await dialogs.choose({
       title: '저장하지 않은 변경',
@@ -370,7 +351,39 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       await dialogs.alert('저장하지 못했어요', err instanceof Error ? err.message : String(err))
       return false
     }
-  }, [stop, store, dialogs])
+  }, [stop, exitPlaytest, store, dialogs])
+
+  // 창 닫기: main은 닫기 보호(저장 안 된 변경·녹음 중·입력 중)가 켜져 있으면 닫지 않고 물어본다
+  const closing = useRef(false)
+  useEffect(
+    () =>
+      window.rcm.onCloseRequested(async () => {
+        if (closing.current) return
+        closing.current = true
+        try {
+          if (await confirmLeave()) window.rcm.forceClose()
+        } finally {
+          closing.current = false
+        }
+      }),
+    [confirmLeave]
+  )
+
+  // 입력 필드에 포커스가 있는 동안에도 닫기 보호를 켠다 (확정 안 된 값이 있을 수 있다)
+  useEffect(() => {
+    const update = (focused: EventTarget | null) => {
+      const fieldFocused = isTyping(focused)
+      if (store.getState().fieldFocused !== fieldFocused) store.set({ fieldFocused })
+    }
+    const onFocusIn = (e: FocusEvent) => update(e.target)
+    const onFocusOut = (e: FocusEvent) => update(e.relatedTarget)
+    document.addEventListener('focusin', onFocusIn)
+    document.addEventListener('focusout', onFocusOut)
+    return () => {
+      document.removeEventListener('focusin', onFocusIn)
+      document.removeEventListener('focusout', onFocusOut)
+    }
+  }, [store])
 
   const openDir = useCallback(
     async (dir: string) => {
@@ -497,8 +510,9 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     }
     const onKeyDown = (e: KeyboardEvent) => {
       if (overlayOpen()) return
-      if (isTyping(e.target) && e.code !== 'Escape') return
-      const rec = activeRecording()
+      // 입력 필드에서는 Ctrl+S(필드를 확정하고 저장)와 Esc만 받는다
+      const typing = isTyping(e.target)
+      const rec = typing ? null : activeRecording()
       // Ctrl/Alt/Meta 조합(Ctrl+S 등)은 레인 키로 치지 않는다
       if (rec && laneForKey(rec.lanes, e) !== null) {
         // 키 반복(e.repeat)은 Recorder가 무시한다
@@ -506,10 +520,9 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
         rec.recorder.keyDown(e.code, engine.positionMs())
         return
       }
-      const action = resolveShortcut(
-        { code: e.code, ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey },
-        store.getState().mode
-      )
+      const input = { code: e.code, ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey }
+      const mode = store.getState().mode
+      const action = typing ? resolveTypingShortcut(input, mode) : resolveShortcut(input, mode)
       if (!action) return
       // 포커스된 버튼이 Space/Enter로 눌리는 기본 동작과 겹치지 않게 막는다
       e.preventDefault()

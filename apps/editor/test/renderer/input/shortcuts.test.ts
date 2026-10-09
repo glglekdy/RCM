@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { resolveShortcut } from '../../../src/renderer/src/editor/input/shortcuts'
+import {
+  resolveShortcut,
+  resolveTypingShortcut
+} from '../../../src/renderer/src/editor/input/shortcuts'
 
 const k = (code: string, ctrl = false, shift = false) => ({ code, ctrl, shift })
 
@@ -18,5 +21,19 @@ describe('resolveShortcut', () => {
       expect(resolveShortcut(k('KeyT'), mode)).toBeNull()
       expect(resolveShortcut(k('Space'), mode)).toBeNull()
     }
+  })
+})
+
+describe('resolveTypingShortcut', () => {
+  it('입력 필드에 포커스가 있으면 저장(Ctrl+S)과 Esc만', () => {
+    expect(resolveTypingShortcut(k('KeyS', true), 'edit')).toBe('save')
+    expect(resolveTypingShortcut(k('Escape'), 'edit')).toBe('stop')
+    expect(resolveTypingShortcut(k('Escape'), 'recording')).toBe('stop')
+    // 입력 필드 자체의 동작(글자, 되돌리기, 붙여넣기)은 건드리지 않는다
+    expect(resolveTypingShortcut(k('KeyS'), 'edit')).toBeNull()
+    expect(resolveTypingShortcut(k('KeyM'), 'edit')).toBeNull()
+    expect(resolveTypingShortcut(k('Space'), 'edit')).toBeNull()
+    expect(resolveTypingShortcut(k('KeyZ', true), 'edit')).toBeNull()
+    expect(resolveTypingShortcut(k('KeyV', true), 'edit')).toBeNull()
   })
 })

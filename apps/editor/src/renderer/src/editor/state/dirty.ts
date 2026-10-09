@@ -21,8 +21,18 @@ export function isDirty(doc: ProjectDoc, saved: SavedRefs): boolean {
   return (
     doc.song !== saved.song ||
     doc.editorData !== saved.editorData ||
-    doc.charts.some((c) => saved.charts.get(c.file) !== c.chart)
+    doc.charts.some((c) => saved.charts.get(c.file) !== c.chart) ||
+    removedFiles(doc, saved).length > 0
   )
+}
+
+/**
+ * 저장된 적 있지만 지금 문서에는 없는 채보 파일 (예: 저장한 뒤 Undo한 새 난이도). 저장할 때 지운다.
+ * 대소문자만 다른 이름이 문서에 있으면 Windows에서는 같은 파일이므로 지우지 않는다.
+ */
+export function removedFiles(doc: ProjectDoc, saved: SavedRefs): string[] {
+  const present = new Set(doc.charts.map((c) => c.file.toLowerCase()))
+  return [...saved.charts.keys()].filter((file) => !present.has(file.toLowerCase()))
 }
 
 export function dirtyFiles(doc: ProjectDoc, saved: SavedRefs): { name: string; text: string }[] {

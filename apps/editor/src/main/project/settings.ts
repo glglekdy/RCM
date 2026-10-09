@@ -1,4 +1,5 @@
 import { promises as fs } from 'node:fs'
+import { writeFileAtomic } from './atomicWrite'
 
 export interface RecentEntry {
   dir: string
@@ -39,7 +40,5 @@ export async function loadSettings(file: string): Promise<Settings> {
 }
 
 export async function saveSettings(file: string, s: Settings): Promise<void> {
-  const tmp = `${file}.tmp-${process.pid}`
-  await fs.writeFile(tmp, `${JSON.stringify(s, null, 2)}\n`, 'utf8')
-  await fs.rename(tmp, file)
+  await writeFileAtomic(file, `${JSON.stringify(s, null, 2)}\n`)
 }

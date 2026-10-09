@@ -5,6 +5,7 @@ import path from 'node:path'
 import { parseChart, parseSong } from '@rcm/core'
 import {
   createProject,
+  deleteProjectFiles,
   openProjectFiles,
   readAudioFile,
   summarizeProject,
@@ -82,6 +83,36 @@ describe('projectFs', () => {
     expect(a).not.toBe(b)
     expect(existsSync(path.join(a, 'song.json'))).toBe(true)
     expect(existsSync(path.join(b, 'song.json'))).toBe(true)
+  })
+  it('동시에 같은 파일을 저장해도 임시 파일이 겹치지 않음', async () => {
+    const writes = Array.from({ length: 8 }, (_, i) =>
+      writeProjectFiles(tmp, [{ name: 'x.chart.json', text: `${i}\n` }])
+    )
+    await expect(Promise.all(writes)).resolves.toBeDefined()
+    expect(await fs.readFile(path.join(tmp, 'x.chart.json'), 'utf8')).toMatch(/^\d\n$/)
+    expect((await fs.readdir(tmp)).some((f) => f.includes('.tmp-'))).toBe(false)
+  })
+  it('문서에서 사라진 채보 파일을 지움', async () => {
+    const dir = await createProject({ ...opts, title: 'del' })
+    await writeProjectFiles(dir, [{ name: 'hard.chart.json', text: '{}\n' }])
+    await deleteProjectFiles(dir, ['hard.chart.json'])
+    expect(existsSync(path.join(dir, 'hard.chart.json'))).toBe(false)
+    expect(existsSync(path.join(dir, 'normal.chart.json'))).toBe(true)
+    // 이미 없는 파일은 그냥 넘어간다
+    await expect(deleteProjectFiles(dir, ['hard.chart.json'])).resolves.toBeUndefined()
+  })
+  it('채보 파일이 아니거나 프로젝트 밖이면 하나도 지우지 않음', async () => {
+    const dir = path.join(tmp, 'proj')
+    await fs.mkdir(dir)
+    await fs.writeFile(path.join(dir, 'a.chart.json'), '{}')
+    await fs.writeFile(path.join(dir, 'song.json'), '{}')
+    await fs.writeFile(path.join(dir, 'editor.json'), '{}')
+    await fs.writeFile(path.join(tmp, 'outside.chart.json'), '{}')
+    for (const bad of ['../outside.chart.json', '..\\outside.chart.json', 'song.json', 'editor.json', 'audio.ogg', 'sub/x.chart.json', path.join(tmp, 'outside.chart.json')]) {
+      await expect(deleteProjectFiles(dir, ['a.chart.json', bad])).rejects.toThrow('허용되지 않는')
+    }
+    expect((await fs.readdir(dir)).sort()).toEqual(['a.chart.json', 'editor.json', 'song.json'])
+    expect(existsSync(path.join(tmp, 'outside.chart.json'))).toBe(true)
   })
   it('실패해도 이미 있던 폴더는 남김', async () => {
     await fs.mkdir(path.join(tmp, 'keep'))

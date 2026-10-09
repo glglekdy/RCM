@@ -34,6 +34,8 @@ export interface RcmApi {
   openProject(dir: string): Promise<ProjectFiles>
   readAudio(path: string): Promise<ArrayBuffer>
   writeProjectFiles(dir: string, files: { name: string; text: string }[]): Promise<void>
+  /** 프로젝트 폴더의 `*.chart.json` 파일을 지운다 (다른 이름은 거부). */
+  deleteProjectFiles(dir: string, names: string[]): Promise<void>
   getRecentProjects(): Promise<RecentProject[]>
   removeRecentProject(dir: string): Promise<void>
   showInExplorer(dir: string): Promise<void>

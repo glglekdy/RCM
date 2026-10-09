@@ -3,6 +3,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { CreateProjectOptions, RecentProject } from '../shared/api'
 import {
   createProject,
+  deleteProjectFiles,
   openProjectFiles,
   readAudioFile,
   resolveProjectDir,
@@ -79,6 +80,10 @@ export function registerProjectIpc(): void {
   ipcMain.handle(
     'rcm:write-project-files',
     (_e, dir: string, files: { name: string; text: string }[]) => writeProjectFiles(dir, files)
+  )
+
+  ipcMain.handle('rcm:delete-project-files', (_e, dir: string, names: string[]) =>
+    deleteProjectFiles(dir, names)
   )
 
   ipcMain.handle('rcm:get-recent-projects', async (): Promise<RecentProject[]> => {

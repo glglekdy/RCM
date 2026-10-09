@@ -78,3 +78,12 @@ export function resolveShortcut(e: KeyInput, mode: EditorMode): Action | null {
   if (division !== undefined) return { kind: 'snap', division }
   return PLAIN_KEYS[e.code] ?? null
 }
+
+/**
+ * 입력 필드에 포커스가 있을 때의 단축키. 필드의 글자 입력·되돌리기·붙여넣기는 그대로 두고,
+ * 저장(Ctrl+S, 호출하는 쪽이 필드를 먼저 확정한다)과 Esc(정지)만 받는다.
+ */
+export function resolveTypingShortcut(e: KeyInput, mode: EditorMode): Action | null {
+  const action = resolveShortcut(e, mode)
+  return action === 'save' || action === 'stop' ? action : null
+}

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PanelRight } from 'lucide-react'
-import { TimingMap } from '@rcm/core'
+import { snapTick, TimingMap } from '@rcm/core'
 import type { ProjectFiles } from '../../../shared/api'
 import { NewProjectDialog } from '../home/NewProjectDialog'
 import { addMarker, neighborMarkerMs } from './commands/markers'
+import { copyNotes, mirrorNotes, pasteClip, removeNotes } from './commands/notes'
 import { pushTap } from './commands/tap'
 import { IconButton, TitleBar, useDialogs, useToast } from '../ui'
 import { AudioEngine } from './audio/AudioEngine'
@@ -16,6 +17,7 @@ import { loadProject } from './state/loadProject'
 import { EditorStore } from './state/store'
 import { StoreContext, useEditor, useStore } from './state/useStore'
 import { TimelineCanvas } from './timeline/TimelineCanvas'
+import { clampPlayheadMs } from './timeline/view'
 import { BottomToolbar } from './toolbar/BottomToolbar'
 import styles from './EditorScreen.module.css'
 
@@ -170,8 +172,12 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
 
   // ---- 재생 ----
   const play = useCallback(() => {
+    if (store.getState().playing) return
+    // 곡 끝에서 누르면 처음부터 다시 재생한다
+    if (store.getState().playheadMs >= engine.durationMs - 1) {
+      store.set({ playheadMs: clampPlayheadMs(tmRef.current, -Infinity, engine.durationMs) })
+    }
     const s = store.getState()
-    if (s.playing) return
     engine.setHits(hitTimesForChart(getChart(s.doc, s.activeChart), tmRef.current))
     engine.setHitVolume(s.hitsoundVolume)
     engine.play(s.playheadMs)
@@ -276,6 +282,45 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     [stop, store]
   )
 
+  // ---- 노트 편집 ----
+  const copy = (): boolean => {
+    const s = store.getState()
+    const clip = copyNotes(getChart(s.doc, s.activeChart), s.selection)
+    if (!clip) return false
+    store.set({ clipboard: clip })
+    toast(`${clip.notes.length}개 복사`)
+    return true
+  }
+
+  const removeSelected = (label: string) => {
+    const s = store.getState()
+    if (store.apply(label, removeNotes(s.doc, s.activeChart, s.selection), s.activeChart)) {
+      store.set({ selection: new Set() })
+    }
+  }
+
+  const paste = () => {
+    const s = store.getState()
+    if (!s.clipboard) return
+    const tm = tmRef.current
+    const atTick = snapTick(tm, Math.max(0, Math.round(tm.msToTick(s.playheadMs))), s.snap)
+    const pasted = pasteClip(s.doc, s.activeChart, s.clipboard, atTick)
+    if (!pasted) {
+      toast('여기에는 붙여넣을 수 없어요 (겹치거나 레인 수가 달라요)')
+      return
+    }
+    store.apply('붙여넣기', pasted.doc, s.activeChart)
+    store.set({ selection: pasted.keys })
+  }
+
+  const mirror = () => {
+    const s = store.getState()
+    const mirrored = mirrorNotes(s.doc, s.activeChart, s.selection)
+    if (mirrored && store.apply('좌우 반전', mirrored.doc, s.activeChart)) {
+      store.set({ selection: mirrored.keys })
+    }
+  }
+
   // ---- 단축키 ----
   const runAction = (action: Action) => {
     if (typeof action === 'object') {
@@ -294,10 +339,28 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
         void save()
         break
       case 'undo':
+        // 다른 난이도로 전환될 수 있으므로 재생을 먼저 멈춘다
+        stop()
         store.undo()
         break
       case 'redo':
+        stop()
         store.redo()
+        break
+      case 'copy':
+        copy()
+        break
+      case 'cut':
+        if (copy()) removeSelected('잘라내기')
+        break
+      case 'paste':
+        paste()
+        break
+      case 'delete':
+        removeSelected('노트 삭제')
+        break
+      case 'mirror':
+        mirror()
         break
       case 'tap': {
         const st = store.getState()

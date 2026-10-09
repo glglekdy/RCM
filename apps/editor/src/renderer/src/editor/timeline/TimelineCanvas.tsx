@@ -24,7 +24,7 @@ export function TimelineCanvas({ tm, durationMs }: TimelineCanvasProps) {
   const drawRef = useRef<() => void>(() => {})
   const tool = useEditor((s) => s.tool)
 
-  // 그리기·지우기 도구. 좌표계는 입력이 올 때의 화면 크기·상태로 계산한다
+  // 그리기·지우기·선택 도구. 좌표계는 입력이 올 때의 화면 크기·상태로 계산한다
   const [tools] = useState(() =>
     createToolController(store, (): ToolGeometry => {
       const s = store.getState()
@@ -50,7 +50,7 @@ export function TimelineCanvas({ tm, durationMs }: TimelineCanvasProps) {
       const dpr = window.devicePixelRatio || 1
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, width, height)
-      const { preview, hiddenKeys } = tools.overlay()
+      const { preview, previewInvalid, hiddenKeys, selectRect } = tools.overlay()
       drawTimeline(ctx, {
         view: { playheadMs: s.playheadMs, pxPerMs: s.pxPerMs, height },
         layout: layoutTimeline(width, chart.lanes),
@@ -62,7 +62,9 @@ export function TimelineCanvas({ tm, durationMs }: TimelineCanvasProps) {
         timing: s.doc.song.timing,
         durationMs,
         preview,
-        hiddenKeys
+        previewInvalid,
+        hiddenKeys,
+        selectRect
       })
     }
     drawRef.current = draw
@@ -128,7 +130,12 @@ export function TimelineCanvas({ tm, durationMs }: TimelineCanvasProps) {
   const forward =
     (handler: (p: ToolPointer) => void) => (e: React.PointerEvent | React.MouseEvent) => {
       const rect = e.currentTarget.getBoundingClientRect()
-      handler({ x: e.clientX - rect.left, y: e.clientY - rect.top, button: e.button })
+      handler({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        button: e.button,
+        shift: e.shiftKey
+      })
       drawRef.current()
     }
 

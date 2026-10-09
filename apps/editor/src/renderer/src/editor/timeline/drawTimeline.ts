@@ -7,7 +7,7 @@ import {
   type TimingMap,
   type TimingPoint
 } from '@rcm/core'
-import { NOTE_HEIGHT } from './hitTest'
+import { NOTE_HEIGHT, type SelectRect } from './hitTest'
 import { msToY, yToMs, type TimelineLayout, type TimelineView } from './view'
 
 export interface DrawParams {
@@ -20,10 +20,13 @@ export interface DrawParams {
   markers: Marker[]
   timing: TimingPoint[]
   durationMs: number
-  preview?: Note | null
-  /** 지우기 드래그 중이라 숨기는 노트 키 */
+  /** 그리는 중이거나 옮기는 중인 노트 */
+  preview?: Note[]
+  /** preview를 놓을 수 없는 자리면 경고색으로 그린다 */
+  previewInvalid?: boolean
+  /** 지우거나 옮기는 중이라 숨기는 노트 키 */
   hiddenKeys?: ReadonlySet<string>
-  selectRect?: { lane0: number; lane1: number; tick0: number; tick1: number } | null
+  selectRect?: SelectRect | null
 }
 
 /** 스펙 6.3절 타임라인 색 */
@@ -38,7 +41,10 @@ const COLORS = {
   bpmChip: 'rgba(245, 158, 11, 0.16)',
   marker: '#22d3ee',
   playhead: '#8b5cf6',
-  selected: '#8b5cf6'
+  selected: '#8b5cf6',
+  invalid: '#ef4444',
+  selectFill: 'rgba(139, 92, 246, 0.18)',
+  selectBorder: '#8b5cf6'
 }
 
 const NOTE_RADIUS = 3
@@ -141,9 +147,24 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
     if (note.tick > toTick || endTick < fromTick) continue
     const key = noteKey(note)
     if (p.hiddenKeys?.has(key)) continue
-    drawNote(ctx, p, note, 1, p.selection.has(key))
+    drawNote(ctx, p, note, COLORS.note, 1, p.selection.has(key))
   }
-  if (p.preview) drawNote(ctx, p, p.preview, PREVIEW_ALPHA, false)
+  const previewColor = p.previewInvalid ? COLORS.invalid : COLORS.note
+  for (const note of p.preview ?? []) drawNote(ctx, p, note, previewColor, PREVIEW_ALPHA, false)
+
+  // 사각 선택 범위: 걸친 레인 전체 폭
+  if (p.selectRect) {
+    const r = p.selectRect
+    const x0 = left + r.lane0 * layout.laneWidth
+    const x1 = left + (r.lane1 + 1) * layout.laneWidth
+    const yTop = msToY(view, tm.tickToMs(r.tick1))
+    const yBottom = msToY(view, tm.tickToMs(r.tick0))
+    ctx.fillStyle = COLORS.selectFill
+    ctx.fillRect(x0, yTop, x1 - x0, yBottom - yTop)
+    ctx.strokeStyle = COLORS.selectBorder
+    ctx.lineWidth = 1
+    ctx.strokeRect(crisp(x0), crisp(yTop), Math.round(x1 - x0) - 1, Math.round(yBottom - yTop))
+  }
 
   // 재생선
   const py = Math.round(msToY(view, view.playheadMs))
@@ -159,13 +180,14 @@ function drawNote(
   ctx: CanvasRenderingContext2D,
   p: DrawParams,
   note: Note,
+  color: string,
   alpha: number,
   selected: boolean
 ): void {
   const { view, layout, tm } = p
   const x = layout.lanesX + note.lane * layout.laneWidth
   const y = msToY(view, tm.tickToMs(note.tick))
-  ctx.fillStyle = COLORS.note
+  ctx.fillStyle = color
   ctx.strokeStyle = COLORS.selected
   ctx.lineWidth = SELECTED_BORDER
   ctx.globalAlpha = alpha

@@ -76,3 +76,11 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* 세그먼트 컨트롤(34px)이 행 높이(32px)를 살짝 넘어 모달 본문에 스크롤바가 생기지 않게 */
+.addForm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 0;
+}

@@ -1,0 +1,16 @@
+.wrap {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+}

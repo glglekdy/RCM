@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { commitDraft, editDraft, initDraft, syncDraft } from './fieldDraft'
+import { isSubmitEnter } from './keys'
 import styles from './TextField.module.css'
 
 interface TextFieldProps {
@@ -37,7 +38,7 @@ export function TextField({ value, onChange, onCommit, placeholder }: TextFieldP
         onChange?.(e.target.value)
       }}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') e.currentTarget.blur()
+        if (isSubmitEnter(e)) e.currentTarget.blur()
       }}
     />
   )

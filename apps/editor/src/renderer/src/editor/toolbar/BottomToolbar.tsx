@@ -6,17 +6,32 @@ import {
   Eraser,
   Folder,
   Gamepad2,
+  Minus,
   Pause,
   Pencil,
   Play,
   Plus,
   SquareDashedMousePointer
 } from 'lucide-react'
-import { Button, IconButton, Menu, Modal, Row, SegmentedControl, TextField } from '../../ui'
+import {
+  Button,
+  IconButton,
+  isSubmitEnter,
+  Menu,
+  Modal,
+  Row,
+  SegmentedControl,
+  TextField
+} from '../../ui'
 import { addChart } from '../commands/charts'
+import { DEFAULT_PX_PER_MS } from '../minimap/geometry'
 import { getChart } from '../state/doc'
 import { useEditor, useStore } from '../state/useStore'
+import { clampZoom } from '../timeline/view'
 import styles from './BottomToolbar.module.css'
+
+/** 확대 컨트롤 한 번에 바뀌는 배율 */
+const ZOOM_STEP = 1.25
 
 interface BottomToolbarProps {
   onSelectChart: (file: string) => void
@@ -41,6 +56,7 @@ export function BottomToolbar({
   const tool = useEditor((s) => s.tool)
   const snap = useEditor((s) => s.snap)
   const playing = useEditor((s) => s.playing)
+  const pxPerMs = useEditor((s) => s.pxPerMs)
   const [adding, setAdding] = useState(false)
 
   return (
@@ -95,6 +111,19 @@ export function BottomToolbar({
               label: `1/${d}`,
               onSelect: () => store.set({ snap: d })
             }))}
+          />
+        </div>
+        <div className={styles.group}>
+          <IconButton
+            icon={Minus}
+            label="축소"
+            onClick={() => store.set({ pxPerMs: clampZoom(pxPerMs / ZOOM_STEP) })}
+          />
+          <span className={styles.zoom}>{Math.round((pxPerMs / DEFAULT_PX_PER_MS) * 100)}%</span>
+          <IconButton
+            icon={Plus}
+            label="확대"
+            onClick={() => store.set({ pxPerMs: clampZoom(pxPerMs * ZOOM_STEP) })}
           />
         </div>
       </div>
@@ -185,7 +214,7 @@ function AddChartDialog({ onClose, onAdded }: AddChartDialogProps) {
         className={styles.addForm}
         onKeyDown={(e) => {
           // 이름 칸에서 Enter = 추가 (세그먼트 버튼의 Enter는 그 버튼을 누르는 것)
-          if (e.key === 'Enter' && e.target instanceof HTMLInputElement) add()
+          if (isSubmitEnter(e) && e.target instanceof HTMLInputElement) add()
         }}
       >
         <Row label="이름">

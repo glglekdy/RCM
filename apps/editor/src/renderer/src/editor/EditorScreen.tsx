@@ -11,6 +11,7 @@ import { AudioEngine } from './audio/AudioEngine'
 import { hitTimesForChart } from './audio/schedule'
 import { computePeaks, type WaveformPeaks } from './audio/waveform'
 import { resolveShortcut, type Action } from './input/shortcuts'
+import { Minimap } from './minimap/Minimap'
 import { RightPanel } from './panels/RightPanel'
 import { getChart, type ProjectDoc } from './state/doc'
 import { isDirty } from './state/dirty'
@@ -411,6 +412,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
             </div>
           )}
         </div>
+        <Minimap tm={tm} durationMs={engine.durationMs} />
         {panelOpen && <RightPanel />}
       </div>
       <BottomToolbar

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { commitDraft, editDraft, initDraft, parseNumber, syncDraft } from './fieldDraft'
+import { isSubmitEnter } from './keys'
 import styles from './NumberField.module.css'
 
 interface NumberFieldProps {
@@ -64,7 +65,7 @@ export function NumberField({ value, onChange, onCommit, prefix, suffix, step = 
           } else if (e.key === 'ArrowDown') {
             e.preventDefault()
             bump(-1)
-          } else if (e.key === 'Enter') {
+          } else if (isSubmitEnter(e)) {
             e.currentTarget.blur()
           }
         }}

@@ -84,3 +84,11 @@
   gap: 4px;
   padding: 2px 0;
 }
+
+.zoom {
+  min-width: 44px;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}

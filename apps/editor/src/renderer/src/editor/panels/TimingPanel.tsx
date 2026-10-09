@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Trash2 } from 'lucide-react'
 import { snapTick, TimingMap } from '@rcm/core'
-import { Button, Card, IconButton, NumberField, Row } from '../../ui'
+import { Button, Card, IconButton, NumberField, Row, useToast } from '../../ui'
 import {
   addTimingPoint,
   measureBeatAt,
@@ -13,6 +13,7 @@ import styles from './Panel.module.css'
 
 export function TimingPanel() {
   const store = useStore()
+  const toast = useToast()
   const song = useEditor((s) => s.doc.song)
   const tm = useMemo(() => new TimingMap(song.timing, song.offsetMs), [song.timing, song.offsetMs])
 
@@ -22,7 +23,10 @@ export function TimingPanel() {
     const tick = Math.round(snapTick(map, Math.max(0, map.msToTick(playheadMs)), snap))
     const bpm = map.segmentAt(tick).bpm
     const existing = doc.song.timing.find((t) => t.tick === tick)
-    if (existing && existing.bpm === bpm) return // 같은 값으로 바꾸는 건 기록하지 않는다
+    if (existing) {
+      toast('이미 변경 지점이 있어요')
+      return
+    }
     store.apply('BPM 추가', addTimingPoint(doc, tick, bpm))
   }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { commitDraft, editDraft, initDraft, parseNumber, syncDraft } from './fieldDraft'
 import styles from './NumberField.module.css'
 
 interface NumberFieldProps {
@@ -15,29 +16,28 @@ interface NumberFieldProps {
 }
 
 export function NumberField({ value, onChange, onCommit, prefix, suffix, step = 1, min, max }: NumberFieldProps) {
-  const [draft, setDraft] = useState(String(value))
-  const [focused, setFocused] = useState(false)
+  const [draft, setDraft] = useState(() => initDraft(String(value)))
 
+  // 바깥 값이 바뀌면(Undo 등) 사용자가 고치는 중이 아닐 때만 새 값을 보여준다
   useEffect(() => {
-    if (!focused) setDraft(String(value))
-  }, [value, focused])
+    setDraft((d) => syncDraft(d, String(value)))
+  }, [value])
 
-  const inRange = (n: number) =>
-    Number.isFinite(n) && (min === undefined || n >= min) && (max === undefined || n <= max)
+  const parse = (text: string) => parseNumber(text, min, max)
 
   const handleChange = (text: string) => {
-    setDraft(text)
-    const n = text.trim() === '' ? NaN : Number(text)
-    if (inRange(n)) onChange?.(n)
+    setDraft(editDraft(text))
+    const n = parse(text)
+    if (n !== null) onChange?.(n)
   }
 
   const bump = (dir: 1 | -1) => {
-    const n = Number(draft)
+    const n = Number(draft.text)
     const base = Number.isFinite(n) ? n : value
     // 부동소수점 오차 제거
     const next = Number((base + dir * step).toFixed(10))
-    if (inRange(next)) {
-      setDraft(String(next))
+    if (parse(String(next)) !== null) {
+      setDraft(initDraft(String(next)))
       onChange?.(next)
       onCommit?.(next)
     }
@@ -50,13 +50,11 @@ export function NumberField({ value, onChange, onCommit, prefix, suffix, step = 
         className={styles.input}
         type="text"
         inputMode="decimal"
-        value={draft}
-        onFocus={() => setFocused(true)}
+        value={draft.text}
         onBlur={() => {
-          setFocused(false)
-          const n = draft.trim() === '' ? NaN : Number(draft)
-          if (inRange(n) && n !== value) onCommit?.(n)
-          setDraft(String(value)) // 잘못된 값이면 원래 값으로 복원
+          const { next, commit } = commitDraft(draft, value, parse, String)
+          setDraft(next) // 잘못된 값이면 원래 값으로 복원
+          if (commit !== null) onCommit?.(commit)
         }}
         onChange={(e) => handleChange(e.target.value)}
         onKeyDown={(e) => {

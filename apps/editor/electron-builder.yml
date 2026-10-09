@@ -1,0 +1,13 @@
+appId: com.rcm.chart-editor
+productName: RCM Chart Editor
+directories:
+  output: dist
+files:
+  - out/**
+win:
+  target: nsis
+  # 코드 서명 없이 빌드한다
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "npm -w @rcm/editor run dev",
     "test": "vitest run",
-    "typecheck": "tsc -p packages/core && tsc -p packages/playfield && npm -w @rcm/editor run typecheck"
+    "typecheck": "tsc -p packages/core && tsc -p packages/playfield && npm -w @rcm/editor run typecheck",
+    "dist": "npm -w @rcm/editor run dist"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

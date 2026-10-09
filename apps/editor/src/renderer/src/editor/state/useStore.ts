@@ -11,5 +11,5 @@ export function useStore(): EditorStore {
 
 export function useEditor<T>(selector: (s: EditorState) => T): T {
   const store = useStore()
-  return useSyncExternalStore(store.subscribe.bind(store), () => selector(store.getState()))
+  return useSyncExternalStore(store.subscribe, () => selector(store.getState()))
 }

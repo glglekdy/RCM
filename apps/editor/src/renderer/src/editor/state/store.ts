@@ -54,7 +54,7 @@ export class EditorStore {
     return this.state
   }
 
-  subscribe(fn: () => void): () => void {
+  readonly subscribe = (fn: () => void): (() => void) => {
     this.listeners.add(fn)
     return () => {
       this.listeners.delete(fn)
@@ -104,11 +104,14 @@ export class EditorStore {
   }
 
   private restore(doc: ProjectDoc, chartFile?: string): void {
-    this.set({
-      doc,
-      selection: new Set(),
-      ...(chartFile ? { activeChart: chartFile } : {})
-    })
+    const has = (file: string | undefined): file is string =>
+      file !== undefined && doc.charts.some((c) => c.file === file)
+    const activeChart = has(chartFile)
+      ? chartFile
+      : has(this.state.activeChart)
+        ? this.state.activeChart
+        : doc.charts[0].file
+    this.set({ doc, selection: new Set(), activeChart })
   }
 
   private emit(): void {

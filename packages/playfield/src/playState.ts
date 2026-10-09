@@ -1,4 +1,4 @@
-import type { Chart, TimingMap } from '@rcm/core';
+import { trackIndex, type Chart, type TimingMap } from '@rcm/core';
 import { HOLD_RELEASE_TOLERANCE, JUDGE_WINDOWS, judgeDelta, type JudgeEvent, type Judgement } from './judge';
 
 /** 플레이 중인 노트 하나 (시각은 ms). */
@@ -25,10 +25,12 @@ export class PlayState {
 
   constructor(chart: Chart, tm: TimingMap, fromMs: number) {
     for (const n of chart.notes) {
+      const lane = trackIndex(chart.tracks, n.track);
+      if (lane < 0) continue;
       const startMs = tm.tickToMs(n.tick);
       if (startMs < fromMs) continue;
       this.playNotes.push({
-        lane: n.lane,
+        lane,
         startMs,
         endMs: n.type === 'hold' ? tm.tickToMs(n.endTick) : undefined,
         headJudged: false,

@@ -1,6 +1,9 @@
 /** 플레이 화면 배치와 시간↔좌표 계산 (그리기와 분리한 순수 함수). */
 
-export const LANE_WIDTH = 64;
+import type { Track, TrackWidth } from '@rcm/core';
+
+export const TRACK_BASE_WIDTH = 64;
+export const TRACK_WIDTH_FACTOR: Record<TrackWidth, number> = { narrow: 0.67, normal: 1, wide: 1.67 };
 /** 판정선은 화면 아래에서 이만큼(px) 위 */
 export const JUDGE_LINE_FROM_BOTTOM = 120;
 /** 마지막 판정 문구를 보여 주는 시간(ms) */
@@ -17,9 +20,19 @@ export function pxPerMsForSpeed(speed: number): number {
   return speed * 0.1;
 }
 
-/** 레인 묶음의 왼쪽 x (가운데 정렬). */
-export function lanesLeft(width: number, lanes: number): number {
-  return Math.floor((width - lanes * LANE_WIDTH) / 2);
+export function trackPixelWidth(w?: TrackWidth): number {
+  return Math.round(TRACK_BASE_WIDTH * TRACK_WIDTH_FACTOR[w ?? 'normal']);
+}
+
+/** 트랙별 열의 x와 폭. 전체 폭 합계를 가운데 정렬한다. */
+export function trackColumns(canvasWidth: number, tracks: readonly Track[]): { x: number; width: number }[] {
+  const widths = tracks.map(t => trackPixelWidth(t.width));
+  let x = Math.floor((canvasWidth - widths.reduce((a, b) => a + b, 0)) / 2);
+  return widths.map(width => {
+    const col = { x, width };
+    x += width;
+    return col;
+  });
 }
 
 /** 시각 noteMs의 노트가 지금(nowMs) 있는 y. 판정선(judgeY) 위가 미래. */

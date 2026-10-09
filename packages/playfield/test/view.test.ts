@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampSpeed, firstAtOrAfter, lanesLeft, noteY, pxPerMsForSpeed, visibleRange } from '../src';
+import { clampSpeed, firstAtOrAfter, noteY, pxPerMsForSpeed, trackColumns, visibleRange } from '../src';
 
 describe('playfield view', () => {
   it('속도 → px/ms = speed × 0.1', () => {
@@ -11,9 +11,11 @@ describe('playfield view', () => {
     expect(clampSpeed(10.5)).toBe(10);
     expect(clampSpeed(5.5)).toBe(5.5);
   });
-  it('레인 묶음(64px × 레인 수)을 가운데 정렬', () => {
-    expect(lanesLeft(1000, 4)).toBe(372);
-    expect(lanesLeft(1001, 7)).toBe(276);
+  it('트랙 열: 폭 합계 가운데 정렬', () => {
+    const cols = trackColumns(400, [{ id: 'S', width: 'wide' }, { id: 'N' }, { id: 'T', width: 'narrow' }]);
+    expect(cols.map(c => c.width)).toEqual([107, 64, 43]);
+    expect(cols[0].x).toBe(Math.floor((400 - 214) / 2));
+    expect(cols[1].x).toBe(cols[0].x + 107);
   });
   it('노트 y: 판정선에서 남은 시간 × px/ms 만큼 위', () => {
     expect(noteY(1000, 800, 500, 0.5)).toBe(400);

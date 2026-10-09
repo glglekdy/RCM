@@ -1,14 +1,13 @@
-import type { Chart, TimingMap } from '@rcm/core';
+import { DEFAULT_NOTE_COLOR, type Chart, type TimingMap } from '@rcm/core';
 import { HOLD_RELEASE_TOLERANCE, type JudgeEvent, type Judgement } from './judge';
-import { LANE_KEYS, laneForCode, laneForKey, laneKeyLabel } from './keymap';
+import { keyLabel, trackForCode, trackForKey } from './keymap';
 import { PlayState } from './playState';
 import {
   clampSpeed,
   firstAtOrAfter,
   JUDGE_LINE_FROM_BOTTOM,
   JUDGEMENT_SHOW_MS,
-  LANE_WIDTH,
-  lanesLeft,
+  trackColumns,
   noteY,
   pxPerMsForSpeed,
   visibleRange,
@@ -57,6 +56,8 @@ export interface PlayfieldOptions {
   fromMs: number;
   /** 노트 속도 1~10 (기본 5) */
   speed: number;
+  /** 트랙 id → 키 code (없으면 null). 키 없는 트랙은 칠 수 없다. */
+  keymap: ReadonlyMap<string, string | null>;
   colors?: Partial<PlayfieldColors>;
 }
 
@@ -87,6 +88,7 @@ export class Playfield {
   private readonly colors: PlayfieldColors;
   private readonly lanes: number;
   private readonly labels: string[];
+  private readonly noteColors: string[];
   /** 가장 긴 롱노트 길이(ms). 머리가 화면 아래로 지나간 롱노트도 그리기 위해 탐색 시작을 이만큼 당긴다. */
   private readonly maxHoldMs: number;
   private readonly pressed: boolean[];
@@ -103,9 +105,12 @@ export class Playfield {
     if (!ctx) throw new Error('2D canvas context unavailable');
     this.ctx = ctx;
     this.colors = { ...DEFAULT_PLAYFIELD_COLORS, ...opts.colors };
-    this.lanes = opts.chart.lanes;
-    const keys = (LANE_KEYS as Record<number, readonly string[] | undefined>)[this.lanes] ?? [];
-    this.labels = keys.map(laneKeyLabel);
+    this.lanes = opts.chart.tracks.length;
+    this.labels = opts.chart.tracks.map(t => {
+      const code = opts.keymap.get(t.id);
+      return code ? keyLabel(code) : '-';
+    });
+    this.noteColors = opts.chart.tracks.map(t => t.color ?? DEFAULT_NOTE_COLOR);
     this.state = new PlayState(opts.chart, opts.tm, opts.fromMs);
     this.maxHoldMs = this.state.notes.reduce(
       (max, n) => (n.endMs === undefined ? max : Math.max(max, n.endMs - n.startMs)),
@@ -139,9 +144,9 @@ export class Playfield {
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
-    const lane = laneForKey(this.lanes, e);
-    if (lane === null) return;
-    // 5키·7키의 Space가 포커스된 버튼을 누르지 않게 막는다
+    const lane = this.laneOf(trackForKey(this.opts.keymap, e));
+    if (lane < 0) return;
+    // Space 키 트랙이 포커스된 버튼을 누르지 않게 막는다
     e.preventDefault();
     if (e.repeat || this.pressed[lane]) return;
     this.pressed[lane] = true;
@@ -149,11 +154,15 @@ export class Playfield {
   };
 
   private readonly onKeyUp = (e: KeyboardEvent): void => {
-    const lane = laneForCode(this.lanes, e.code);
-    if (lane === null || !this.pressed[lane]) return;
+    const lane = this.laneOf(trackForCode(this.opts.keymap, e.code));
+    if (lane < 0 || !this.pressed[lane]) return;
     e.preventDefault();
     this.release(lane);
   };
+
+  private laneOf(id: string | null): number {
+    return id === null ? -1 : this.opts.chart.tracks.findIndex(t => t.id === id);
+  }
 
   /** 창이 포커스를 잃으면 keyup이 오지 않으므로 눌린 레인을 모두 뗀다. */
   private readonly onBlur = (): void => {
@@ -194,8 +203,10 @@ export class Playfield {
     ctx.fillRect(0, 0, width, height);
     if (width === 0 || height === 0) return;
 
-    const left = lanesLeft(width, this.lanes);
-    const fieldWidth = this.lanes * LANE_WIDTH;
+    const cols = trackColumns(width, this.opts.chart.tracks);
+    const last = cols[cols.length - 1];
+    const left = cols[0].x;
+    const fieldWidth = last.x + last.width - left;
     const judgeY = height - JUDGE_LINE_FROM_BOTTOM;
     const centerX = left + fieldWidth / 2;
 
@@ -203,12 +214,13 @@ export class Playfield {
     ctx.fillRect(left, 0, fieldWidth, height);
     ctx.fillStyle = colors.pressedLane;
     for (let lane = 0; lane < this.lanes; lane++) {
-      if (this.pressed[lane]) ctx.fillRect(left + lane * LANE_WIDTH, 0, LANE_WIDTH, height);
+      if (this.pressed[lane]) ctx.fillRect(cols[lane].x, 0, cols[lane].width, height);
     }
     ctx.fillStyle = colors.laneLine;
-    for (let i = 0; i <= this.lanes; i++) ctx.fillRect(left + i * LANE_WIDTH, 0, 1, height);
+    for (const c of cols) ctx.fillRect(c.x, 0, 1, height);
+    ctx.fillRect(last.x + last.width, 0, 1, height);
 
-    this.drawNotes(now, left, judgeY, height);
+    this.drawNotes(now, cols, judgeY, height);
 
     ctx.fillStyle = colors.judgeLine;
     ctx.fillRect(left, judgeY - 1, fieldWidth, 3);
@@ -218,7 +230,7 @@ export class Playfield {
     ctx.font = `600 14px ${FONT}`;
     for (let lane = 0; lane < this.lanes; lane++) {
       ctx.fillStyle = this.pressed[lane] ? colors.keyLabelPressed : colors.keyLabel;
-      ctx.fillText(this.labels[lane] ?? '', left + lane * LANE_WIDTH + LANE_WIDTH / 2, judgeY + 48);
+      ctx.fillText(this.labels[lane], cols[lane].x + cols[lane].width / 2, judgeY + 48);
     }
 
     if (this.state.combo > 0) {
@@ -236,21 +248,26 @@ export class Playfield {
   }
 
   /** 화면에 보이는 시간 범위의 노트만 그린다. 판정된 노트는 감추고, 누르는 중인 롱노트는 머리를 판정선에 붙인다. */
-  private drawNotes(now: number, left: number, judgeY: number, height: number): void {
+  private drawNotes(
+    now: number,
+    cols: readonly { x: number; width: number }[],
+    judgeY: number,
+    height: number,
+  ): void {
     const { ctx } = this;
     const pxPerMs = pxPerMsForSpeed(this.speed);
     const pad = NOTE_HEIGHT / pxPerMs;
     const { fromMs, toMs } = visibleRange(now, height, judgeY, pxPerMs);
     const notes = this.state.notes;
     const y = (ms: number) => noteY(ms, now, judgeY, pxPerMs);
-    ctx.fillStyle = this.colors.note;
     for (let i = firstAtOrAfter(notes, fromMs - pad - this.maxHoldMs); i < notes.length; i++) {
       const n = notes[i];
       if (n.startMs > toMs + pad) break;
       if ((n.endMs ?? n.startMs) < fromMs - pad) continue;
-      const x = left + n.lane * LANE_WIDTH;
+      const { x, width: w } = cols[n.lane];
+      ctx.fillStyle = this.noteColors[n.lane];
       if (n.endMs === undefined) {
-        if (!n.headJudged) this.drawHead(x, y(n.startMs));
+        if (!n.headJudged) this.drawHead(x, w, y(n.startMs));
         continue;
       }
       const held = this.state.heldNote(n.lane) === i;
@@ -265,20 +282,20 @@ export class Playfield {
       const top = y(n.endMs);
       const bottom = y(headMs);
       ctx.globalAlpha = alpha * HOLD_BODY_ALPHA;
-      ctx.fillRect(x + HOLD_BODY_INSET, top, LANE_WIDTH - HOLD_BODY_INSET * 2, bottom - top);
+      ctx.fillRect(x + HOLD_BODY_INSET, top, w - HOLD_BODY_INSET * 2, bottom - top);
       ctx.globalAlpha = alpha;
-      this.drawHead(x, bottom);
+      this.drawHead(x, w, bottom);
       ctx.globalAlpha = 1;
     }
   }
 
-  private drawHead(laneX: number, y: number): void {
+  private drawHead(laneX: number, laneWidth: number, y: number): void {
     const { ctx } = this;
     ctx.beginPath();
     ctx.roundRect(
       laneX + NOTE_INSET,
       y - NOTE_HEIGHT / 2,
-      LANE_WIDTH - NOTE_INSET * 2,
+      laneWidth - NOTE_INSET * 2,
       NOTE_HEIGHT,
       NOTE_RADIUS,
     );

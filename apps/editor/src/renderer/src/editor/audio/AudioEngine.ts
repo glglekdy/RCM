@@ -1,21 +1,24 @@
-﻿import { createClickBuffer } from './hitsound'
+import { createClickBuffer } from './hitsound'
 import { collectDueHits, playbackStartParams } from './schedule'
 
 const TICK_INTERVAL_MS = 25
 const LOOK_AHEAD_MS = 100
-/** ?대? ?대쭔??ms) ?대궡濡?吏??hit??利됱떆 ?ъ깮?섍퀬, ???ㅻ옒??寃껋? 嫄대꼫?대떎. */
+/** 이미 이만큼(ms) 이내로 지난 hit는 즉시 재생하고, 더 오래된 것은 건너뛴다. */
 const LATE_GRACE_MS = 30
 
-/** AudioContext.currentTime???먮뵒???꾩껜???⑥씪 ?쒓퀎濡??곕뒗 ?ъ깮 ?붿쭊. */
+/** AudioContext.currentTime을 에디터 전체의 단일 시계로 쓰는 재생 엔진. */
 export class AudioEngine {
   readonly ctx: AudioContext
+
   private duration = 0
   private isPlaying = false
+  private disposed = false
   private buffer: AudioBuffer | null = null
   private readonly clickBuffer: AudioBuffer
   private readonly hitGain: GainNode
   private music: AudioBufferSourceNode | null = null
-  private hitSources = new Set<AudioBufferSourceNode>()
+  /** 예약된 효과음 소스와 시작 예정 ctx 시각 */
+  private hitSources = new Map<AudioBufferSourceNode, number>()
   private timer: ReturnType<typeof setInterval> | null = null
   private hits: number[] = []
   private cursor = 0
@@ -47,7 +50,7 @@ export class AudioEngine {
   }
 
   play(fromMs: number): void {
-    if (!this.buffer || fromMs >= this.duration) return
+    if (this.disposed || !this.buffer || fromMs >= this.duration) return
     this.stop()
     if (this.ctx.state === 'suspended') void this.ctx.resume()
 
@@ -73,7 +76,7 @@ export class AudioEngine {
     this.timer = setInterval(() => this.tick(), TICK_INTERVAL_MS)
   }
 
-  /** 硫덉텣 ?꾩튂(ms)瑜??뚮젮以?? */
+  /** 멈춘 위치(ms)를 돌려준다. */
   stop(): number {
     if (!this.isPlaying) return this.lastPositionMs
     const pos = this.positionMs()
@@ -84,7 +87,7 @@ export class AudioEngine {
       try {
         music.stop()
       } catch {
-        // ?대? ?앸궃 ?뚯뒪
+        // 이미 끝난 소스
       }
     }
     this.finish(pos)
@@ -100,10 +103,11 @@ export class AudioEngine {
   setHits(hits: number[]): void {
     this.hits = hits
     if (!this.isPlaying) return
-    this.cancelHitSources()
-    const from = this.positionMs() - LATE_GRACE_MS
-    this.cursor = this.hits.findIndex((h) => h >= from)
-    if (this.cursor < 0) this.cursor = this.hits.length
+    // 아직 울리기 전인 예약만 취소하고, 이미 울리는 소리는 그대로 둔다.
+    this.cancelHitSources(this.ctx.currentTime)
+    const from = this.positionMs()
+    const idx = this.hits.findIndex((h) => h >= from)
+    this.cursor = idx < 0 ? this.hits.length : idx
   }
 
   setHitVolume(v: number): void {
@@ -115,12 +119,14 @@ export class AudioEngine {
   }
 
   dispose(): void {
+    if (this.disposed) return
     this.stop()
+    this.disposed = true
     this.endedCb = null
-    void this.ctx.close()
+    if (this.ctx.state !== 'closed') void this.ctx.close()
   }
 
-  /** ?ъ깮 ?곹깭瑜??뺣━?쒕떎 (?뚯븙 ?뚯뒪???몄텧 ?꾩뿉 泥섎━). */
+  /** 재생 상태를 정리한다 (음악 소스는 호출 전에 처리). */
   private finish(positionMs: number): void {
     this.lastPositionMs = positionMs
     this.isPlaying = false
@@ -131,16 +137,18 @@ export class AudioEngine {
     this.cancelHitSources()
   }
 
-  private cancelHitSources(): void {
-    for (const s of this.hitSources) {
+  /** 시작 예정 시각이 `after`보다 뒤인 효과음 소스를 취소한다. 생략하면 전부. */
+  private cancelHitSources(after = -Infinity): void {
+    for (const [s, when] of this.hitSources) {
+      if (when <= after) continue
       s.onended = null
       try {
         s.stop()
       } catch {
-        // ?대? ?앸궃 ?뚯뒪
+        // 이미 끝난 소스
       }
+      this.hitSources.delete(s)
     }
-    this.hitSources.clear()
   }
 
   private tick(): void {
@@ -162,7 +170,7 @@ export class AudioEngine {
       s.connect(this.hitGain)
       s.onended = () => this.hitSources.delete(s)
       s.start(when)
-      this.hitSources.add(s)
+      this.hitSources.set(s, when)
     }
   }
 }

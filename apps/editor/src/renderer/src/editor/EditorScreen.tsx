@@ -3,6 +3,7 @@ import { PanelRight } from 'lucide-react'
 import { TimingMap } from '@rcm/core'
 import type { ProjectFiles } from '../../../shared/api'
 import { NewProjectDialog } from '../home/NewProjectDialog'
+import { pushTap } from './commands/tap'
 import { IconButton, TitleBar, useDialogs, useToast } from '../ui'
 import { AudioEngine } from './audio/AudioEngine'
 import { hitTimesForChart } from './audio/schedule'
@@ -297,6 +298,12 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       case 'redo':
         store.redo()
         break
+      case 'tap': {
+        const st = store.getState()
+        if (!st.playing) break
+        store.set({ taps: pushTap(st.taps, st.playheadMs), panelOpen: true, panelTab: 'timing' })
+        break
+      }
       default:
         // 나머지는 이후 Task에서 연결한다
         break

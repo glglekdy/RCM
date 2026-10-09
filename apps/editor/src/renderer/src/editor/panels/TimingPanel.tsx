@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Trash2 } from 'lucide-react'
-import { snapTick, TimingMap } from '@rcm/core'
+import { estimateTempo, snapTick, TimingMap } from '@rcm/core'
 import { Button, Card, IconButton, NumberField, Row, useToast } from '../../ui'
 import {
   addTimingPoint,
@@ -8,6 +8,7 @@ import {
   removeTimingPoint,
   updateTimingPoint
 } from '../commands/timing'
+import { applyTapFromHere, applyTapWhole } from '../commands/tap'
 import { useEditor, useStore } from '../state/useStore'
 import styles from './Panel.module.css'
 
@@ -15,6 +16,8 @@ export function TimingPanel() {
   const store = useStore()
   const toast = useToast()
   const song = useEditor((s) => s.doc.song)
+  const taps = useEditor((s) => s.taps)
+  const est = useMemo(() => estimateTempo(taps), [taps])
   const tm = useMemo(() => new TimingMap(song.timing, song.offsetMs), [song.timing, song.offsetMs])
 
   const addAtPlayhead = () => {
@@ -28,6 +31,15 @@ export function TimingPanel() {
       return
     }
     store.apply('BPM 추가', addTimingPoint(doc, tick, bpm))
+  }
+
+  const applyTap = (whole: boolean) => {
+    if (!est) return
+    const { doc } = store.getState()
+    const next = whole ? applyTapWhole(doc, est) : applyTapFromHere(doc, est, est.firstTapMs)
+    store.apply('탭 BPM 적용', next)
+    store.set({ taps: [] })
+    toast('탭 BPM을 적용했어요')
   }
 
   return (
@@ -79,6 +91,39 @@ export function TimingPanel() {
             </Card>
           )
         })}
+      <Card title="탭 BPM">
+        {est ? (
+          <>
+            <Row label="BPM">
+              <span className={styles.position}>{est.bpm.toFixed(2)}</span>
+            </Row>
+            <Row label="첫 박">
+              <span className={styles.position}>{Math.round(est.firstBeatMs)}ms</span>
+            </Row>
+            <Row label="편차">
+              <span className={styles.position}>{Math.round(est.deviationMs)}ms</span>
+            </Row>
+            <Row label="탭">
+              <span className={styles.position}>{est.count}회</span>
+            </Row>
+            <div className={styles.buttons}>
+              <Button variant="primary" onClick={() => applyTap(true)}>
+                곡 전체에 적용
+              </Button>
+              <Button onClick={() => applyTap(false)}>이 지점부터 적용</Button>
+            </div>
+          </>
+        ) : (
+          <p className={styles.hint}>
+            재생 중 T를 박자에 맞춰 4번 이상 눌러 주세요 ({taps.length}회)
+          </p>
+        )}
+        <div className={styles.buttons}>
+          <Button variant="ghost" disabled={taps.length === 0} onClick={() => store.set({ taps: [] })}>
+            초기화
+          </Button>
+        </div>
+      </Card>
       <Card>
         <Button onClick={addAtPlayhead}>현재 위치에 추가</Button>
       </Card>

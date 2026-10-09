@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { TimingMap } from '@rcm/core'
 import { d0, withNotes } from '../fixtures'
-import { mergeRecorded, quantizePresses } from '../../../src/renderer/src/editor/commands/record'
+import { addChart } from '../../../src/renderer/src/editor/commands/charts'
+import {
+  applyRecording,
+  mergeRecorded,
+  quantizePresses
+} from '../../../src/renderer/src/editor/commands/record'
+import { getChart } from '../../../src/renderer/src/editor/state/doc'
 
 // d0: 120 BPM, offset 0 → 1 tick = 500/480 ms, 1/16 한 칸 = 120 tick = 125ms
 const tm = new TimingMap([{ tick: 0, bpm: 120 }], 0)
@@ -26,5 +32,15 @@ describe('recording commands', () => {
     ])
     expect(r.added).toBe(1)
     expect(r.dropped).toBe(2)
+  })
+  it('녹음 시작 때의 채보·스냅으로 합친다', () => {
+    const hard = addChart(d0, 'HARD', 4)!
+    // 600ms = 576 tick: 1/4이면 480, 1/16이면 600
+    const r = applyRecording(hard.doc, { file: 'normal.chart.json', snap: 4 }, tm, [
+      { lane: 2, downMs: 600, upMs: 650 }
+    ])
+    expect(r.added).toBe(1)
+    expect(getChart(r.doc, 'normal.chart.json').notes).toEqual([{ tick: 480, lane: 2, type: 'tap' }])
+    expect(getChart(r.doc, hard.file).notes).toEqual([])
   })
 })

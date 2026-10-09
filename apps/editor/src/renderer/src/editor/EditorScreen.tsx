@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PanelRight } from 'lucide-react'
 import { TimingMap } from '@rcm/core'
-import { laneForCode } from '@rcm/playfield'
+import { laneForCode, laneForKey } from '@rcm/playfield'
 import type { ProjectFiles } from '../../../shared/api'
 import { NewProjectDialog } from '../home/NewProjectDialog'
 import { addMarker, neighborMarkerMs } from './commands/markers'
-import { mergeRecorded, quantizePresses } from './commands/record'
+import { applyRecording, type RecordSession } from './commands/record'
 import { runEditAction } from './commands/editActions'
 import { pushTap } from './commands/tap'
 import { IconButton, TitleBar, useDialogs, useToast } from '../ui'
@@ -16,6 +16,7 @@ import { Recorder } from './input/recorder'
 import { resolveShortcut, type Action } from './input/shortcuts'
 import { Minimap } from './minimap/Minimap'
 import { RightPanel } from './panels/RightPanel'
+import { PlaytestOverlay } from './playtest/PlaytestOverlay'
 import { getChart, type ProjectDoc } from './state/doc'
 import { isDirty } from './state/dirty'
 import { loadProject } from './state/loadProject'
@@ -141,6 +142,15 @@ function LoadingBody() {
   )
 }
 
+/** 테스트 플레이에서 시작 위치보다 먼저 재생하는 준비 시간(ms) */
+const PLAYTEST_LEAD_IN_MS = 1500
+
+/** 진행 중인 녹음: 누름 기록과 시작할 때 정한 대상 채보·스냅 */
+interface Recording {
+  recorder: Recorder
+  session: RecordSession
+}
+
 interface EditorBodyProps {
   engine: AudioEngine
   onExit: () => void
@@ -204,23 +214,28 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   }, [engine, store])
 
   // ---- 녹음 (5.10절) ----
-  const recorderRef = useRef<Recorder | null>(null)
+  const recordingRef = useRef<Recording | null>(null)
 
-  /** 녹음을 끝내고 누른 키를 현재 스냅으로 정렬해 채보에 합친다 (Undo 한 번). */
+  /** 녹음을 끝내고 누른 키를 녹음 시작 때의 스냅으로 정렬해 그 채보에 합친다 (Undo 한 번). */
   const finishRecording = useCallback(
     (endMs: number) => {
-      const recorder = recorderRef.current
-      if (!recorder) return
-      recorderRef.current = null
-      const s = store.getState()
-      const notes = quantizePresses(recorder.finish(endMs), tmRef.current, s.snap)
-      const { doc, added, dropped } = mergeRecorded(s.doc, s.activeChart, notes)
+      const recording = recordingRef.current
+      if (!recording) return
+      recordingRef.current = null
+      const { session } = recording
+      const presses = recording.recorder.finish(endMs)
+      const { doc, added, dropped } = applyRecording(
+        store.getState().doc,
+        session,
+        tmRef.current,
+        presses
+      )
       store.set({ mode: 'edit' })
       if (added === 0) {
         toast('추가된 노트가 없어요')
         return
       }
-      store.apply('녹음', doc, s.activeChart)
+      store.apply('녹음', doc, session.file)
       toast(`${added}개 노트 추가${dropped > 0 ? ` · ${dropped}개는 겹쳐서 버림` : ''}`)
     },
     [store, toast]
@@ -243,16 +258,63 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     if (s.playing) return
     play()
     if (!store.getState().playing) return
-    recorderRef.current = new Recorder(getChart(s.doc, s.activeChart).lanes)
+    recordingRef.current = {
+      recorder: new Recorder(getChart(s.doc, s.activeChart).lanes),
+      session: { file: s.activeChart, snap: s.snap }
+    }
     store.set({ mode: 'recording' })
   }, [play, stop, store])
 
+  // ---- 테스트 플레이 (5.11절) ----
+  /** 테스트 플레이의 판정 시작 위치. null이면 테스트 플레이 중이 아니다. */
+  const [playtestFromMs, setPlaytestFromMs] = useState<number | null>(null)
+  /** 끝나면 돌아갈 재생선 위치 */
+  const playtestReturnRef = useRef(0)
+
+  const startPlaytest = useCallback(
+    (fromStart: boolean) => {
+      if (store.getState().mode !== 'edit') return
+      stop()
+      const s = store.getState()
+      const first = getChart(s.doc, s.activeChart).notes[0]
+      const fromMs = fromStart
+        ? Math.min(0, first ? tmRef.current.tickToMs(first.tick) : 0)
+        : s.playheadMs
+      // 효과음 없이, 준비 시간을 두고 재생한다 (음수 위치는 AudioEngine이 지연으로 처리)
+      engine.setHits([])
+      engine.play(fromMs - PLAYTEST_LEAD_IN_MS)
+      if (!engine.playing) return
+      // 툴바 버튼에 포커스가 남아 Enter 등으로 눌리지 않게 한다
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+      playtestReturnRef.current = s.playheadMs
+      setPlaytestFromMs(fromMs)
+      store.set({ mode: 'playtest' })
+    },
+    [engine, store, stop]
+  )
+
+  /** 테스트 플레이를 끝내고 재생선을 시작 전 위치로 돌린다. 결과는 저장하지 않는다. */
+  const exitPlaytest = useCallback(() => {
+    if (store.getState().mode !== 'playtest') return
+    engine.stop()
+    const s = store.getState()
+    engine.setHits(hitTimesForChart(getChart(s.doc, s.activeChart), tmRef.current))
+    setPlaytestFromMs(null)
+    store.set({ mode: 'edit', playing: false, playheadMs: playtestReturnRef.current })
+  }, [engine, store])
+
+  const getTimeMs = useCallback(() => engine.positionMs(), [engine])
+
   useEffect(() => {
     engine.onEnded(() => {
+      if (store.getState().mode === 'playtest') {
+        exitPlaytest()
+        return
+      }
       store.set({ playing: false, playheadMs: engine.durationMs })
       finishRecording(engine.durationMs)
     })
-  }, [engine, store, finishRecording])
+  }, [engine, store, finishRecording, exitPlaytest])
 
   // 재생 중에는 화면 프레임마다 오디오 시계를 읽어 재생선을 옮긴다
   useEffect(() => {
@@ -355,10 +417,17 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
         else play()
         break
       case 'stop':
-        stop()
+        if (store.getState().mode === 'playtest') exitPlaytest()
+        else stop()
         break
       case 'record':
         record()
+        break
+      case 'playtestHere':
+        startPlaytest(false)
+        break
+      case 'playtestStart':
+        startPlaytest(true)
         break
       case 'save':
         void save()
@@ -419,21 +488,22 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   runActionRef.current = runAction
 
   useEffect(() => {
-    /** 녹음 중인 채보의 레인 키면 그 Recorder. */
-    const recorderFor = (code: string): Recorder | null => {
+    /** 녹음 중이면 녹음하는 채보의 레인 수와 Recorder. */
+    const activeRecording = (): { lanes: number; recorder: Recorder } | null => {
       const s = store.getState()
-      const recorder = recorderRef.current
-      if (s.mode !== 'recording' || !recorder) return null
-      return laneForCode(getChart(s.doc, s.activeChart).lanes, code) === null ? null : recorder
+      const recording = recordingRef.current
+      if (s.mode !== 'recording' || !recording) return null
+      return { lanes: getChart(s.doc, recording.session.file).lanes, recorder: recording.recorder }
     }
     const onKeyDown = (e: KeyboardEvent) => {
       if (overlayOpen()) return
       if (isTyping(e.target) && e.code !== 'Escape') return
-      const recorder = recorderFor(e.code)
-      if (recorder) {
+      const rec = activeRecording()
+      // Ctrl/Alt/Meta 조합(Ctrl+S 등)은 레인 키로 치지 않는다
+      if (rec && laneForKey(rec.lanes, e) !== null) {
         // 키 반복(e.repeat)은 Recorder가 무시한다
         e.preventDefault()
-        recorder.keyDown(e.code, engine.positionMs())
+        rec.recorder.keyDown(e.code, engine.positionMs())
         return
       }
       const action = resolveShortcut(
@@ -447,17 +517,17 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       runActionRef.current(action)
     }
     const onKeyUp = (e: KeyboardEvent) => {
-      const recorder = recorderFor(e.code)
-      if (recorder) {
+      const rec = activeRecording()
+      if (rec && laneForCode(rec.lanes, e.code) !== null) {
         e.preventDefault()
-        recorder.keyUp(e.code, engine.positionMs())
+        rec.recorder.keyUp(e.code, engine.positionMs())
         return
       }
       // 버튼은 Space를 뗄 때 클릭되므로 keyup도 막는다
       if (e.code === 'Space' && !overlayOpen() && !isTyping(e.target)) e.preventDefault()
     }
     // 창이 포커스를 잃으면 keyup이 오지 않으므로 눌린 키를 모두 뗀 것으로 한다
-    const onBlur = () => recorderRef.current?.releaseAll(engine.positionMs())
+    const onBlur = () => recordingRef.current?.recorder.releaseAll(engine.positionMs())
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
     window.addEventListener('blur', onBlur)
@@ -477,7 +547,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
             tm={tm}
             durationMs={engine.durationMs}
             peaks={peaks}
-            recorderRef={recorderRef}
+            recordingRef={recordingRef}
           />
           {!panelOpen && (
             <div className={styles.panelToggle}>
@@ -496,11 +566,20 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
         onSelectChart={selectChart}
         onPlayPause={() => runAction('playPause')}
         onRecord={() => runAction('record')}
+        onPlaytest={() => runAction('playtestHere')}
         onNewProject={() => void newProject()}
         onOpenProject={() => void openProject()}
         onSave={() => void save()}
         onHome={() => void goHome()}
       />
+      {playtestFromMs !== null && (
+        <PlaytestOverlay
+          fromMs={playtestFromMs}
+          tm={tm}
+          getTimeMs={getTimeMs}
+          onExit={exitPlaytest}
+        />
+      )}
       <NewProjectDialog
         open={creating}
         onClose={() => setCreating(false)}

@@ -1,0 +1,73 @@
+/* 타이틀바(36px)는 보이고 끌 수 있게 남기고 그 아래를 모두 덮는다. 모달·토스트보다는 아래 */
+.overlay {
+  position: fixed;
+  inset: 36px 0 0 0;
+  z-index: 500;
+  background: var(--bg-app);
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hud {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  min-width: 180px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.dot {
+  color: var(--text-muted);
+}
+
+.exit {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: default;
+}
+
+.exit:hover {
+  color: var(--text);
+}
+
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--text-muted);
+}
+
+.stat dd {
+  margin: 0;
+  color: var(--text);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}

@@ -14,8 +14,8 @@ interface TimelineCanvasProps {
   tm: TimingMap
   durationMs: number
   peaks?: WaveformPeaks
-  /** 녹음 중인 Recorder. 눌린 레인과 키 이름을 겹쳐 그린다 */
-  recorderRef?: RefObject<Recorder | null>
+  /** 진행 중인 녹음. 눌린 레인과 키 이름을 겹쳐 그린다 */
+  recordingRef?: RefObject<{ recorder: Recorder } | null>
 }
 
 function laneKeyLabels(lanes: number): string[] {
@@ -24,13 +24,13 @@ function laneKeyLabels(lanes: number): string[] {
 
 const ZOOM_STEP = 1.1
 
-export function TimelineCanvas({ tm, durationMs, peaks, recorderRef }: TimelineCanvasProps) {
+export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: TimelineCanvasProps) {
   const store = useStore()
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const sizeRef = useRef({ width: 0, height: 0 })
-  const propsRef = useRef({ tm, durationMs, peaks, recorderRef })
-  propsRef.current = { tm, durationMs, peaks, recorderRef }
+  const propsRef = useRef({ tm, durationMs, peaks, recordingRef })
+  propsRef.current = { tm, durationMs, peaks, recordingRef }
   const drawRef = useRef<() => void>(() => {})
   const tool = useEditor((s) => s.tool)
 
@@ -56,8 +56,8 @@ export function TimelineCanvas({ tm, durationMs, peaks, recorderRef }: TimelineC
       if (!canvas || !ctx || width === 0 || height === 0) return
       const s = store.getState()
       const chart = getChart(s.doc, s.activeChart)
-      const { tm, durationMs, peaks, recorderRef } = propsRef.current
-      const recorder = s.mode === 'recording' ? recorderRef?.current : null
+      const { tm, durationMs, peaks, recordingRef } = propsRef.current
+      const recorder = s.mode === 'recording' ? recordingRef?.current?.recorder : null
       const dpr = window.devicePixelRatio || 1
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, width, height)

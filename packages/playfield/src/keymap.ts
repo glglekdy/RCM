@@ -21,3 +21,15 @@ export function laneForCode(lanes: number, code: string): number | null {
   const lane = keys ? keys.indexOf(code) : -1;
   return lane < 0 ? null : lane;
 }
+
+/**
+ * 누른 키(keydown)가 몇 번째 레인인지. Ctrl/Alt/Meta를 누른 채면 단축키(Ctrl+S 등)이므로 null.
+ * 떼는 키(keyup)는 조합키와 상관없이 `laneForCode`로 찾는다.
+ */
+export function laneForKey(
+  lanes: number,
+  e: { code: string; ctrlKey: boolean; metaKey: boolean; altKey: boolean },
+): number | null {
+  if (e.ctrlKey || e.metaKey || e.altKey) return null;
+  return laneForCode(lanes, e.code);
+}

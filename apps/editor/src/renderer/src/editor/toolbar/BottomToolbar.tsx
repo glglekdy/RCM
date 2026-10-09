@@ -37,6 +37,7 @@ interface BottomToolbarProps {
   onSelectChart: (file: string) => void
   onPlayPause: () => void
   onRecord: () => void
+  onPlaytest: () => void
   onNewProject: () => void
   onOpenProject: () => void
   onSave: () => void
@@ -47,6 +48,7 @@ export function BottomToolbar({
   onSelectChart,
   onPlayPause,
   onRecord,
+  onPlaytest,
   onNewProject,
   onOpenProject,
   onSave,
@@ -152,7 +154,7 @@ export function BottomToolbar({
           ) : (
             <IconButton icon={Circle} label="녹음 (R)" onClick={onRecord} />
           )}
-          <IconButton icon={Gamepad2} label="테스트 플레이 (F5)" />
+          <IconButton icon={Gamepad2} label="테스트 플레이 (F5)" onClick={onPlaytest} />
         </div>
         <div className={styles.group}>
           <Menu

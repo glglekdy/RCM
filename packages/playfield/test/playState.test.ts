@@ -65,4 +65,21 @@ describe('PlayState', () => {
     s.press(1, 500);
     expect(s.press(1, 1000)).toEqual([]);
   });
+  it('notes는 시작 시각 순, heldNote는 누르는 중인 롱노트 인덱스', () => {
+    const s = new PlayState(chart([
+      { tick: 960, lane: 0, type: 'tap' }, { tick: 480, lane: 1, type: 'hold', endTick: 1440 },
+    ]), tm, 0);
+    expect(s.notes).toEqual([
+      { lane: 1, startMs: 500, endMs: 1500, headJudged: false, tailJudged: false },
+      { lane: 0, startMs: 1000, endMs: undefined, headJudged: false, tailJudged: false },
+    ]);
+    expect(s.heldNote(1)).toBe(-1);
+    s.press(1, 510);
+    expect(s.heldNote(1)).toBe(0);
+    expect(s.notes[0].headJudged).toBe(true);
+    s.release(1, 1450);
+    expect(s.heldNote(1)).toBe(-1);
+    expect(s.notes[0].tailJudged).toBe(true);
+    expect(s.heldNote(7)).toBe(-1);
+  });
 });

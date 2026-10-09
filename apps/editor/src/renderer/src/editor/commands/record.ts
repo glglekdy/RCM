@@ -23,6 +23,22 @@ export function quantizePresses(presses: Press[], tm: TimingMap, snap: SnapDivis
   return notes
 }
 
+/** 녹음을 시작할 때 정해 둔 대상 채보와 스냅. 녹음 중 바뀐 상태 대신 이 값으로 합친다. */
+export interface RecordSession {
+  file: string
+  snap: SnapDivision
+}
+
+/** 누름을 세션의 스냅으로 정렬해 세션의 채보에 합친다. */
+export function applyRecording(
+  doc: ProjectDoc,
+  session: RecordSession,
+  tm: TimingMap,
+  presses: Press[]
+): { doc: ProjectDoc; added: number; dropped: number } {
+  return mergeRecorded(doc, session.file, quantizePresses(presses, tm, session.snap))
+}
+
 /** 녹음한 노트를 채보에 합친다. 기존 노트나 앞서 넣은 녹음 노트와 겹치면 버린다. */
 export function mergeRecorded(
   doc: ProjectDoc,

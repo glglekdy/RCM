@@ -1,7 +1,8 @@
 import type { Chart, TimingMap } from '@rcm/core';
 import { HOLD_RELEASE_TOLERANCE, judgeDelta, type JudgeEvent, type Judgement } from './judge';
 
-interface PlayNote {
+/** 플레이 중인 노트 하나 (시각은 ms). */
+export interface PlayNote {
   lane: number;
   startMs: number;
   endMs?: number;
@@ -14,7 +15,7 @@ export class PlayState {
   maxCombo = 0;
   readonly counts: Record<Judgement, number> = { perfect: 0, great: 0, good: 0, miss: 0 };
 
-  private readonly notes: PlayNote[] = [];
+  private readonly playNotes: PlayNote[] = [];
   /** 레인별 노트 인덱스(시작 시각 순) */
   private readonly laneNotes: number[][] = [];
   /** 레인별로 판정 안 된 가장 이른 머리의 laneNotes 위치 */
@@ -26,7 +27,7 @@ export class PlayState {
     for (const n of chart.notes) {
       const startMs = tm.tickToMs(n.tick);
       if (startMs < fromMs) continue;
-      this.notes.push({
+      this.playNotes.push({
         lane: n.lane,
         startMs,
         endMs: n.type === 'hold' ? tm.tickToMs(n.endTick) : undefined,
@@ -34,10 +35,20 @@ export class PlayState {
         tailJudged: false,
       });
     }
-    this.notes.sort((a, b) => a.startMs - b.startMs);
-    this.notes.forEach((n, i) => {
+    this.playNotes.sort((a, b) => a.startMs - b.startMs);
+    this.playNotes.forEach((n, i) => {
       (this.laneNotes[n.lane] ??= []).push(i);
     });
+  }
+
+  /** 시작 시각 순 노트 목록 (그리기용, 읽기 전용) */
+  get notes(): readonly Readonly<PlayNote>[] {
+    return this.playNotes;
+  }
+
+  /** 레인에서 누르는 중인 롱노트의 `notes` 인덱스 (없으면 -1) */
+  heldNote(lane: number): number {
+    return this.holding[lane] ?? -1;
   }
 
   press(lane: number, ms: number): JudgeEvent[] {
@@ -47,7 +58,7 @@ export class PlayState {
     let c = this.advance(lane);
     for (; c < list.length; c++) {
       const idx = list[c];
-      const n = this.notes[idx];
+      const n = this.playNotes[idx];
       if (n.headJudged) continue;
       if (n.startMs - ms > 120) break;
       const j = judgeDelta(ms - n.startMs);
@@ -64,7 +75,7 @@ export class PlayState {
   release(lane: number, ms: number): JudgeEvent[] {
     const idx = this.holding[lane] ?? -1;
     if (idx < 0) return [];
-    const n = this.notes[idx];
+    const n = this.playNotes[idx];
     this.holding[lane] = -1;
     n.tailJudged = true;
     const j: Judgement = ms < n.endMs! - HOLD_RELEASE_TOLERANCE ? 'miss' : 'perfect';
@@ -76,14 +87,14 @@ export class PlayState {
     for (let lane = 0; lane < this.laneNotes.length; lane++) {
       if (!this.laneNotes[lane]) continue;
       const h = this.holding[lane] ?? -1;
-      if (h >= 0 && ms >= this.notes[h].endMs!) {
+      if (h >= 0 && ms >= this.playNotes[h].endMs!) {
         this.holding[lane] = -1;
-        this.notes[h].tailJudged = true;
+        this.playNotes[h].tailJudged = true;
         pending.push({ idx: h, part: 1, lane, judgement: 'perfect' });
       }
       const list = this.laneNotes[lane];
       for (let c = this.advance(lane); c < list.length; c++) {
-        const n = this.notes[list[c]];
+        const n = this.playNotes[list[c]];
         if (n.headJudged) continue;
         if (ms <= n.startMs + 120) break;
         n.headJudged = true;
@@ -103,7 +114,7 @@ export class PlayState {
   private advance(lane: number): number {
     const list = this.laneNotes[lane];
     let c = this.cursor[lane] ?? 0;
-    while (c < list.length && this.notes[list[c]].headJudged) c++;
+    while (c < list.length && this.playNotes[list[c]].headJudged) c++;
     this.cursor[lane] = c;
     return c;
   }

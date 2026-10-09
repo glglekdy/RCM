@@ -1030,35 +1030,55 @@ it('범위 최대, 곡 밖은 0', () => {
 - [ ] **Step 3: 그리기 연결, `npm run dev`로 확인**: 파형이 박선과 함께 보이고 확대/축소해도 끊기지 않음
 - [ ] **Step 4: 커밋** — `feat(editor): waveform`
 
-### Task 19: 미니맵
+### Task 19: 미니맵 (VS Code 방식)
+
+> 사용자 요청(2026-10-09)으로 변경: VS Code 코드 미니맵처럼 타임라인 오른쪽 끝의 세로 띠에 **실제 노트를 축소해서** 보여 주고, 클릭·드래그로 바로 이동한다. 확대/축소 컨트롤은 하단 툴바로 옮긴다. (스펙 5.3절)
 
 **Files:**
-- Create: `editor/minimap/minimap.ts`, `editor/minimap/Minimap.tsx`
-- Modify: `editor/EditorScreen.tsx` (타임라인 왼쪽 아래 겹쳐 배치)
+- Create: `editor/minimap/minimap.ts`, `editor/minimap/Minimap.tsx` (+ `.module.css`)
+- Modify: `editor/EditorScreen.tsx` (타임라인 영역 오른쪽 끝, 오른쪽 패널 바로 왼쪽에 배치), `editor/toolbar/BottomToolbar.tsx` (스냅 옆에 `− 100% +` 확대 컨트롤)
 - Test: `apps/editor/test/renderer/minimap.test.ts`
 
 **Interfaces:**
-- Consumes: `hitTimesForChart`, `TimelineView`, `clampZoom`
+- Consumes: `TimelineView`, `yToMs`, `clampZoom`, `clampPlayheadMs`, core `TimingMap`
 - Produces:
-  - `densityBuckets(hitMs: number[], durationMs: number, buckets: number): number[]` — 구간별 개수, 곡 밖 hit는 버림
-  - `minimapYToMs(y: number, height: number, durationMs: number): number` — 아래 = 0ms, 위 = 곡 끝, `[0, durationMs]`로 자름
-  - `DEFAULT_PX_PER_MS = 0.3`
-  - `<Minimap />` — 크기 120×180, `--bg-card` + `--radius-md`. 위쪽 줄: `+` `−` 버튼(`pxPerMs`를 ×1.25 / ÷1.25 후 clampZoom), `Math.round(pxPerMs / 0.3 * 100)%`. 아래 캔버스: 버킷 밀도를 가로 막대(`--text-muted` 투명도로), 현재 보이는 시간 범위를 `--accent` 테두리 상자. 클릭/드래그 → `playheadMs = minimapYToMs(...)` (재생 중이면 무시)
+  - `MINIMAP_WIDTH = 72`, `DEFAULT_PX_PER_MS = 0.3`
+  - `msToMinimapY(ms: number, height: number, durationMs: number): number` — 아래 = 0ms(y = height), 위 = 곡 끝(y = 0)
+  - `minimapYToMs(y: number, height: number, durationMs: number): number` — 역변환, `[0, durationMs]`로 자름
+  - `minimapViewport(view: TimelineView, height: number, durationMs: number): { top: number; bottom: number }` — 타임라인에 보이는 시간 범위(`yToMs(view, view.height)` ~ `yToMs(view, 0)`)를 미니맵 y로
+  - `minimapDyToMs(dy: number, height: number, durationMs: number): number` — 드래그 픽셀 변화 → ms 변화 (위로 끌면 +)
+  - `<Minimap />` — 폭 72px, 타임라인 높이 전체, `--bg-card` 바탕 + 왼쪽 `--border` 1px
+    - 정적 레이어(차트·타이밍·마커·크기가 바뀔 때만 오프스크린 캔버스에 다시 그림): 안쪽 폭을 레인 수로 나눈 열마다 노트를 `#f2f2f2` 70% 막대로(tap 높이 2px, hold는 시작~끝 길이, 최소 2px), BPM 변경 지점은 왼쪽 가장자리 주황(`#f59e0b`) 6px 가로선, 마커는 오른쪽 가장자리 청록(`#22d3ee`) 6px 가로선
+    - 매 프레임: 정적 레이어 복사 + 보이는 범위 상자(`--accent-soft` 채우기 + `--accent` 1px 테두리, 마우스를 올리면 채우기를 조금 더 진하게) + 재생선(`--accent` 1px)
+    - 상자 밖을 누르면 `playheadMs = clampPlayheadMs(minimapYToMs(y))`로 이동한 뒤 그대로 드래그 계속, 상자 안을 누르면 드래그로 `playheadMs = 시작 playhead + minimapDyToMs(dy)` (pointer capture). 재생 중에는 무시
+  - 하단 툴바 확대 컨트롤: `−` / `+` 버튼(`pxPerMs`를 ÷1.25 / ×1.25 후 `clampZoom`), 가운데 `Math.round(pxPerMs / 0.3 * 100)%`
 
 - [ ] **Step 1: 실패하는 테스트 작성**
 
 ```ts
-it('밀도', () => expect(densityBuckets([0, 10, 50, 99, 150], 100, 2)).toEqual([2, 2]));
-it('y → ms', () => {
-  expect(minimapYToMs(180, 180, 60000)).toBe(0);
-  expect(minimapYToMs(0, 180, 60000)).toBe(60000);
-  expect(minimapYToMs(-5, 180, 60000)).toBe(60000);
+it('ms ↔ 미니맵 y (아래가 시작)', () => {
+  expect(msToMinimapY(0, 700, 60000)).toBe(700);
+  expect(msToMinimapY(60000, 700, 60000)).toBe(0);
+  expect(minimapYToMs(700, 700, 60000)).toBe(0);
+  expect(minimapYToMs(0, 700, 60000)).toBe(60000);
+  expect(minimapYToMs(-5, 700, 60000)).toBe(60000);
+  expect(minimapYToMs(800, 700, 60000)).toBe(0);
+});
+it('보이는 범위 상자', () => {
+  // 타임라인: 재생선 30000ms가 y=600(높이 800의 3/4), 0.3px/ms → 보이는 범위 29333.3 ~ 32000ms
+  const r = minimapViewport({ playheadMs: 30000, pxPerMs: 0.3, height: 800 }, 600, 60000);
+  expect(r.top).toBeCloseTo(280);
+  expect(r.bottom).toBeCloseTo(306.667, 2);
+});
+it('드래그 픽셀 → ms', () => {
+  expect(minimapDyToMs(-60, 600, 60000)).toBe(6000);
+  expect(minimapDyToMs(30, 600, 60000)).toBe(-3000);
 });
 ```
 
 - [ ] **Step 2: `npx vitest run apps/editor/test/renderer/minimap.test.ts` → FAIL → 구현 → PASS**
-- [ ] **Step 3: 화면 연결, `npm run dev`로 확인**: 노트 많은 구간이 진하게, 클릭으로 이동, 보이는 범위 상자가 스크롤을 따라감
-- [ ] **Step 4: 커밋** — `feat(editor): minimap`
+- [ ] **Step 3: 화면 연결, `npm run dev`로 확인**: 미니맵에 노트 배치가 축소돼 보이고, 클릭으로 이동, 상자 드래그로 스크롤, 상자가 재생·휠 이동을 따라감, 하단 툴바 확대 컨트롤 동작
+- [ ] **Step 4: 커밋** — `feat(editor): vscode-style minimap`
 
 ---
 

@@ -1,0 +1,27 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.timeline {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.panelToggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 2px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}

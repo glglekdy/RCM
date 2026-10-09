@@ -1,13 +1,20 @@
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { ProjectFiles } from '../../shared/api'
 import { EditorScreen } from './editor/EditorScreen'
 import { HomeScreen } from './home/HomeScreen'
 import { DialogProvider, TitleBar, ToastProvider } from './ui'
 
-type Screen = { screen: 'home' } | { screen: 'editor'; files: ProjectFiles }
+/** `id`는 같은 폴더를 다시 열어도 편집 화면을 새로 만들기 위한 값이다. */
+type Screen = { screen: 'home' } | { screen: 'editor'; files: ProjectFiles; id: number }
 
 export function App() {
   const [state, setState] = useState<Screen>({ screen: 'home' })
+  const nextId = useRef(0)
+
+  const openProject = useCallback((files: ProjectFiles) => {
+    setState({ screen: 'editor', files, id: nextId.current++ })
+  }, [])
+  const goHome = useCallback(() => setState({ screen: 'home' }), [])
 
   return (
     <DialogProvider>
@@ -15,10 +22,15 @@ export function App() {
         {state.screen === 'home' ? (
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <TitleBar title="RCM" />
-            <HomeScreen onOpened={(files) => setState({ screen: 'editor', files })} />
+            <HomeScreen onOpened={openProject} />
           </div>
         ) : (
-          <EditorScreen files={state.files} onExit={() => setState({ screen: 'home' })} />
+          <EditorScreen
+            key={state.id}
+            files={state.files}
+            onExit={goHome}
+            onOpenProject={openProject}
+          />
         )}
       </ToastProvider>
     </DialogProvider>

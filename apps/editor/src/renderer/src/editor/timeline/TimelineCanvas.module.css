@@ -1,0 +1,15 @@
+.wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-color: var(--bg-canvas);
+  background-image: radial-gradient(circle, var(--bg-canvas-dot) 1px, transparent 1.5px);
+  background-size: var(--bg-canvas-gap) var(--bg-canvas-gap);
+}
+
+.canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+}

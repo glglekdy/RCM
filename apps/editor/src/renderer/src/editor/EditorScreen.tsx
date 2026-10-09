@@ -1,18 +1,30 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { PanelRight } from 'lucide-react'
+import { TimingMap } from '@rcm/core'
 import type { ProjectFiles } from '../../../shared/api'
-import { TitleBar, useDialogs } from '../ui'
-import type { ProjectDoc } from './state/doc'
+import { NewProjectDialog } from '../home/NewProjectDialog'
+import { IconButton, TitleBar, useDialogs, useToast } from '../ui'
+import { AudioEngine } from './audio/AudioEngine'
+import { hitTimesForChart } from './audio/schedule'
+import { resolveShortcut, type Action } from './input/shortcuts'
+import { RightPanel } from './panels/RightPanel'
+import { getChart, type ProjectDoc } from './state/doc'
 import { isDirty } from './state/dirty'
 import { loadProject } from './state/loadProject'
 import { EditorStore } from './state/store'
-import { StoreContext, useEditor } from './state/useStore'
+import { StoreContext, useEditor, useStore } from './state/useStore'
+import { TimelineCanvas } from './timeline/TimelineCanvas'
+import { BottomToolbar } from './toolbar/BottomToolbar'
+import styles from './EditorScreen.module.css'
 
 interface EditorScreenProps {
   files: ProjectFiles
   onExit: () => void
+  /** 편집 화면에서 다른 프로젝트를 열 때 */
+  onOpenProject: (files: ProjectFiles) => void
 }
 
-export function EditorScreen({ files, onExit }: EditorScreenProps) {
+export function EditorScreen({ files, onExit, onOpenProject }: EditorScreenProps) {
   const dialogs = useDialogs()
   const loaded = useMemo(() => loadProject(files), [files])
   const reported = useRef(false)
@@ -24,13 +36,45 @@ export function EditorScreen({ files, onExit }: EditorScreenProps) {
   }, [loaded, dialogs, onExit])
 
   if (!loaded.ok) return <TitleBar title="RCM" />
-  return <LoadedEditor files={files} doc={loaded.doc} />
+  return (
+    <LoadedEditor files={files} doc={loaded.doc} onExit={onExit} onOpenProject={onOpenProject} />
+  )
 }
 
-function LoadedEditor({ files, doc }: { files: ProjectFiles; doc: ProjectDoc }) {
+interface LoadedEditorProps extends EditorScreenProps {
+  doc: ProjectDoc
+}
+
+function LoadedEditor({ files, doc, onExit, onOpenProject }: LoadedEditorProps) {
   const [store] = useState(() => new EditorStore(files, doc))
+  const [engine, setEngine] = useState<AudioEngine | null>(null)
   const dialogs = useDialogs()
   const closing = useRef(false)
+  const onExitRef = useRef(onExit)
+  onExitRef.current = onExit
+
+  // 프로젝트마다 오디오 엔진 하나. 디코딩에 실패하면 곡을 열지 않는다 (5.14절)
+  useEffect(() => {
+    const e = new AudioEngine()
+    let cancelled = false
+    window.rcm
+      .readAudio(files.audioPath)
+      .then((data) => e.load(data))
+      .then(
+        () => {
+          if (!cancelled) setEngine(e)
+        },
+        async (err: unknown) => {
+          if (cancelled) return
+          await dialogs.alert('오디오를 열 수 없어요', err instanceof Error ? err.message : String(err))
+          onExitRef.current()
+        }
+      )
+    return () => {
+      cancelled = true
+      e.dispose()
+    }
+  }, [files.audioPath, dialogs])
 
   useEffect(() => {
     const off = window.rcm.onCloseRequested(async () => {
@@ -69,18 +113,253 @@ function LoadedEditor({ files, doc }: { files: ProjectFiles; doc: ProjectDoc }) 
 
   return (
     <StoreContext.Provider value={store}>
-      <EditorBody />
+      {engine ? (
+        <EditorBody engine={engine} onExit={onExit} onOpenProject={onOpenProject} />
+      ) : (
+        <LoadingBody />
+      )}
     </StoreContext.Provider>
   )
 }
 
-function EditorBody() {
+function LoadingBody() {
+  const title = useEditor((s) => s.doc.song.title)
+  return (
+    <div className={styles.screen}>
+      <TitleBar title={title} />
+      <div className={styles.main} />
+    </div>
+  )
+}
+
+interface EditorBodyProps {
+  engine: AudioEngine
+  onExit: () => void
+  onOpenProject: (files: ProjectFiles) => void
+}
+
+/** 모달·메뉴가 열려 있으면 전역 단축키를 받지 않는다. */
+function overlayOpen(): boolean {
+  return document.querySelector('[role="dialog"], [role="menu"]') !== null
+}
+
+function isTyping(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    target.closest('input, textarea, select, [contenteditable="true"]') !== null
+  )
+}
+
+function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
+  const store = useStore()
+  const dialogs = useDialogs()
+  const toast = useToast()
   const title = useEditor((s) => s.doc.song.title)
   const dirty = useEditor((s) => isDirty(s.doc, s.saved))
+  const song = useEditor((s) => s.doc.song)
+  const chart = useEditor((s) => getChart(s.doc, s.activeChart))
+  const playing = useEditor((s) => s.playing)
+  const panelOpen = useEditor((s) => s.panelOpen)
+  const [creating, setCreating] = useState(false)
+
+  const tm = useMemo(() => new TimingMap(song.timing, song.offsetMs), [song.timing, song.offsetMs])
+  const tmRef = useRef(tm)
+  tmRef.current = tm
+
+  // ---- 재생 ----
+  const play = useCallback(() => {
+    const s = store.getState()
+    if (s.playing) return
+    engine.setHits(hitTimesForChart(getChart(s.doc, s.activeChart), tmRef.current))
+    engine.setHitVolume(s.hitsoundVolume)
+    engine.play(s.playheadMs)
+    if (engine.playing) store.set({ playing: true })
+  }, [engine, store])
+
+  const stop = useCallback(() => {
+    if (!store.getState().playing) return
+    store.set({ playing: false, playheadMs: engine.stop() })
+  }, [engine, store])
+
+  useEffect(() => {
+    engine.onEnded(() => store.set({ playing: false, playheadMs: engine.durationMs }))
+  }, [engine, store])
+
+  // 재생 중에는 화면 프레임마다 오디오 시계를 읽어 재생선을 옮긴다
+  useEffect(() => {
+    if (!playing) return
+    let id = 0
+    const loop = () => {
+      if (engine.playing) store.set({ playheadMs: engine.positionMs() })
+      id = requestAnimationFrame(loop)
+    }
+    id = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(id)
+  }, [playing, engine, store])
+
+  // 재생 중 채보·타이밍이 바뀌면 효과음 예약을 다시 계산한다
+  useEffect(() => {
+    if (engine.playing) engine.setHits(hitTimesForChart(chart, tm))
+  }, [chart, tm, engine])
+
+  // ---- 파일 ----
+  const save = useCallback(async () => {
+    try {
+      await store.save()
+      toast('저장했어요')
+    } catch (err) {
+      await dialogs.alert('저장하지 못했어요', err instanceof Error ? err.message : String(err))
+    }
+  }, [store, toast, dialogs])
+
+  /** 이 프로젝트를 떠나도 되는지 묻는다. 저장 안 된 변경이 있으면 저장/버리기/취소. */
+  const confirmLeave = useCallback(async (): Promise<boolean> => {
+    stop()
+    if (!store.isDirty()) return true
+    const choice = await dialogs.choose({
+      title: '저장하지 않은 변경',
+      message: '변경 내용을 저장할까요?',
+      choices: [
+        { value: 'save', label: '저장', variant: 'primary' },
+        { value: 'discard', label: '저장 안 함', variant: 'danger' },
+        { value: 'cancel', label: '취소' }
+      ]
+    })
+    if (choice === 'discard') return true
+    if (choice !== 'save') return false
+    try {
+      await store.save()
+      return true
+    } catch (err) {
+      await dialogs.alert('저장하지 못했어요', err instanceof Error ? err.message : String(err))
+      return false
+    }
+  }, [stop, store, dialogs])
+
+  const openDir = useCallback(
+    async (dir: string) => {
+      try {
+        onOpenProject(await window.rcm.openProject(dir))
+      } catch (err) {
+        await dialogs.alert('프로젝트를 열 수 없어요', err instanceof Error ? err.message : String(err))
+      }
+    },
+    [onOpenProject, dialogs]
+  )
+
+  const newProject = useCallback(async () => {
+    if (await confirmLeave()) setCreating(true)
+  }, [confirmLeave])
+
+  const openProject = useCallback(async () => {
+    if (!(await confirmLeave())) return
+    const dir = await window.rcm.pickFolder()
+    if (dir) await openDir(dir)
+  }, [confirmLeave, openDir])
+
+  const goHome = useCallback(async () => {
+    if (await confirmLeave()) onExit()
+  }, [confirmLeave, onExit])
+
+  const selectChart = useCallback(
+    (file: string) => {
+      stop()
+      store.set({ activeChart: file, selection: new Set() })
+    },
+    [stop, store]
+  )
+
+  // ---- 단축키 ----
+  const runAction = (action: Action) => {
+    if (typeof action === 'object') {
+      store.set({ snap: action.division })
+      return
+    }
+    switch (action) {
+      case 'playPause':
+        if (store.getState().playing) stop()
+        else play()
+        break
+      case 'stop':
+        stop()
+        break
+      case 'save':
+        void save()
+        break
+      case 'undo':
+        store.undo()
+        break
+      case 'redo':
+        store.redo()
+        break
+      default:
+        // 나머지는 이후 Task에서 연결한다
+        break
+    }
+  }
+  const runActionRef = useRef(runAction)
+  runActionRef.current = runAction
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (overlayOpen()) return
+      if (isTyping(e.target) && e.code !== 'Escape') return
+      const action = resolveShortcut(
+        { code: e.code, ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey },
+        store.getState().mode
+      )
+      if (!action) return
+      // 포커스된 버튼이 Space/Enter로 눌리는 기본 동작과 겹치지 않게 막는다
+      e.preventDefault()
+      if (e.repeat && action !== 'undo' && action !== 'redo') return
+      runActionRef.current(action)
+    }
+    const onKeyUp = (e: KeyboardEvent) => {
+      // 버튼은 Space를 뗄 때 클릭되므로 keyup도 막는다
+      if (e.code === 'Space' && !overlayOpen() && !isTyping(e.target)) e.preventDefault()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+    }
+  }, [store])
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className={styles.screen}>
       <TitleBar title={title} dirty={dirty} />
-      <div style={{ flex: 1 }} />
+      <div className={styles.main}>
+        <div className={styles.timeline}>
+          <TimelineCanvas tm={tm} durationMs={engine.durationMs} />
+          {!panelOpen && (
+            <div className={styles.panelToggle}>
+              <IconButton
+                icon={PanelRight}
+                label="패널 펼치기"
+                onClick={() => store.set({ panelOpen: true })}
+              />
+            </div>
+          )}
+        </div>
+        {panelOpen && <RightPanel />}
+      </div>
+      <BottomToolbar
+        onSelectChart={selectChart}
+        onPlayPause={() => runAction('playPause')}
+        onNewProject={() => void newProject()}
+        onOpenProject={() => void openProject()}
+        onSave={() => void save()}
+        onHome={() => void goHome()}
+      />
+      <NewProjectDialog
+        open={creating}
+        onClose={() => setCreating(false)}
+        onCreated={(dir) => {
+          setCreating(false)
+          void openDir(dir)
+        }}
+      />
     </div>
   )
 }

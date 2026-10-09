@@ -11,9 +11,12 @@ interface MenuItem {
 interface MenuProps {
   trigger: ReactNode
   items: MenuItem[]
+  /** 펼치는 방향. 화면 아래쪽(하단 툴바)에서는 'up' */
+  placement?: 'down' | 'up'
+  align?: 'left' | 'right'
 }
 
-export function Menu({ trigger, items }: MenuProps) {
+export function Menu({ trigger, items, placement = 'down', align = 'left' }: MenuProps) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -39,7 +42,10 @@ export function Menu({ trigger, items }: MenuProps) {
         {trigger}
       </div>
       {open && (
-        <div className={styles.popup} role="menu">
+        <div
+          className={`${styles.popup} ${placement === 'up' ? styles.up : ''} ${align === 'right' ? styles.right : ''}`}
+          role="menu"
+        >
           {items.map((item) => (
             <button
               key={item.label}

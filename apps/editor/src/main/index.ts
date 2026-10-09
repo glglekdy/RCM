@@ -51,6 +51,9 @@ function createWindow(): BrowserWindow {
     win.webContents.send('rcm:close-requested')
   })
   win.on('closed', () => dirtyWindows.delete(win.id))
+  // A reloaded or crashed renderer can no longer answer the close prompt, so drop the guard.
+  win.webContents.on('did-start-loading', () => dirtyWindows.delete(win.id))
+  win.webContents.on('render-process-gone', () => dirtyWindows.delete(win.id))
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     void win.loadURL(process.env['ELECTRON_RENDERER_URL'])

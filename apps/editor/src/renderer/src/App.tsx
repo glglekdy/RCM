@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ProjectFiles } from '../../shared/api'
+import { EditorScreen } from './editor/EditorScreen'
 import { HomeScreen } from './home/HomeScreen'
 import { DialogProvider, TitleBar, ToastProvider } from './ui'
 
@@ -11,14 +12,14 @@ export function App() {
   return (
     <DialogProvider>
       <ToastProvider>
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <TitleBar title="RCM" />
-          {state.screen === 'home' ? (
+        {state.screen === 'home' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <TitleBar title="RCM" />
             <HomeScreen onOpened={(files) => setState({ screen: 'editor', files })} />
-          ) : (
-            <div>{state.files.dir}</div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <EditorScreen files={state.files} onExit={() => setState({ screen: 'home' })} />
+        )}
       </ToastProvider>
     </DialogProvider>
   )

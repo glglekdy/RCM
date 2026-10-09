@@ -7,6 +7,7 @@ import {
   type TimingMap,
   type TimingPoint
 } from '@rcm/core'
+import { peakInRange, type WaveformPeaks } from '../audio/waveform'
 import { NOTE_HEIGHT, type SelectRect } from './hitTest'
 import { msToY, yToMs, type TimelineLayout, type TimelineView } from './view'
 
@@ -20,6 +21,8 @@ export interface DrawParams {
   markers: Marker[]
   timing: TimingPoint[]
   durationMs: number
+  /** 오디오 피크. 계산이 끝나기 전에는 없다 */
+  peaks?: WaveformPeaks
   /** 그리는 중이거나 옮기는 중인 노트 */
   preview?: Note[]
   /** preview를 놓을 수 없는 자리면 경고색으로 그린다 */
@@ -40,6 +43,8 @@ const COLORS = {
   bpm: '#f59e0b',
   bpmChip: 'rgba(245, 158, 11, 0.16)',
   marker: '#22d3ee',
+  wavePast: '#555555',
+  waveFuture: '#3a3a3a',
   playhead: '#8b5cf6',
   selected: '#8b5cf6',
   invalid: '#ef4444',
@@ -84,6 +89,9 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
   const toMs = yToMs(view, 0) + margin
   const fromTick = tm.msToTick(fromMs)
   const toTick = tm.msToTick(Math.min(toMs, p.durationMs))
+
+  // 파형: 격자선이 위에 보이도록 먼저 그린다
+  if (p.peaks) drawWaveform(ctx, p, p.peaks)
 
   // 격자: 스냅 → 박 → 마디 순으로 겹쳐 그린다
   if (toTick >= fromTick) {
@@ -174,6 +182,25 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
   ctx.moveTo(layout.waveX, py)
   ctx.lineTo(right, py)
   ctx.stroke()
+}
+
+/** 화면 1px 행마다 그 행이 덮는 시간의 피크를 띠 가운데 기준 좌우 대칭 막대로 그린다. */
+function drawWaveform(ctx: CanvasRenderingContext2D, p: DrawParams, peaks: WaveformPeaks): void {
+  const { view, layout } = p
+  const half = layout.waveWidth / 2
+  const cx = layout.waveX + half
+  const playheadY = msToY(view, view.playheadMs)
+  for (let y = 0; y < view.height; y++) {
+    // 시간은 위로 흐르므로 행의 위쪽 가장자리가 더 늦은 시각이다
+    const toMs = yToMs(view, y)
+    const fromMs = yToMs(view, y + 1)
+    if (toMs < 0 || fromMs > p.durationMs) continue
+    const amp = peakInRange(peaks, fromMs, toMs)
+    if (amp <= 0) continue
+    const w = Math.max(1, Math.round(Math.min(1, amp) * half))
+    ctx.fillStyle = y + 0.5 >= playheadY ? COLORS.wavePast : COLORS.waveFuture
+    ctx.fillRect(cx - w, y, w * 2, 1)
+  }
 }
 
 function drawNote(

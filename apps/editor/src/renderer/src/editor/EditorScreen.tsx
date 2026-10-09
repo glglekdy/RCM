@@ -9,6 +9,7 @@ import { pushTap } from './commands/tap'
 import { IconButton, TitleBar, useDialogs, useToast } from '../ui'
 import { AudioEngine } from './audio/AudioEngine'
 import { hitTimesForChart } from './audio/schedule'
+import { computePeaks, type WaveformPeaks } from './audio/waveform'
 import { resolveShortcut, type Action } from './input/shortcuts'
 import { RightPanel } from './panels/RightPanel'
 import { getChart, type ProjectDoc } from './state/doc'
@@ -169,6 +170,20 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   const tm = useMemo(() => new TimingMap(song.timing, song.offsetMs), [song.timing, song.offsetMs])
   const tmRef = useRef(tm)
   tmRef.current = tm
+
+  // 파형 피크: 첫 화면을 그린 뒤에 계산해서 store 밖에 둔다
+  const [peaks, setPeaks] = useState<WaveformPeaks | undefined>()
+  useEffect(() => {
+    const buffer = engine.decodedBuffer
+    if (!buffer) return
+    const timer = setTimeout(() => {
+      const channels = Array.from({ length: buffer.numberOfChannels }, (_, i) =>
+        buffer.getChannelData(i)
+      )
+      setPeaks(computePeaks(channels, buffer.sampleRate))
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [engine])
 
   // ---- 재생 ----
   const play = useCallback(() => {
@@ -385,7 +400,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       <TitleBar title={title} dirty={dirty} />
       <div className={styles.main}>
         <div className={styles.timeline}>
-          <TimelineCanvas tm={tm} durationMs={engine.durationMs} />
+          <TimelineCanvas tm={tm} durationMs={engine.durationMs} peaks={peaks} />
           {!panelOpen && (
             <div className={styles.panelToggle}>
               <IconButton

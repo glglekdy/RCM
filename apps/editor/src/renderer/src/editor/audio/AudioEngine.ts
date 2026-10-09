@@ -38,6 +38,11 @@ export class AudioEngine {
     return this.duration
   }
 
+  /** 디코딩된 오디오 (파형 계산용). 불러오기 전에는 null. */
+  get decodedBuffer(): AudioBuffer | null {
+    return this.buffer
+  }
+
   get playing(): boolean {
     return this.isPlaying
   }

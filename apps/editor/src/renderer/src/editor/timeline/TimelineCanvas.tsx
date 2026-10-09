@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { TimingMap } from '@rcm/core'
+import type { WaveformPeaks } from '../audio/waveform'
 import { getChart } from '../state/doc'
 import { useEditor, useStore } from '../state/useStore'
 import { drawTimeline } from './drawTimeline'
@@ -10,17 +11,18 @@ import styles from './TimelineCanvas.module.css'
 interface TimelineCanvasProps {
   tm: TimingMap
   durationMs: number
+  peaks?: WaveformPeaks
 }
 
 const ZOOM_STEP = 1.1
 
-export function TimelineCanvas({ tm, durationMs }: TimelineCanvasProps) {
+export function TimelineCanvas({ tm, durationMs, peaks }: TimelineCanvasProps) {
   const store = useStore()
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const sizeRef = useRef({ width: 0, height: 0 })
-  const propsRef = useRef({ tm, durationMs })
-  propsRef.current = { tm, durationMs }
+  const propsRef = useRef({ tm, durationMs, peaks })
+  propsRef.current = { tm, durationMs, peaks }
   const drawRef = useRef<() => void>(() => {})
   const tool = useEditor((s) => s.tool)
 
@@ -46,7 +48,7 @@ export function TimelineCanvas({ tm, durationMs }: TimelineCanvasProps) {
       if (!canvas || !ctx || width === 0 || height === 0) return
       const s = store.getState()
       const chart = getChart(s.doc, s.activeChart)
-      const { tm, durationMs } = propsRef.current
+      const { tm, durationMs, peaks } = propsRef.current
       const dpr = window.devicePixelRatio || 1
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, width, height)
@@ -61,6 +63,7 @@ export function TimelineCanvas({ tm, durationMs }: TimelineCanvasProps) {
         markers: s.doc.editorData.markers,
         timing: s.doc.song.timing,
         durationMs,
+        peaks,
         preview,
         previewInvalid,
         hiddenKeys,
@@ -72,7 +75,7 @@ export function TimelineCanvas({ tm, durationMs }: TimelineCanvasProps) {
     return store.subscribe(draw)
   }, [store, tools])
 
-  useEffect(() => drawRef.current(), [tm, durationMs])
+  useEffect(() => drawRef.current(), [tm, durationMs, peaks])
 
   // 크기 추적 (devicePixelRatio 반영)
   useEffect(() => {

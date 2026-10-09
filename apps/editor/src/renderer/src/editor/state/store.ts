@@ -2,6 +2,7 @@ import type { SnapDivision } from '@rcm/core'
 import type { ProjectFiles } from '../../../../shared/api'
 import { dirtyFiles, isDirty, savedRefsOf, type SavedRefs } from './dirty'
 import type { ProjectDoc } from './doc'
+import type { Clip } from '../commands/notes'
 import { History } from './history'
 
 export interface EditorState {
@@ -21,6 +22,7 @@ export interface EditorState {
   panelTab: 'song' | 'timing' | 'chart'
   hitsoundVolume: number
   taps: number[]
+  clipboard: Clip | null
 }
 
 export class EditorStore {
@@ -46,7 +48,8 @@ export class EditorStore {
       panelOpen: true,
       panelTab: 'song',
       hitsoundVolume: 0.6,
-      taps: []
+      taps: [],
+      clipboard: null
     }
   }
 

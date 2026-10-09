@@ -5,7 +5,7 @@ import { copyNotes, mirrorNotes, pasteClip, removeNotes } from './notes'
 
 export type EditAction = 'copy' | 'cut' | 'paste' | 'delete' | 'mirror'
 
-const PASTE_FAILED = '여기에는 붙여넣을 수 없어요 (겹치거나 레인 수가 달라요)'
+const PASTE_FAILED = '여기에는 붙여넣을 수 없어요 (겹치거나 없는 트랙이 있어요)'
 
 /**
  * 선택한 노트에 대한 키보드 편집. 보여 줄 토스트 문구를 돌려준다 (없으면 null).

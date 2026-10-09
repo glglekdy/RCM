@@ -49,7 +49,7 @@ describe('timing commands', () => {
   })
 
   it('타이밍이 바뀌어도 노트 tick 유지', () => {
-    const base = withNotes(d0, [{ tick: 960, lane: 0, type: 'tap' }])
+    const base = withNotes(d0, [{ tick: 960, track: 'Note_1', type: 'tap' }])
     const d = setOffset(base, 250)!
     expect(getChart(d, 'normal.chart.json').notes[0].tick).toBe(960)
     expect(d.charts).toBe(base.charts) // 차트 참조 그대로 → 차트는 dirty 아님

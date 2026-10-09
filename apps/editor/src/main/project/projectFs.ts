@@ -2,14 +2,14 @@ import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import {
   FORMAT_VERSION,
-  MAX_LANES,
-  MIN_LANES,
   emptyEditorData,
   parseChart,
   parseSong,
   serializeChart,
   serializeEditorData,
-  serializeSong
+  serializeSong,
+  trackErrors,
+  type Track
 } from '@rcm/core'
 import type { CreateProjectOptions, ProjectFiles, RecentProject } from '../../shared/api'
 import { sanitizeFolderName, uniqueChildName } from './folderName'
@@ -53,11 +53,15 @@ export function validateCreateProjectOptions(raw: unknown): CreateProjectOptions
   if (typeof bpm !== 'number' || !Number.isFinite(bpm) || bpm <= 0) {
     throw new Error('BPM은 0보다 큰 숫자여야 해요')
   }
-  const lanes = o.lanes
-  if (typeof lanes !== 'number' || !Number.isInteger(lanes) || lanes < MIN_LANES || lanes > MAX_LANES) {
-    throw new Error(`레인 수는 ${MIN_LANES}~${MAX_LANES}이어야 해요`)
-  }
-  return { parentDir, title, artist, audioPath, bpm, chartName, lanes }
+  const errors = trackErrors(o.tracks, 'tracks')
+  if (errors.length > 0) throw new Error(`트랙 목록이 올바르지 않아요 (${errors[0]})`)
+  const tracks = (o.tracks as Track[]).map(({ id, color, width }) => {
+    const t: Track = { id }
+    if (color !== undefined) t.color = color
+    if (width !== undefined) t.width = width
+    return t
+  })
+  return { parentDir, title, artist, audioPath, bpm, chartName, tracks }
 }
 
 export async function createProject(raw: CreateProjectOptions): Promise<string> {
@@ -92,7 +96,7 @@ export async function createProject(raw: CreateProjectOptions): Promise<string> 
     const chartFile = `${sanitizeFolderName(opts.chartName.toLowerCase())}.chart.json`
     await fs.writeFile(
       path.join(dir, chartFile),
-      serializeChart({ formatVersion: FORMAT_VERSION, name: opts.chartName, level: 1, lanes: opts.lanes, notes: [] })
+      serializeChart({ formatVersion: FORMAT_VERSION, name: opts.chartName, level: 1, tracks: opts.tracks, notes: [] })
     )
     await fs.writeFile(path.join(dir, 'editor.json'), serializeEditorData(emptyEditorData()))
     return dir
@@ -170,10 +174,10 @@ export async function summarizeProject(dir: string): Promise<Omit<RecentProject,
     const files = await openProjectFiles(dir)
     const song = parseSong(files.songText)
     if (!song.ok) throw new Error('invalid song')
-    const charts: { name: string; lanes: number }[] = []
+    const charts: RecentProject['charts'] = []
     for (const c of files.charts) {
       const parsed = parseChart(c.text, c.file)
-      if (parsed.ok) charts.push({ name: parsed.value.name, lanes: parsed.value.lanes })
+      if (parsed.ok) charts.push({ name: parsed.value.name, trackCount: parsed.value.tracks.length })
     }
     return { dir, missing: false, title: song.value.title, artist: song.value.artist, charts }
   } catch {

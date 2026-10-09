@@ -1,8 +1,14 @@
-import { notesOverlap, snapStepTicks, snapTick, type Note, type SnapDivision, type TimingMap } from '@rcm/core'
+import {
+  compareNotes,
+  notesOverlap,
+  snapStepTicks,
+  snapTick,
+  type Note,
+  type SnapDivision,
+  type TimingMap
+} from '@rcm/core'
 import type { Press } from '../input/recorder'
 import { getChart, replaceChart, type ProjectDoc } from '../state/doc'
-
-const byTickLane = (a: Note, b: Note): number => a.tick - b.tick || a.lane - b.lane
 
 /**
  * 누름을 현재 스냅에 맞춘 노트로. 한 칸 이상 누르면 hold, 아니면 tap.
@@ -26,9 +32,9 @@ export function quantizePresses(
     }
     if (up - down >= step) {
       const endTick = Math.max(snapTick(tm, up, snap), tick + step)
-      notes.push({ tick, lane: p.lane, type: 'hold', endTick })
+      notes.push({ tick, track: p.track, type: 'hold', endTick })
     } else {
-      notes.push({ tick, lane: p.lane, type: 'tap' })
+      notes.push({ tick, track: p.track, type: 'tap' })
     }
   }
   return { notes, early }
@@ -78,5 +84,6 @@ export function mergeRecorded(
   }
   const dropped = notes.length - added
   if (added === 0) return { doc, added, dropped }
-  return { doc: replaceChart(doc, file, { ...chart, notes: kept.sort(byTickLane) }), added, dropped }
+  const sorted = kept.sort(compareNotes(chart.tracks))
+  return { doc: replaceChart(doc, file, { ...chart, notes: sorted }), added, dropped }
 }

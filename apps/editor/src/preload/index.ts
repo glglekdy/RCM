@@ -14,6 +14,9 @@ const api: RcmApi = {
   getRecentProjects: () => ipcRenderer.invoke('rcm:get-recent-projects'),
   removeRecentProject: (dir) => ipcRenderer.invoke('rcm:remove-recent-project', dir),
   showInExplorer: (dir) => ipcRenderer.invoke('rcm:show-in-explorer', dir),
+  getPresets: () => ipcRenderer.invoke('rcm:get-presets'),
+  savePresets: (presets) => ipcRenderer.invoke('rcm:save-presets', presets),
+  setLastPresetId: (id) => ipcRenderer.invoke('rcm:set-last-preset-id', id),
   setDirty: (dirty) => ipcRenderer.send('rcm:set-dirty', dirty),
   onCloseRequested: (cb) => {
     const listener = (): void => cb()

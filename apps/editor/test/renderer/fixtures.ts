@@ -1,4 +1,4 @@
-import { emptyEditorData, serializeEditorData, type Note, type TimingPoint } from '@rcm/core'
+import { basicTracks, emptyEditorData, serializeEditorData, type Note, type TimingPoint } from '@rcm/core'
 import type { ProjectFiles } from '../../src/shared/api'
 import { loadProject } from '../../src/renderer/src/editor/state/loadProject'
 import { getChart, replaceChart, type ProjectDoc } from '../../src/renderer/src/editor/state/doc'
@@ -13,7 +13,7 @@ export function files(): ProjectFiles {
     previewStartMs: 0,
     timing: [{ tick: 0, bpm: 120, beatsPerMeasure: 4 }]
   }
-  const chart = { formatVersion: 1, name: 'NORMAL', level: 1, lanes: 4, notes: [] }
+  const chart = { formatVersion: 1, name: 'NORMAL', level: 1, tracks: basicTracks(4), notes: [] }
   return {
     dir: 'C:/p',
     audioPath: 'C:/p/audio.ogg',
@@ -30,11 +30,12 @@ export const d0: ProjectDoc = loaded.doc
 export function withNotes(
   doc: ProjectDoc,
   notes: Note[],
-  lanes?: number,
+  trackCount?: number,
   file = 'normal.chart.json'
 ): ProjectDoc {
   const chart = getChart(doc, file)
-  return replaceChart(doc, file, { ...chart, notes, lanes: lanes ?? chart.lanes })
+  const tracks = trackCount === undefined ? chart.tracks : basicTracks(trackCount)
+  return replaceChart(doc, file, { ...chart, notes, tracks })
 }
 
 export function withTiming(doc: ProjectDoc, timing: TimingPoint[]): ProjectDoc {

@@ -1,3 +1,6 @@
+import type { Track } from '@rcm/core'
+import type { TrackPreset } from './presets'
+
 export interface CreateProjectOptions {
   parentDir: string
   title: string
@@ -5,7 +8,7 @@ export interface CreateProjectOptions {
   audioPath: string
   bpm: number
   chartName: string
-  lanes: number
+  tracks: Track[]
 }
 
 export interface ProjectFiles {
@@ -22,7 +25,7 @@ export interface RecentProject {
   missing: boolean
   title: string
   artist: string
-  charts: { name: string; lanes: number }[]
+  charts: { name: string; trackCount: number }[]
 }
 
 export interface RcmApi {
@@ -39,6 +42,11 @@ export interface RcmApi {
   getRecentProjects(): Promise<RecentProject[]>
   removeRecentProject(dir: string): Promise<void>
   showInExplorer(dir: string): Promise<void>
+  /** 저장된 트랙 프리셋 (없거나 잘못됐으면 기본 프리셋)과 마지막으로 고른 프리셋 id. */
+  getPresets(): Promise<{ presets: TrackPreset[]; lastPresetId: string | null }>
+  /** 프리셋 목록 전체를 저장한다. 잘못된 값이 하나라도 있으면 reject. */
+  savePresets(presets: TrackPreset[]): Promise<void>
+  setLastPresetId(id: string): Promise<void>
   setDirty(dirty: boolean): void
   onCloseRequested(cb: () => void): () => void
   forceClose(): void

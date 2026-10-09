@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { TimingMap } from '@rcm/core'
+import { TimingMap, basicTracks } from '@rcm/core'
 import type { Chart } from '@rcm/core'
 import {
   collectDueHits,
@@ -19,11 +19,11 @@ describe('schedule', () => {
       formatVersion: 1,
       name: 'n',
       level: 1,
-      lanes: 4,
+      tracks: basicTracks(4),
       notes: [
-        { tick: 480, lane: 1, type: 'tap' },
-        { tick: 0, lane: 0, type: 'hold', endTick: 960 },
-        { tick: 480, lane: 2, type: 'tap' }
+        { tick: 480, track: 'Note_2', type: 'tap' },
+        { tick: 0, track: 'Note_1', type: 'hold', endTick: 960 },
+        { tick: 480, track: 'Note_3', type: 'tap' }
       ]
     } as Chart
     expect(hitTimesForChart(chart, tm)).toEqual([0, 500])

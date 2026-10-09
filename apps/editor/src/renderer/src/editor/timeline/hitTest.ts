@@ -1,11 +1,19 @@
-import { noteKey, snapTick, type Note, type SnapDivision, type TimingMap } from '@rcm/core'
+import {
+  noteKey,
+  snapTick,
+  trackIndex,
+  type Note,
+  type SnapDivision,
+  type TimingMap,
+  type Track
+} from '@rcm/core'
 import { msToY, xToLane, yToMs, type TimelineLayout, type TimelineView } from './view'
 
 /** 노트 머리의 높이(px). 세로 중앙이 노트의 시각이다. */
 export const NOTE_HEIGHT = 10
 
 /**
- * 화면 좌표가 가리키는 레인과 스냅된 tick. 레인 밖이거나, 스냅한 tick이 0보다 앞(곡 시작 전)이면 null.
+ * 화면 좌표가 가리키는 트랙(위치와 id)과 스냅된 tick. 트랙 밖이거나, 스냅한 tick이 0보다 앞(곡 시작 전)이면 null.
  * tick 0보다 반 칸 이내로 아래는 스냅하면 0이 되므로 tick 0 셀이다.
  */
 export function pointerToCell(
@@ -15,13 +23,13 @@ export function pointerToCell(
   x: number,
   y: number,
   snap: SnapDivision
-): { lane: number; tick: number } | null {
+): { lane: number; track: string; tick: number } | null {
   const lane = xToLane(layout, x)
   if (lane === null) return null
   const tick = snapTick(tm, tm.msToTick(yToMs(view, y)), snap)
   if (tick < 0) return null
   // -0을 0으로
-  return { lane, tick: Math.max(0, tick) }
+  return { lane, track: layout.columns[lane].id, tick: Math.max(0, tick) }
 }
 
 /** 화면 좌표 아래의 노트 (머리 또는 롱노트 몸통). 여러 개면 tick이 큰 것. */
@@ -35,9 +43,10 @@ export function hitTestNote(
 ): Note | null {
   const lane = xToLane(layout, x)
   if (lane === null) return null
+  const track = layout.columns[lane].id
   let best: Note | null = null
   for (const note of notes) {
-    if (note.lane !== lane || (best && note.tick <= best.tick)) continue
+    if (note.track !== track || (best && note.tick <= best.tick)) continue
     const yHead = msToY(view, tm.tickToMs(note.tick))
     // 머리 사각형, 롱노트는 그려진 몸통(끝 y보다 반 노트 높이 위)까지
     let yTop = yHead - NOTE_HEIGHT / 2
@@ -49,7 +58,7 @@ export function hitTestNote(
   return best
 }
 
-/** 사각 선택 범위: 레인과 tick 모두 양 끝 포함. */
+/** 사각 선택 범위: 트랙 위치와 tick 모두 양 끝 포함. */
 export interface SelectRect {
   lane0: number
   lane1: number
@@ -57,9 +66,10 @@ export interface SelectRect {
   tick1: number
 }
 
-/** 머리가 범위 안(양 끝 포함, 인자 순서 무관)인 노트 키. */
+/** 머리가 범위 안(양 끝 포함, 인자 순서 무관)인 노트 키. lane은 `tracks`에서의 트랙 위치. */
 export function notesInRect(
   notes: Note[],
+  tracks: readonly Track[],
   lane0: number,
   lane1: number,
   tick0: number,
@@ -69,7 +79,8 @@ export function notesInRect(
   const [tickLo, tickHi] = tick0 <= tick1 ? [tick0, tick1] : [tick1, tick0]
   const keys = new Set<string>()
   for (const n of notes) {
-    if (n.lane >= laneLo && n.lane <= laneHi && n.tick >= tickLo && n.tick <= tickHi) {
+    const lane = trackIndex(tracks, n.track)
+    if (lane >= 0 && lane >= laneLo && lane <= laneHi && n.tick >= tickLo && n.tick <= tickHi) {
       keys.add(noteKey(n))
     }
   }

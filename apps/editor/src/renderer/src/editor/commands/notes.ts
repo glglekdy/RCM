@@ -1,4 +1,12 @@
-import { noteKey, notesOverlap, type Chart, type Note } from '@rcm/core'
+import {
+  compareNotes,
+  noteKey,
+  notesOverlap,
+  trackIndex,
+  type Chart,
+  type Note,
+  type Track
+} from '@rcm/core'
 import { getChart, replaceChart, type ProjectDoc } from '../state/doc'
 
 /** 복사한 노트 묶음. 첫 노트의 tick이 0이 되도록 옮긴 사본이다. */
@@ -6,20 +14,32 @@ export interface Clip {
   notes: Note[]
 }
 
-const byTickLane = (a: Note, b: Note): number => a.tick - b.tick || a.lane - b.lane
-
-function inRange(note: Note, lanes: number): boolean {
-  if (!Number.isInteger(note.lane) || note.lane < 0 || note.lane >= lanes) return false
+function inRange(note: Note, tracks: readonly Track[]): boolean {
+  if (trackIndex(tracks, note.track) < 0) return false
   if (!Number.isInteger(note.tick) || note.tick < 0) return false
   return note.type !== 'hold' || (Number.isInteger(note.endTick) && note.endTick > note.tick)
 }
 
-/** tick·레인을 옮긴 사본. 범위는 검사하지 않는다. */
-export function shiftNote(note: Note, dTick: number, dLane: number): Note {
-  const lane = note.lane + dLane
+/**
+ * tick을 옮기고 트랙 위치를 dLane만큼 옮긴 사본. 옮긴 트랙 위치가 `tracks` 밖이면 null.
+ * tick 범위는 검사하지 않는다.
+ */
+export function shiftNote(note: Note, dTick: number, dLane: number, tracks: readonly Track[]): Note | null {
+  const from = trackIndex(tracks, note.track)
+  if (from < 0) return null
+  const to = tracks[from + dLane]
+  if (!to) return null
+  const track = to.id
   return note.type === 'hold'
-    ? { ...note, tick: note.tick + dTick, lane, endTick: note.endTick + dTick }
-    : { ...note, tick: note.tick + dTick, lane }
+    ? { ...note, tick: note.tick + dTick, track, endTick: note.endTick + dTick }
+    : { ...note, tick: note.tick + dTick, track }
+}
+
+/** tick만 옮긴 사본. */
+function shiftTick(note: Note, dTick: number): Note {
+  return note.type === 'hold'
+    ? { ...note, tick: note.tick + dTick, endTick: note.endTick + dTick }
+    : { ...note, tick: note.tick + dTick }
 }
 
 /** moved를 chart의 나머지 노트(rest)에 합친다. 범위 위반이나 겹침이면 null. */
@@ -31,10 +51,10 @@ function merge(
   moved: Note[]
 ): ProjectDoc | null {
   for (const n of moved) {
-    if (!inRange(n, chart.lanes)) return null
-    for (const o of rest) if (o.lane === n.lane && notesOverlap(o, n)) return null
+    if (!inRange(n, chart.tracks)) return null
+    for (const o of rest) if (notesOverlap(o, n)) return null
   }
-  const notes = [...rest, ...moved].sort(byTickLane)
+  const notes = [...rest, ...moved].sort(compareNotes(chart.tracks))
   return replaceChart(doc, file, { ...chart, notes })
 }
 
@@ -54,18 +74,24 @@ export function removeNotes(
   return replaceChart(doc, file, { ...chart, notes })
 }
 
+/** keys의 노트를 fn으로 바꾼다. fn이 null을 돌려주면(트랙 밖) 전체를 거부한다. */
 function transform(
   doc: ProjectDoc,
   file: string,
   keys: ReadonlySet<string>,
-  fn: (n: Note, lanes: number) => Note
+  fn: (n: Note, tracks: readonly Track[]) => Note | null
 ): { doc: ProjectDoc; keys: Set<string> } | null {
   const chart = getChart(doc, file)
   const rest: Note[] = []
   const moved: Note[] = []
   for (const n of chart.notes) {
-    if (keys.has(noteKey(n))) moved.push(fn(n, chart.lanes))
-    else rest.push(n)
+    if (!keys.has(noteKey(n))) {
+      rest.push(n)
+      continue
+    }
+    const next = fn(n, chart.tracks)
+    if (!next) return null
+    moved.push(next)
   }
   if (moved.length === 0) return null
   const next = merge(doc, file, chart, rest, moved)
@@ -79,24 +105,29 @@ export function moveNotes(
   dTick: number,
   dLane: number
 ): { doc: ProjectDoc; keys: Set<string> } | null {
-  return transform(doc, file, keys, (n) => shiftNote(n, dTick, dLane))
+  return transform(doc, file, keys, (n, tracks) => shiftNote(n, dTick, dLane, tracks))
 }
 
+/** 트랙 위치 i의 노트를 위치 n−1−i의 트랙으로 옮긴다. */
 export function mirrorNotes(
   doc: ProjectDoc,
   file: string,
   keys: ReadonlySet<string>
 ): { doc: ProjectDoc; keys: Set<string> } | null {
-  return transform(doc, file, keys, (n, lanes) => ({ ...n, lane: lanes - 1 - n.lane }))
+  return transform(doc, file, keys, (n, tracks) => {
+    const i = trackIndex(tracks, n.track)
+    return i < 0 ? null : { ...n, track: tracks[tracks.length - 1 - i].id }
+  })
 }
 
 export function copyNotes(chart: Chart, keys: ReadonlySet<string>): Clip | null {
-  const picked = chart.notes.filter((n) => keys.has(noteKey(n))).sort(byTickLane)
+  const picked = chart.notes.filter((n) => keys.has(noteKey(n))).sort(compareNotes(chart.tracks))
   if (picked.length === 0) return null
   const base = picked[0].tick
-  return { notes: picked.map((n) => shiftNote(n, -base, 0)) }
+  return { notes: picked.map((n) => shiftTick(n, -base)) }
 }
 
+/** 클립을 atTick에 붙인다. 클립 노트의 트랙이 채보에 하나라도 없거나 겹치면 null. */
 export function pasteClip(
   doc: ProjectDoc,
   file: string,
@@ -105,7 +136,7 @@ export function pasteClip(
 ): { doc: ProjectDoc; keys: Set<string> } | null {
   if (clip.notes.length === 0) return null
   const chart = getChart(doc, file)
-  const moved = clip.notes.map((n) => shiftNote(n, atTick, 0))
+  const moved = clip.notes.map((n) => shiftTick(n, atTick))
   const next = merge(doc, file, chart, chart.notes, moved)
   return next && { doc: next, keys: new Set(moved.map(noteKey)) }
 }

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { parseChart, parseSong } from '@rcm/core'
+import { basicTracks, parseChart, parseSong } from '@rcm/core'
 import {
   assertDirectory,
   createProject,
@@ -22,7 +22,7 @@ beforeEach(async () => {
   tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-'))
   mp3 = path.join(tmp, 'x.mp3')
   await fs.writeFile(mp3, Buffer.from([1, 2, 3]))
-  opts = { parentDir: tmp, title: 'p', artist: '', audioPath: mp3, bpm: 120, chartName: 'NORMAL', lanes: 4 }
+  opts = { parentDir: tmp, title: 'p', artist: '', audioPath: mp3, bpm: 120, chartName: 'NORMAL', tracks: basicTracks(4) }
 })
 afterEach(async () => {
   await fs.rm(tmp, { recursive: true, force: true })
@@ -30,7 +30,7 @@ afterEach(async () => {
 
 describe('projectFs', () => {
   it('프로젝트 만들고 다시 열기 (한글 이름)', async () => {
-    const dir = await createProject({ ...opts, title: '진격의 승리: Remix?', artist: 'A', bpm: 150, lanes: 7 })
+    const dir = await createProject({ ...opts, title: '진격의 승리: Remix?', artist: 'A', bpm: 150, tracks: basicTracks(7) })
     expect(path.basename(dir)).toBe('진격의 승리_ Remix_')
     const files = await openProjectFiles(dir)
     expect(path.basename(files.audioPath)).toBe('audio.mp3')
@@ -38,8 +38,23 @@ describe('projectFs', () => {
     expect(song.ok && song.value.timing).toEqual([{ tick: 0, bpm: 150, beatsPerMeasure: 4 }])
     expect(files.charts.map((c) => c.file)).toEqual(['normal.chart.json'])
     const chart = parseChart(files.charts[0].text, 'normal.chart.json')
-    expect(chart.ok && chart.value.lanes).toBe(7)
+    expect(chart.ok && chart.value.tracks).toEqual(basicTracks(7))
     expect(files.editorText).not.toBeNull()
+  })
+  it('트랙 프리셋으로 프로젝트 만들기', async () => {
+    const dir = await createProject({
+      ...opts,
+      title: 'side',
+      tracks: [{ id: 'Side_L', color: '#f59e0b', width: 'wide' }, { id: 'Note_1' }]
+    })
+    const chart = parseChart((await openProjectFiles(dir)).charts[0].text, 'normal.chart.json')
+    expect(chart.ok && chart.value.tracks.map((t) => t.id)).toEqual(['Side_L', 'Note_1'])
+    expect(chart.ok && chart.value.tracks[0]).toEqual({ id: 'Side_L', color: '#f59e0b', width: 'wide' })
+    expect((await summarizeProject(dir)).charts).toEqual([{ name: 'NORMAL', trackCount: 2 }])
+  })
+  it('잘못된 트랙이면 만들지 않음', async () => {
+    await expect(createProject({ ...opts, title: 'bad', tracks: [{ id: 'A' }, { id: 'A' }] })).rejects.toThrow()
+    expect(existsSync(path.join(tmp, 'bad'))).toBe(false)
   })
   it('같은 이름이면 (2)', async () => {
     await createProject({ ...opts, title: 'dup' })
@@ -120,11 +135,19 @@ describe('projectFs', () => {
     expect(validateCreateProjectOptions(opts)).toEqual(opts)
     // 알려진 키만 남긴다
     expect(validateCreateProjectOptions({ ...opts, extra: 1 })).toEqual(opts)
+    // 트랙도 알려진 필드만 남긴다
+    const tracks = [{ id: 'Side_L', color: '#f59e0b', width: 'wide', key: 'ShiftLeft' }, { id: 'Note_1' }]
+    expect(validateCreateProjectOptions({ ...opts, tracks }).tracks).toEqual([
+      { id: 'Side_L', color: '#f59e0b', width: 'wide' },
+      { id: 'Note_1' }
+    ])
     const bad: [Record<string, unknown>, string][] = [
-      [{ lanes: 3 }, '레인'],
-      [{ lanes: 9 }, '레인'],
-      [{ lanes: 4.5 }, '레인'],
-      [{ lanes: '4' }, '레인'],
+      [{ tracks: [] }, '트랙'],
+      [{ tracks: basicTracks(17) }, '트랙'],
+      [{ tracks: 4 }, '트랙'],
+      [{ tracks: [{ id: 'bad id' }] }, '트랙'],
+      [{ tracks: [{ id: 'A', color: 'red' }] }, '트랙'],
+      [{ tracks: undefined }, '트랙'],
       [{ bpm: 0 }, 'BPM'],
       [{ bpm: -120 }, 'BPM'],
       [{ bpm: Number.NaN }, 'BPM'],
@@ -148,8 +171,8 @@ describe('projectFs', () => {
     expect(() => validateCreateProjectOptions('x')).toThrow()
   })
   it('잘못된 옵션이면 폴더를 만들지 않음', async () => {
-    await expect(createProject({ ...opts, title: 'badlanes', lanes: 12 })).rejects.toThrow('레인')
-    expect(existsSync(path.join(tmp, 'badlanes'))).toBe(false)
+    await expect(createProject({ ...opts, title: 'badtracks', tracks: basicTracks(17) })).rejects.toThrow('트랙')
+    expect(existsSync(path.join(tmp, 'badtracks'))).toBe(false)
   })
   it('탐색기로 열 경로는 있는 폴더여야 함', async () => {
     await expect(assertDirectory(tmp)).resolves.toBeUndefined()

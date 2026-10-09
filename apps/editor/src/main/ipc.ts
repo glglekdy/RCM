@@ -11,7 +11,14 @@ import {
   summarizeProject,
   writeProjectFiles
 } from './project/projectFs'
-import { loadSettings, saveSettings, touchRecent } from './project/settings'
+import {
+  loadSettings,
+  presetsOf,
+  saveSettings,
+  touchRecent,
+  validateLastPresetId,
+  validatePresets
+} from './project/settings'
 
 const settingsFile = (): string => join(app.getPath('userData'), 'settings.json')
 const defaultProjectDir = (): string => join(app.getPath('documents'), 'RCM Projects')
@@ -98,6 +105,22 @@ export function registerProjectIpc(): void {
   ipcMain.handle('rcm:remove-recent-project', async (_e, dir: string) => {
     const settings = await loadSettings(settingsFile())
     settings.recent = settings.recent.filter((r) => r.dir !== dir)
+    await saveSettings(settingsFile(), settings)
+  })
+
+  ipcMain.handle('rcm:get-presets', async () => presetsOf(await loadSettings(settingsFile())))
+
+  ipcMain.handle('rcm:save-presets', async (_e, raw: unknown) => {
+    const presets = validatePresets(raw)
+    const settings = await loadSettings(settingsFile())
+    settings.presets = presets
+    await saveSettings(settingsFile(), settings)
+  })
+
+  ipcMain.handle('rcm:set-last-preset-id', async (_e, raw: unknown) => {
+    const id = validateLastPresetId(raw)
+    const settings = await loadSettings(settingsFile())
+    settings.lastPresetId = id
     await saveSettings(settingsFile(), settings)
   })
 

@@ -1,0 +1,254 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Play, Square } from 'lucide-react'
+import {
+  Button,
+  IconButton,
+  Modal,
+  NumberField,
+  Row,
+  SegmentedControl,
+  TextField,
+  useDialogs
+} from '../ui'
+import styles from './NewProjectDialog.module.css'
+
+interface NewProjectDialogProps {
+  open: boolean
+  onClose: () => void
+  onCreated: (dir: string) => void
+}
+
+type Audio =
+  | { state: 'none' }
+  | { state: 'decoding'; path: string }
+  | { state: 'ok'; path: string; buffer: AudioBuffer }
+  | { state: 'error'; path: string }
+
+const LANE_OPTIONS = [4, 5, 6, 7, 8].map((n) => ({ value: n, label: `${n}키` }))
+const TITLE_MAX = 100
+
+function baseName(path: string): string {
+  return path.split(/[\\/]/).pop() ?? path
+}
+
+function formatDuration(sec: number): string {
+  const total = Math.round(sec)
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
+
+export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogProps) {
+  const dialogs = useDialogs()
+  const [title, setTitle] = useState('')
+  const [artist, setArtist] = useState('')
+  const [audio, setAudio] = useState<Audio>({ state: 'none' })
+  const [bpm, setBpm] = useState(120)
+  const [chartName, setChartName] = useState('NORMAL')
+  const [lanes, setLanes] = useState(4)
+  const [parentDir, setParentDir] = useState('')
+  const [preview, setPreview] = useState('')
+  const [playing, setPlaying] = useState(false)
+  const [creating, setCreating] = useState(false)
+
+  const ctxRef = useRef<AudioContext | null>(null)
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null)
+  const pickToken = useRef(0)
+
+  const stopPlayback = useCallback(() => {
+    const src = sourceRef.current
+    sourceRef.current = null
+    if (src) {
+      src.onended = null
+      try {
+        src.stop()
+      } catch {
+        // 이미 멈춘 경우
+      }
+    }
+    setPlaying(false)
+  }, [])
+
+  // 열릴 때 초기화, 닫힐 때 재생 정지 + 오디오 컨텍스트 정리
+  useEffect(() => {
+    if (!open) return
+    setTitle('')
+    setArtist('')
+    setAudio({ state: 'none' })
+    setBpm(120)
+    setChartName('NORMAL')
+    setLanes(4)
+    setPreview('')
+    setCreating(false)
+    pickToken.current++
+    let cancelled = false
+    void window.rcm.getDefaultProjectDir().then((d) => {
+      if (!cancelled) setParentDir(d)
+    })
+    return () => {
+      cancelled = true
+      stopPlayback()
+      void ctxRef.current?.close()
+      ctxRef.current = null
+    }
+  }, [open, stopPlayback])
+
+  // 저장 위치 미리보기
+  useEffect(() => {
+    if (!open || !parentDir || !title.trim()) {
+      setPreview('')
+      return
+    }
+    let cancelled = false
+    void window.rcm.resolveProjectDir(parentDir, title.trim()).then((d) => {
+      if (!cancelled) setPreview(d)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open, parentDir, title])
+
+  const pickAudio = async () => {
+    const path = await window.rcm.pickAudioFile()
+    if (!path) return
+    stopPlayback()
+    const token = ++pickToken.current
+    setAudio({ state: 'decoding', path })
+    try {
+      const data = await window.rcm.readAudio(path)
+      ctxRef.current ??= new AudioContext()
+      const buffer = await ctxRef.current.decodeAudioData(data)
+      if (token === pickToken.current) setAudio({ state: 'ok', path, buffer })
+    } catch {
+      if (token === pickToken.current) setAudio({ state: 'error', path })
+    }
+  }
+
+  const togglePlay = () => {
+    if (playing) {
+      stopPlayback()
+      return
+    }
+    const ctx = ctxRef.current
+    if (!ctx || audio.state !== 'ok') return
+    void ctx.resume()
+    const src = ctx.createBufferSource()
+    src.buffer = audio.buffer
+    src.connect(ctx.destination)
+    src.onended = () => {
+      if (sourceRef.current === src) {
+        sourceRef.current = null
+        setPlaying(false)
+      }
+    }
+    sourceRef.current = src
+    src.start()
+    setPlaying(true)
+  }
+
+  const changeParent = async () => {
+    const dir = await window.rcm.pickFolder(parentDir)
+    if (dir) setParentDir(dir)
+  }
+
+  const canCreate =
+    !creating &&
+    title.trim() !== '' &&
+    audio.state === 'ok' &&
+    bpm > 0 &&
+    chartName.trim() !== '' &&
+    parentDir !== ''
+
+  const create = async () => {
+    if (!canCreate || audio.state !== 'ok') return
+    setCreating(true)
+    stopPlayback()
+    try {
+      const { dir } = await window.rcm.createProject({
+        parentDir,
+        title: title.trim(),
+        artist: artist.trim(),
+        audioPath: audio.path,
+        bpm,
+        chartName: chartName.trim(),
+        lanes
+      })
+      onCreated(dir)
+    } catch (err) {
+      setCreating(false)
+      await dialogs.alert('프로젝트를 만들지 못했어요', err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      title="새 프로젝트"
+      onClose={creating ? () => {} : onClose}
+      footer={
+        <>
+          <Button onClick={onClose} disabled={creating}>
+            취소
+          </Button>
+          <Button variant="primary" disabled={!canCreate} onClick={() => void create()}>
+            {creating ? '만드는 중…' : '만들기'}
+          </Button>
+        </>
+      }
+    >
+      <div className={styles.form}>
+        <Row label="프로젝트 이름">
+          <div className={styles.wide}>
+            <TextField
+              value={title}
+              onChange={(v) => setTitle(v.slice(0, TITLE_MAX))}
+              placeholder="곡 제목"
+            />
+          </div>
+        </Row>
+        <Row label="아티스트">
+          <div className={styles.wide}>
+            <TextField value={artist} onChange={setArtist} placeholder="(선택)" />
+          </div>
+        </Row>
+        <Row label="음악 파일">
+          <span className={styles.fileName} title={audio.state === 'none' ? '' : audio.path}>
+            {audio.state === 'none' ? '' : baseName(audio.path)}
+          </span>
+          <Button onClick={() => void pickAudio()}>파일 선택</Button>
+        </Row>
+        {audio.state === 'ok' && (
+          <div className={styles.audioInfo}>
+            <IconButton
+              icon={playing ? Square : Play}
+              label={playing ? '정지' : '미리듣기'}
+              onClick={togglePlay}
+            />
+            <span>{formatDuration(audio.buffer.duration)}</span>
+          </div>
+        )}
+        {audio.state === 'decoding' && <div className={styles.hint}>불러오는 중…</div>}
+        {audio.state === 'error' && <div className={styles.error}>이 파일은 재생할 수 없어요</div>}
+        <Row label="BPM">
+          <NumberField value={bpm} onChange={setBpm} min={0.01} max={999} step={1} />
+        </Row>
+        <div className={styles.hint}>모르면 나중에 탭 BPM으로 잡을 수 있어요</div>
+        <Row label="첫 난이도 이름">
+          <div className={styles.medium}>
+            <TextField value={chartName} onChange={setChartName} placeholder="NORMAL" />
+          </div>
+        </Row>
+        <Row label="레인 수">
+          <SegmentedControl options={LANE_OPTIONS} value={lanes} onChange={setLanes} />
+        </Row>
+        <Row label="저장 위치">
+          <span className={styles.fileName} title={parentDir}>
+            {parentDir}
+          </span>
+          <Button onClick={() => void changeParent()}>변경</Button>
+        </Row>
+        <div className={styles.pathPreview} title={preview}>
+          {preview ? `만들어질 폴더: ${preview}` : ''}
+        </div>
+      </div>
+    </Modal>
+  )
+}

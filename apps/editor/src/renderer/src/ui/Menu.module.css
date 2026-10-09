@@ -46,3 +46,8 @@
 .danger {
   color: var(--danger);
 }
+
+.floating {
+  position: fixed;
+  top: auto;
+}

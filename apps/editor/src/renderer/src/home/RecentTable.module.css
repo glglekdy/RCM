@@ -1,0 +1,67 @@
+.table {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 2fr) 90px;
+  align-items: center;
+  gap: 16px;
+  padding: 0 12px;
+}
+
+.head {
+  height: 32px;
+  flex: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.item {
+  height: 40px;
+  border-bottom: 1px solid var(--border);
+  outline: none;
+}
+
+.item:hover,
+.item:focus-visible {
+  background: var(--bg-card);
+}
+
+.item:focus-visible {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.name {
+  font-weight: 500;
+}
+
+.name,
+.artist,
+.charts {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.muted,
+.artist {
+  color: var(--text-muted);
+}
+
+.time {
+  text-align: right;
+}
+
+.missing {
+  opacity: 0.45;
+}

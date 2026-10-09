@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, ipcMain, Menu, session } from 'electron'
+import { registerProjectIpc } from './ipc'
 
 // CSP is a response header (not a meta tag) so it governs every script,
 // including the inline preamble Vite/plugin-react injects at the top of <head> in dev.
@@ -24,6 +25,8 @@ function installCsp(): void {
   })
 }
 
+const dirtyWindows = new Set<number>()
+
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1280,
@@ -40,6 +43,14 @@ function createWindow(): BrowserWindow {
     }
   })
   win.once('ready-to-show', () => win.show())
+
+  // Close guard: while the renderer reports unsaved changes, ask it to confirm instead of closing.
+  win.on('close', (e) => {
+    if (!dirtyWindows.has(win.id)) return
+    e.preventDefault()
+    win.webContents.send('rcm:close-requested')
+  })
+  win.on('closed', () => dirtyWindows.delete(win.id))
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     void win.loadURL(process.env['ELECTRON_RENDERER_URL'])
@@ -65,6 +76,19 @@ app.whenReady().then(() => {
   })
   ipcMain.on('rcm:close', (e) => windowOf(e)?.close())
   ipcMain.handle('rcm:is-maximized', (e) => windowOf(e)?.isMaximized() ?? false)
+  ipcMain.on('rcm:set-dirty', (e, dirty: boolean) => {
+    const win = windowOf(e)
+    if (!win) return
+    if (dirty) dirtyWindows.add(win.id)
+    else dirtyWindows.delete(win.id)
+  })
+  ipcMain.on('rcm:force-close', (e) => {
+    const win = windowOf(e)
+    if (!win) return
+    dirtyWindows.delete(win.id)
+    win.close()
+  })
+  registerProjectIpc()
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

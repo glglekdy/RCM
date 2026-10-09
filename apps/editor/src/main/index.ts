@@ -1,6 +1,8 @@
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, ipcMain, Menu, session } from 'electron'
 import { registerProjectIpc } from './ipc'
+import { isAllowedNavigation } from './navigation'
 
 // CSP is a response header (not a meta tag) so it governs every script,
 // including the inline preamble Vite/plugin-react injects at the top of <head> in dev.
@@ -44,6 +46,17 @@ function createWindow(): BrowserWindow {
   })
   win.once('ready-to-show', () => win.show())
 
+  // 보안: 창은 앱 페이지 밖으로 이동하거나 새 창을 열지 않는다. 파일을 끌어다 놓으면
+  // Chromium이 그 파일로 이동하는데, 그러면 저장 안 된 편집이 사라지고 이동한 페이지가
+  // preload의 window.rcm을 받게 된다.
+  const devServerUrl = process.env['ELECTRON_RENDERER_URL']
+  const indexHtml = join(__dirname, '../renderer/index.html')
+  const appUrl = devServerUrl ?? pathToFileURL(indexHtml).href
+  win.webContents.on('will-navigate', (e, url) => {
+    if (!isAllowedNavigation(url, appUrl)) e.preventDefault()
+  })
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+
   // Close guard: while the renderer reports unsaved changes, ask it to confirm instead of closing.
   win.on('close', (e) => {
     if (!dirtyWindows.has(win.id)) return
@@ -52,13 +65,16 @@ function createWindow(): BrowserWindow {
   })
   win.on('closed', () => dirtyWindows.delete(win.id))
   // A reloaded or crashed renderer can no longer answer the close prompt, so drop the guard.
-  win.webContents.on('did-start-loading', () => dirtyWindows.delete(win.id))
+  // 'did-navigate' fires only when a main-frame load commits (a reload; other navigations are
+  // blocked above). 'did-start-loading' would also fire for a navigation that will-navigate
+  // then cancels, which dropped the guard while the unsaved page stayed open.
+  win.webContents.on('did-navigate', () => dirtyWindows.delete(win.id))
   win.webContents.on('render-process-gone', () => dirtyWindows.delete(win.id))
 
-  if (process.env['ELECTRON_RENDERER_URL']) {
-    void win.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  if (devServerUrl) {
+    void win.loadURL(devServerUrl)
   } else {
-    void win.loadFile(join(__dirname, '../renderer/index.html'))
+    void win.loadFile(indexHtml)
   }
   return win
 }

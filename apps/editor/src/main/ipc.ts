@@ -1,10 +1,10 @@
-import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { CreateProjectOptions, RecentProject } from '../shared/api'
 import {
   createProject,
   openProjectFiles,
+  readAudioFile,
   resolveProjectDir,
   summarizeProject,
   writeProjectFiles
@@ -74,10 +74,7 @@ export function registerProjectIpc(): void {
     return files
   })
 
-  ipcMain.handle('rcm:read-audio', async (_e, path: string) => {
-    const buf = await fs.readFile(path)
-    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
-  })
+  ipcMain.handle('rcm:read-audio', (_e, path: string) => readAudioFile(path))
 
   ipcMain.handle(
     'rcm:write-project-files',

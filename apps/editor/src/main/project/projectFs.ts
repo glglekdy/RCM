@@ -19,9 +19,18 @@ export function resolveProjectDir(parentDir: string, title: string): string {
 
 export async function createProject(opts: CreateProjectOptions): Promise<string> {
   await fs.mkdir(opts.parentDir, { recursive: true })
-  const dir = resolveProjectDir(opts.parentDir, opts.title)
+  // mkdir is non-recursive and outside the try: only a directory this call created is ever cleaned up.
+  let dir: string
+  for (;;) {
+    dir = resolveProjectDir(opts.parentDir, opts.title)
+    try {
+      await fs.mkdir(dir)
+      break
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e
+    }
+  }
   try {
-    await fs.mkdir(dir)
     const audio = `audio${path.extname(opts.audioPath).toLowerCase()}`
     await fs.copyFile(opts.audioPath, path.join(dir, audio))
     await fs.writeFile(
@@ -81,7 +90,17 @@ export async function openProjectFiles(dir: string): Promise<ProjectFiles> {
   }
 }
 
+function isAllowedFileName(name: string): boolean {
+  return name === 'song.json' || name === 'editor.json' || name.toLowerCase().endsWith('.chart.json')
+}
+
 export async function writeProjectFiles(dir: string, files: { name: string; text: string }[]): Promise<void> {
+  const root = path.resolve(dir)
+  for (const f of files) {
+    if (path.basename(f.name) !== f.name || path.dirname(path.resolve(root, f.name)) !== root || !isAllowedFileName(f.name)) {
+      throw new Error(`허용되지 않는 파일 이름이에요: ${f.name}`)
+    }
+  }
   for (const f of files) {
     const target = path.join(dir, f.name)
     const tmp = `${target}.tmp-${process.pid}`
@@ -109,4 +128,14 @@ export async function summarizeProject(dir: string): Promise<Omit<RecentProject,
   } catch {
     return { dir, missing: true, title: '', artist: '', charts: [] }
   }
+}
+
+const AUDIO_EXTENSIONS = ['.ogg', '.mp3', '.wav']
+
+export async function readAudioFile(file: string): Promise<ArrayBuffer> {
+  if (!AUDIO_EXTENSIONS.includes(path.extname(file).toLowerCase())) {
+    throw new Error('오디오 파일(ogg, mp3, wav)만 읽을 수 있어요')
+  }
+  const buf = await fs.readFile(file)
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer
 }

@@ -6,6 +6,7 @@ import { parseChart, parseSong } from '@rcm/core'
 import {
   createProject,
   openProjectFiles,
+  readAudioFile,
   summarizeProject,
   writeProjectFiles
 } from '../../src/main/project/projectFs'
@@ -59,5 +60,33 @@ describe('projectFs', () => {
   })
   it('사라진 프로젝트 요약', async () => {
     expect((await summarizeProject(path.join(tmp, 'gone'))).missing).toBe(true)
+  })
+  it('프로젝트 밖으로 쓰기를 거부', async () => {
+    const dir = path.join(tmp, 'proj')
+    await fs.mkdir(dir)
+    await expect(writeProjectFiles(dir, [{ name: '../evil.json', text: 'x' }])).rejects.toThrow()
+    await expect(writeProjectFiles(dir, [{ name: 'a.txt', text: 'x' }])).rejects.toThrow()
+    expect(existsSync(path.join(tmp, 'evil.json'))).toBe(false)
+    expect(await fs.readdir(dir)).toEqual([])
+  })
+  it('오디오 확장자만 읽음', async () => {
+    expect((await readAudioFile(mp3)).byteLength).toBe(3)
+    await fs.writeFile(path.join(tmp, 'a.json'), '{}')
+    await expect(readAudioFile(path.join(tmp, 'a.json'))).rejects.toThrow()
+  })
+  it('동시에 만들어도 서로의 폴더를 지우지 않음', async () => {
+    const [a, b] = await Promise.all([
+      createProject({ ...opts, title: 'race' }),
+      createProject({ ...opts, title: 'race' })
+    ])
+    expect(a).not.toBe(b)
+    expect(existsSync(path.join(a, 'song.json'))).toBe(true)
+    expect(existsSync(path.join(b, 'song.json'))).toBe(true)
+  })
+  it('실패해도 이미 있던 폴더는 남김', async () => {
+    await fs.mkdir(path.join(tmp, 'keep'))
+    await fs.writeFile(path.join(tmp, 'keep', 'marker'), 'm')
+    await expect(createProject({ ...opts, title: 'keep', audioPath: path.join(tmp, 'none.mp3') })).rejects.toThrow()
+    expect(existsSync(path.join(tmp, 'keep', 'marker'))).toBe(true)
   })
 })

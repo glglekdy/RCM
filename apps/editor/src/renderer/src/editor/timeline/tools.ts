@@ -270,6 +270,8 @@ export function createToolController(
       // 왼쪽 드래그 중의 우클릭은 무시한다 (한 동작이 기록 두 개로 갈라지지 않게)
       if (drag) return
       const s = store.getState()
+      // 녹음 중에는 레인 키 외의 편집을 모두 끈다 (5.10절)
+      if (s.mode === 'recording') return
       const { tm, view, layout } = getGeometry()
       if (xToLane(layout, e.x) === null) {
         const index = markerAtY(s.doc.editorData.markers, view, e.y)

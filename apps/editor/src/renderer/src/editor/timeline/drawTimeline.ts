@@ -30,6 +30,8 @@ export interface DrawParams {
   /** 지우거나 옮기는 중이라 숨기는 노트 키 */
   hiddenKeys?: ReadonlySet<string>
   selectRect?: SelectRect | null
+  /** 녹음 중: 눌린 레인(→ 누른 시각 ms)과 레인별 키 이름 */
+  recording?: { pressed: ReadonlyMap<number, number>; labels: string[] }
 }
 
 /** 스펙 6.3절 타임라인 색 */
@@ -49,7 +51,12 @@ const COLORS = {
   selected: '#8b5cf6',
   invalid: '#ef4444',
   selectFill: 'rgba(139, 92, 246, 0.18)',
-  selectBorder: '#8b5cf6'
+  selectBorder: '#8b5cf6',
+  pressed: 'rgba(139, 92, 246, 0.25)',
+  keyChip: '#232323',
+  keyChipPressed: '#8b5cf6',
+  keyLabel: '#8c8c8c',
+  keyLabelPressed: '#f2f2f2'
 }
 
 const NOTE_RADIUS = 3
@@ -59,6 +66,10 @@ const HOLD_BODY_ALPHA = 0.6
 const PREVIEW_ALPHA = 0.5
 const SELECTED_BORDER = 2
 const CHIP_HEIGHT = 20
+/** 녹음 중 레인 키 이름 칩: 아래 가장자리에서 띄운 거리와 크기 */
+const KEY_CHIP_BOTTOM = 8
+const KEY_CHIP_HEIGHT = 20
+const KEY_CHIP_INSET = 4
 const FONT = '500 12px "Pretendard Variable", Pretendard, system-ui, sans-serif'
 
 /** 1px 선이 픽셀 경계에 걸쳐 흐려지지 않도록 반 픽셀에 맞춘다. */
@@ -82,6 +93,14 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
     ctx.lineTo(x, h)
   }
   ctx.stroke()
+
+  // 녹음 중 눌린 레인: 레인 전체 높이를 강조
+  if (p.recording) {
+    ctx.fillStyle = COLORS.pressed
+    for (const lane of p.recording.pressed.keys()) {
+      ctx.fillRect(left + lane * layout.laneWidth, 0, layout.laneWidth, h)
+    }
+  }
 
   // 보이는 범위 (노트 높이만큼 여유)
   const margin = NOTE_HEIGHT / view.pxPerMs
@@ -159,6 +178,7 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
   }
   const previewColor = p.previewInvalid ? COLORS.invalid : COLORS.note
   for (const note of p.preview ?? []) drawNote(ctx, p, note, previewColor, PREVIEW_ALPHA, false)
+  if (p.recording) drawRecording(ctx, p, p.recording)
 
   // 사각 선택 범위: 걸친 레인 전체 폭
   if (p.selectRect) {
@@ -182,6 +202,53 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
   ctx.moveTo(layout.waveX, py)
   ctx.lineTo(right, py)
   ctx.stroke()
+}
+
+/** 녹음 중: 누르고 있는 키를 누른 시각부터 재생선까지 반투명 막대로, 레인 아래에 키 이름을 그린다. */
+function drawRecording(
+  ctx: CanvasRenderingContext2D,
+  p: DrawParams,
+  rec: NonNullable<DrawParams['recording']>
+): void {
+  const { view, layout } = p
+  const py = msToY(view, view.playheadMs)
+  ctx.fillStyle = COLORS.note
+  ctx.globalAlpha = PREVIEW_ALPHA
+  for (const [lane, downMs] of rec.pressed) {
+    const y = msToY(view, downMs)
+    ctx.beginPath()
+    ctx.roundRect(
+      layout.lanesX + lane * layout.laneWidth + HOLD_BODY_INSET,
+      py,
+      layout.laneWidth - HOLD_BODY_INSET * 2,
+      Math.max(y - py, 1),
+      NOTE_RADIUS
+    )
+    ctx.fill()
+  }
+  ctx.globalAlpha = 1
+
+  ctx.font = FONT
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  const chipY = view.height - KEY_CHIP_BOTTOM - KEY_CHIP_HEIGHT
+  rec.labels.forEach((label, lane) => {
+    const pressed = rec.pressed.has(lane)
+    const x = layout.lanesX + lane * layout.laneWidth
+    ctx.fillStyle = pressed ? COLORS.keyChipPressed : COLORS.keyChip
+    ctx.beginPath()
+    ctx.roundRect(
+      x + KEY_CHIP_INSET,
+      chipY,
+      layout.laneWidth - KEY_CHIP_INSET * 2,
+      KEY_CHIP_HEIGHT,
+      NOTE_RADIUS
+    )
+    ctx.fill()
+    ctx.fillStyle = pressed ? COLORS.keyLabelPressed : COLORS.keyLabel
+    ctx.fillText(label, x + layout.laneWidth / 2, chipY + KEY_CHIP_HEIGHT / 2 + 0.5)
+  })
+  ctx.textAlign = 'start'
 }
 
 /** 화면 1px 행마다 그 행이 덮는 시간의 피크를 띠 가운데 기준 좌우 대칭 막대로 그린다. */

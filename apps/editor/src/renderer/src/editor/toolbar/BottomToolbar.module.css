@@ -92,3 +92,37 @@
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
+
+/* 녹음 중인 녹음 버튼: 빨간 점 + REC */
+.rec {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: default;
+}
+
+.rec:hover {
+  background: var(--bg-hover);
+}
+
+.rec:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.recDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+}

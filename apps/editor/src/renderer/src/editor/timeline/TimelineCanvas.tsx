@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { TimingMap } from '@rcm/core'
+import { LANE_KEYS, laneKeyLabel } from '@rcm/playfield'
 import type { WaveformPeaks } from '../audio/waveform'
+import type { Recorder } from '../input/recorder'
 import { getChart } from '../state/doc'
 import { useEditor, useStore } from '../state/useStore'
 import { drawTimeline } from './drawTimeline'
@@ -12,17 +14,23 @@ interface TimelineCanvasProps {
   tm: TimingMap
   durationMs: number
   peaks?: WaveformPeaks
+  /** 녹음 중인 Recorder. 눌린 레인과 키 이름을 겹쳐 그린다 */
+  recorderRef?: RefObject<Recorder | null>
+}
+
+function laneKeyLabels(lanes: number): string[] {
+  return (LANE_KEYS[lanes as keyof typeof LANE_KEYS] ?? []).map(laneKeyLabel)
 }
 
 const ZOOM_STEP = 1.1
 
-export function TimelineCanvas({ tm, durationMs, peaks }: TimelineCanvasProps) {
+export function TimelineCanvas({ tm, durationMs, peaks, recorderRef }: TimelineCanvasProps) {
   const store = useStore()
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const sizeRef = useRef({ width: 0, height: 0 })
-  const propsRef = useRef({ tm, durationMs, peaks })
-  propsRef.current = { tm, durationMs, peaks }
+  const propsRef = useRef({ tm, durationMs, peaks, recorderRef })
+  propsRef.current = { tm, durationMs, peaks, recorderRef }
   const drawRef = useRef<() => void>(() => {})
   const tool = useEditor((s) => s.tool)
 
@@ -48,7 +56,8 @@ export function TimelineCanvas({ tm, durationMs, peaks }: TimelineCanvasProps) {
       if (!canvas || !ctx || width === 0 || height === 0) return
       const s = store.getState()
       const chart = getChart(s.doc, s.activeChart)
-      const { tm, durationMs, peaks } = propsRef.current
+      const { tm, durationMs, peaks, recorderRef } = propsRef.current
+      const recorder = s.mode === 'recording' ? recorderRef?.current : null
       const dpr = window.devicePixelRatio || 1
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, width, height)
@@ -67,7 +76,10 @@ export function TimelineCanvas({ tm, durationMs, peaks }: TimelineCanvasProps) {
         preview,
         previewInvalid,
         hiddenKeys,
-        selectRect
+        selectRect,
+        recording: recorder
+          ? { pressed: recorder.pressed(), labels: laneKeyLabels(chart.lanes) }
+          : undefined
       })
     }
     drawRef.current = draw

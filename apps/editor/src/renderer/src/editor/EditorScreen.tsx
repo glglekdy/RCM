@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PanelRight } from 'lucide-react'
 import { TimingMap } from '@rcm/core'
+import { laneForCode } from '@rcm/playfield'
 import type { ProjectFiles } from '../../../shared/api'
 import { NewProjectDialog } from '../home/NewProjectDialog'
 import { addMarker, neighborMarkerMs } from './commands/markers'
+import { mergeRecorded, quantizePresses } from './commands/record'
 import { runEditAction } from './commands/editActions'
 import { pushTap } from './commands/tap'
 import { IconButton, TitleBar, useDialogs, useToast } from '../ui'
 import { AudioEngine } from './audio/AudioEngine'
 import { hitTimesForChart } from './audio/schedule'
 import { computePeaks, type WaveformPeaks } from './audio/waveform'
+import { Recorder } from './input/recorder'
 import { resolveShortcut, type Action } from './input/shortcuts'
 import { Minimap } from './minimap/Minimap'
 import { RightPanel } from './panels/RightPanel'
@@ -200,14 +203,56 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     if (engine.playing) store.set({ playing: true })
   }, [engine, store])
 
+  // ---- 녹음 (5.10절) ----
+  const recorderRef = useRef<Recorder | null>(null)
+
+  /** 녹음을 끝내고 누른 키를 현재 스냅으로 정렬해 채보에 합친다 (Undo 한 번). */
+  const finishRecording = useCallback(
+    (endMs: number) => {
+      const recorder = recorderRef.current
+      if (!recorder) return
+      recorderRef.current = null
+      const s = store.getState()
+      const notes = quantizePresses(recorder.finish(endMs), tmRef.current, s.snap)
+      const { doc, added, dropped } = mergeRecorded(s.doc, s.activeChart, notes)
+      store.set({ mode: 'edit' })
+      if (added === 0) {
+        toast('추가된 노트가 없어요')
+        return
+      }
+      store.apply('녹음', doc, s.activeChart)
+      toast(`${added}개 노트 추가${dropped > 0 ? ` · ${dropped}개는 겹쳐서 버림` : ''}`)
+    },
+    [store, toast]
+  )
+
+  /** 재생을 멈춘다. 녹음 중이면 녹음도 끝낸다. */
   const stop = useCallback(() => {
     if (!store.getState().playing) return
-    store.set({ playing: false, playheadMs: engine.stop() })
-  }, [engine, store])
+    const pos = engine.stop()
+    store.set({ playing: false, playheadMs: pos })
+    finishRecording(pos)
+  }, [engine, store, finishRecording])
+
+  const record = useCallback(() => {
+    const s = store.getState()
+    if (s.mode === 'recording') {
+      stop()
+      return
+    }
+    if (s.playing) return
+    play()
+    if (!store.getState().playing) return
+    recorderRef.current = new Recorder(getChart(s.doc, s.activeChart).lanes)
+    store.set({ mode: 'recording' })
+  }, [play, stop, store])
 
   useEffect(() => {
-    engine.onEnded(() => store.set({ playing: false, playheadMs: engine.durationMs }))
-  }, [engine, store])
+    engine.onEnded(() => {
+      store.set({ playing: false, playheadMs: engine.durationMs })
+      finishRecording(engine.durationMs)
+    })
+  }, [engine, store, finishRecording])
 
   // 재생 중에는 화면 프레임마다 오디오 시계를 읽어 재생선을 옮긴다
   useEffect(() => {
@@ -312,6 +357,9 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       case 'stop':
         stop()
         break
+      case 'record':
+        record()
+        break
       case 'save':
         void save()
         break
@@ -371,9 +419,23 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   runActionRef.current = runAction
 
   useEffect(() => {
+    /** 녹음 중인 채보의 레인 키면 그 Recorder. */
+    const recorderFor = (code: string): Recorder | null => {
+      const s = store.getState()
+      const recorder = recorderRef.current
+      if (s.mode !== 'recording' || !recorder) return null
+      return laneForCode(getChart(s.doc, s.activeChart).lanes, code) === null ? null : recorder
+    }
     const onKeyDown = (e: KeyboardEvent) => {
       if (overlayOpen()) return
       if (isTyping(e.target) && e.code !== 'Escape') return
+      const recorder = recorderFor(e.code)
+      if (recorder) {
+        // 키 반복(e.repeat)은 Recorder가 무시한다
+        e.preventDefault()
+        recorder.keyDown(e.code, engine.positionMs())
+        return
+      }
       const action = resolveShortcut(
         { code: e.code, ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey },
         store.getState().mode
@@ -385,23 +447,38 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       runActionRef.current(action)
     }
     const onKeyUp = (e: KeyboardEvent) => {
+      const recorder = recorderFor(e.code)
+      if (recorder) {
+        e.preventDefault()
+        recorder.keyUp(e.code, engine.positionMs())
+        return
+      }
       // 버튼은 Space를 뗄 때 클릭되므로 keyup도 막는다
       if (e.code === 'Space' && !overlayOpen() && !isTyping(e.target)) e.preventDefault()
     }
+    // 창이 포커스를 잃으면 keyup이 오지 않으므로 눌린 키를 모두 뗀 것으로 한다
+    const onBlur = () => recorderRef.current?.releaseAll(engine.positionMs())
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', onBlur)
     return () => {
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', onBlur)
     }
-  }, [store])
+  }, [store, engine])
 
   return (
     <div className={styles.screen}>
       <TitleBar title={title} dirty={dirty} />
       <div className={styles.main}>
         <div className={styles.timeline}>
-          <TimelineCanvas tm={tm} durationMs={engine.durationMs} peaks={peaks} />
+          <TimelineCanvas
+            tm={tm}
+            durationMs={engine.durationMs}
+            peaks={peaks}
+            recorderRef={recorderRef}
+          />
           {!panelOpen && (
             <div className={styles.panelToggle}>
               <IconButton
@@ -418,6 +495,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       <BottomToolbar
         onSelectChart={selectChart}
         onPlayPause={() => runAction('playPause')}
+        onRecord={() => runAction('record')}
         onNewProject={() => void newProject()}
         onOpenProject={() => void openProject()}
         onSave={() => void save()}

@@ -36,6 +36,7 @@ const ZOOM_STEP = 1.25
 interface BottomToolbarProps {
   onSelectChart: (file: string) => void
   onPlayPause: () => void
+  onRecord: () => void
   onNewProject: () => void
   onOpenProject: () => void
   onSave: () => void
@@ -45,6 +46,7 @@ interface BottomToolbarProps {
 export function BottomToolbar({
   onSelectChart,
   onPlayPause,
+  onRecord,
   onNewProject,
   onOpenProject,
   onSave,
@@ -56,6 +58,7 @@ export function BottomToolbar({
   const tool = useEditor((s) => s.tool)
   const snap = useEditor((s) => s.snap)
   const playing = useEditor((s) => s.playing)
+  const recording = useEditor((s) => s.mode === 'recording')
   const pxPerMs = useEditor((s) => s.pxPerMs)
   const [adding, setAdding] = useState(false)
 
@@ -135,7 +138,20 @@ export function BottomToolbar({
             label={playing ? '정지 (Space)' : '재생 (Space)'}
             onClick={onPlayPause}
           />
-          <IconButton icon={Circle} label="녹음 (R)" />
+          {recording ? (
+            <button
+              type="button"
+              className={styles.rec}
+              title="녹음 끝내기 (Esc)"
+              aria-label="녹음 끝내기 (Esc)"
+              onClick={onRecord}
+            >
+              <span className={styles.recDot} />
+              REC
+            </button>
+          ) : (
+            <IconButton icon={Circle} label="녹음 (R)" onClick={onRecord} />
+          )}
           <IconButton icon={Gamepad2} label="테스트 플레이 (F5)" />
         </div>
         <div className={styles.group}>

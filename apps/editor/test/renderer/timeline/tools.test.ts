@@ -145,6 +145,15 @@ describe('우클릭', () => {
     expect(store.getState().doc.editorData.markers).toEqual([])
     expect(labels()).toEqual(['마커 삭제'])
   })
+
+  it('녹음 중에는 마커도 지우지 않음', () => {
+    const markers = [{ ms: 0, label: '' }]
+    const { store, tools, labels } = setup({ ...d0, editorData: { ...d0.editorData, markers } })
+    store.set({ playing: true, mode: 'recording' })
+    tools.onContextMenu(right(layout.waveX + 10, 600))
+    expect(store.getState().doc.editorData.markers).toEqual(markers)
+    expect(labels()).toEqual([])
+  })
 })
 
 describe('지우기 도구', () => {

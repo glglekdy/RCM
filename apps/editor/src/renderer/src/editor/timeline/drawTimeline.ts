@@ -25,6 +25,7 @@ const COLORS = {
   note: '#f2f2f2',
   bpm: '#f59e0b',
   bpmChip: 'rgba(245, 158, 11, 0.16)',
+  marker: '#22d3ee',
   playhead: '#8b5cf6'
 }
 
@@ -106,6 +107,20 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
     ctx.fillStyle = COLORS.bpm
     ctx.fillText(text, layout.labelX + 8, y + 0.5)
   }
+
+  // 가이드 마커: 청록 점선 (레인 + 파형 영역)
+  ctx.strokeStyle = COLORS.marker
+  ctx.lineWidth = 1
+  ctx.setLineDash([6, 4])
+  ctx.beginPath()
+  for (const marker of p.markers) {
+    const y = msToY(view, marker.ms)
+    if (y < -1 || y > h + 1) continue
+    ctx.moveTo(layout.waveX, crisp(y))
+    ctx.lineTo(right, crisp(y))
+  }
+  ctx.stroke()
+  ctx.setLineDash([])
 
   // 노트
   for (const note of p.chart.notes) {

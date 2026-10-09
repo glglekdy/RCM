@@ -18,3 +18,26 @@
   font-size: 12px;
   color: var(--text-muted);
 }
+
+.markerRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+}
+
+.markerTime {
+  flex: none;
+  width: 64px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.markerName {
+  flex: 1;
+  min-width: 0;
+}
+
+.markerName input {
+  width: 100%;
+}

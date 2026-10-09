@@ -1,22 +1,33 @@
 import { useMemo } from 'react'
-import { Trash2 } from 'lucide-react'
+import { CornerDownRight, Trash2 } from 'lucide-react'
 import { estimateTempo, snapTick, TimingMap } from '@rcm/core'
-import { Button, Card, IconButton, NumberField, Row, useToast } from '../../ui'
+import { Button, Card, IconButton, NumberField, Row, TextField, useToast } from '../../ui'
 import {
   addTimingPoint,
   measureBeatAt,
   removeTimingPoint,
   updateTimingPoint
 } from '../commands/timing'
+import { removeMarker, renameMarker } from '../commands/markers'
 import { applyTapFromHere, applyTapWhole } from '../commands/tap'
 import { useEditor, useStore } from '../state/useStore'
 import styles from './Panel.module.css'
+
+/** m:ss.mmm */
+function formatMarkerTime(ms: number): string {
+  const total = Math.max(0, Math.round(ms))
+  const m = Math.floor(total / 60000)
+  const sec = Math.floor((total % 60000) / 1000)
+  const milli = total % 1000
+  return `${m}:${String(sec).padStart(2, '0')}.${String(milli).padStart(3, '0')}`
+}
 
 export function TimingPanel() {
   const store = useStore()
   const toast = useToast()
   const song = useEditor((s) => s.doc.song)
   const taps = useEditor((s) => s.taps)
+  const markers = useEditor((s) => s.doc.editorData.markers)
   const est = useMemo(() => estimateTempo(taps), [taps])
   const tm = useMemo(() => new TimingMap(song.timing, song.offsetMs), [song.timing, song.offsetMs])
 
@@ -123,6 +134,36 @@ export function TimingPanel() {
             초기화
           </Button>
         </div>
+      </Card>
+      <Card title="가이드 마커">
+        {markers.length === 0 ? (
+          <p className={styles.hint}>M 키로 마커를 추가할 수 있어요</p>
+        ) : (
+          markers.map((m, i) => (
+            <div key={`${i}-${m.ms}`} className={styles.markerRow}>
+              <span className={styles.markerTime}>{formatMarkerTime(m.ms)}</span>
+              <div className={styles.markerName}>
+                <TextField
+                  value={m.label}
+                  placeholder="이름"
+                  onCommit={(label) =>
+                    store.apply('마커 이름 변경', renameMarker(store.getState().doc, i, label))
+                  }
+                />
+              </div>
+              <IconButton
+                icon={CornerDownRight}
+                label="이 위치로 이동"
+                onClick={() => store.set({ playheadMs: m.ms })}
+              />
+              <IconButton
+                icon={Trash2}
+                label="삭제"
+                onClick={() => store.apply('마커 삭제', removeMarker(store.getState().doc, i))}
+              />
+            </div>
+          ))
+        )}
       </Card>
       <Card>
         <Button onClick={addAtPlayhead}>현재 위치에 추가</Button>

@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react'
 import type { TimingMap } from '@rcm/core'
+import { markerAtY, removeMarker } from '../commands/markers'
 import { getChart } from '../state/doc'
 import { useStore } from '../state/useStore'
 import { drawTimeline } from './drawTimeline'
-import { clampPlayheadMs, clampZoom, layoutTimeline, stepPlayheadMs } from './view'
+import { clampPlayheadMs, clampZoom, layoutTimeline, stepPlayheadMs, xToLane } from './view'
 import styles from './TimelineCanvas.module.css'
 
 interface TimelineCanvasProps {
@@ -95,8 +96,27 @@ export function TimelineCanvas({ tm, durationMs }: TimelineCanvasProps) {
     return () => wrap.removeEventListener('wheel', onWheel)
   }, [store])
 
+  // 우클릭: 레인 밖(파형·라벨 영역)은 마커 삭제. 레인 안은 노트 삭제 자리 (Task 16)
+  const onContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const wrap = wrapRef.current
+    if (!wrap) return
+    const rect = wrap.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const s = store.getState()
+    const chart = getChart(s.doc, s.activeChart)
+    if (xToLane(layoutTimeline(rect.width, chart.lanes), x) !== null) {
+      // TODO(Task 16): 레인 안 우클릭 -> 노트 삭제
+      return
+    }
+    const view = { playheadMs: s.playheadMs, pxPerMs: s.pxPerMs, height: rect.height }
+    const index = markerAtY(s.doc.editorData.markers, view, y)
+    if (index >= 0) store.apply('마커 삭제', removeMarker(s.doc, index))
+  }
+
   return (
-    <div ref={wrapRef} className={styles.wrap}>
+    <div ref={wrapRef} className={styles.wrap} onContextMenu={onContextMenu}>
       <canvas ref={canvasRef} className={styles.canvas} />
     </div>
   )

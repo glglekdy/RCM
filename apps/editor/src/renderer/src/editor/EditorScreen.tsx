@@ -3,6 +3,7 @@ import { PanelRight } from 'lucide-react'
 import { TimingMap } from '@rcm/core'
 import type { ProjectFiles } from '../../../shared/api'
 import { NewProjectDialog } from '../home/NewProjectDialog'
+import { addMarker, neighborMarkerMs } from './commands/markers'
 import { pushTap } from './commands/tap'
 import { IconButton, TitleBar, useDialogs, useToast } from '../ui'
 import { AudioEngine } from './audio/AudioEngine'
@@ -302,6 +303,20 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
         const st = store.getState()
         if (!st.playing) break
         store.set({ taps: pushTap(st.taps, st.playheadMs), panelOpen: true, panelTab: 'timing' })
+        break
+      }
+      case 'marker': {
+        const st = store.getState()
+        store.apply('마커 추가', addMarker(st.doc, st.playheadMs))
+        break
+      }
+      case 'markerPrev':
+      case 'markerNext': {
+        const st = store.getState()
+        if (st.playing) break
+        const dir = action === 'markerNext' ? 1 : -1
+        const ms = neighborMarkerMs(st.doc.editorData.markers, st.playheadMs, dir)
+        if (ms !== null) store.set({ playheadMs: ms })
         break
       }
       default:

@@ -135,7 +135,7 @@ songs/<song-id>/
 
 ### 5.1 프로세스 구성
 - **main 프로세스**: 파일 읽기/쓰기, 폴더 선택 대화상자, 창 닫기 전 저장 확인
-- **preload**: `contextBridge`로 다음 함수만 노출 — `pickAudioFile()`, `pickFolder()`, `createProject(options)`, `openProject(dir)`, `readFile(path)`, `writeFileAtomic(path, data)`, `readAudio(path)`, `getRecentProjects()`, `removeRecentProject(dir)`, `showInExplorer(dir)`, 창 제어(`minimize()`, `toggleMaximize()`, `close()`)
+- **preload**: `contextBridge`로 `window.rcm` API만 노출 (파일·폴더 선택, 프로젝트 만들기/열기/저장, 최근 목록, 닫기 가드, 창 제어). 정확한 목록은 구현 계획 Task 7의 `RcmApi`
 - **renderer**: React UI + Canvas 타임라인. Node 접근 없음 (`contextIsolation: true`, `nodeIntegration: false`)
 - 저장은 같은 폴더의 임시 파일에 쓴 뒤 이름을 바꿔 교체한다 (저장 중 종료돼도 원본 보존)
 - 앱 설정(최근 프로젝트 목록, 기본 저장 위치)은 Electron `userData` 폴더의 `settings.json`에 저장
@@ -222,7 +222,7 @@ songs/<song-id>/
 - **하단 툴바** (기능별로 묶은 둥근 버튼 그룹)
   - 왼쪽: 난이도 탭(선택 중인 것 강조) + 난이도 추가 버튼
   - 가운데: 도구(그리기/지우기/선택), 스냅 드롭다운
-  - 오른쪽: 재생/정지, 녹음, 테스트 플레이, 파일 메뉴(새 프로젝트/열기/저장/홈으로), 설정
+  - 오른쪽: 재생/정지, 녹음, 테스트 플레이, 파일 메뉴(새 프로젝트/열기/저장/홈으로)
 
 ### 5.4 편집
 - **그리기 도구**: 좌클릭하면 스냅 위치에 tap 추가, 좌클릭한 채 위로 드래그하면 hold. 우클릭하면 노트 삭제
@@ -239,7 +239,7 @@ songs/<song-id>/
 ### 5.5 Undo/Redo
 - 모든 편집은 `Command { do(state), undo(state) }`로 실행되고 히스토리 스택에 쌓인다
 - 대상: 노트 추가/삭제/이동/반전/붙여넣기, 타이밍 변경, 오프셋 변경, 곡/채보 정보 변경, 마커 추가/삭제, 녹음 한 번(묶음)
-- Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z). 히스토리는 채보별로 관리하고 저장해도 유지
+- Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z). 히스토리는 프로젝트 전체에 하나(곡 단위 변경과 채보 변경이 서로 덮어쓰지 않도록). 다른 난이도의 편집을 Undo하면 그 난이도로 전환. 저장해도 유지
 - 편집 상태(명령, 선택, 클립보드)는 React와 분리된 순수 TS 모듈로 두어 단위 테스트한다
 
 ### 5.6 재생

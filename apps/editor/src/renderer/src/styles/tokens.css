@@ -1,0 +1,19 @@
+:root {
+  --bg-app: #141414;
+  --bg-canvas: #1a1a1a;
+  --bg-canvas-dot: #262626;
+  --bg-canvas-gap: 16px;
+  --bg-panel: #1c1c1c;
+  --bg-card: #232323;
+  --bg-input: #2c2c2c;
+  --bg-hover: #333333;
+  --border: #2e2e2e;
+  --text: #e6e6e6;
+  --text-muted: #8c8c8c;
+  --accent: #8b5cf6;
+  --accent-soft: rgba(139, 92, 246, 0.18);
+  --danger: #ef4444;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}

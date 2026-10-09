@@ -80,11 +80,17 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
     setCreating(false)
     pickToken.current++
     let cancelled = false
-    void window.rcm.getDefaultProjectDir().then((d) => {
-      if (!cancelled) setParentDir(d)
-    })
+    void window.rcm
+      .getDefaultProjectDir()
+      .then((d) => {
+        if (!cancelled) setParentDir(d)
+      })
+      .catch(() => {
+        // 기본 위치를 못 읽으면 비워 두고 사용자가 직접 고르게 한다
+      })
     return () => {
       cancelled = true
+      pickToken.current++ // 진행 중인 디코딩 결과 무효화
       stopPlayback()
       void ctxRef.current?.close()
       ctxRef.current = null
@@ -98,22 +104,31 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
       return
     }
     let cancelled = false
-    void window.rcm.resolveProjectDir(parentDir, title.trim()).then((d) => {
-      if (!cancelled) setPreview(d)
-    })
+    setPreview('') // 새 결과가 올 때까지 이전 경로를 보이지 않는다
+    void window.rcm
+      .resolveProjectDir(parentDir, title.trim())
+      .then((d) => {
+        if (!cancelled) setPreview(d)
+      })
+      .catch(() => {
+        if (!cancelled) setPreview('')
+      })
     return () => {
       cancelled = true
     }
   }, [open, parentDir, title])
 
   const pickAudio = async () => {
+    const before = pickToken.current
     const path = await window.rcm.pickAudioFile()
-    if (!path) return
+    if (!path || before !== pickToken.current) return
     stopPlayback()
     const token = ++pickToken.current
     setAudio({ state: 'decoding', path })
     try {
       const data = await window.rcm.readAudio(path)
+      // 읽는 동안 창이 닫혔거나 다른 파일을 골랐다면 컨텍스트를 만들지 않는다
+      if (token !== pickToken.current) return
       ctxRef.current ??= new AudioContext()
       const buffer = await ctxRef.current.decodeAudioData(data)
       if (token === pickToken.current) setAudio({ state: 'ok', path, buffer })

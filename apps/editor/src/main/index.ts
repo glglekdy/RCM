@@ -1,5 +1,28 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, ipcMain, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, session } from 'electron'
+
+// CSP is a response header (not a meta tag) so it governs every script,
+// including the inline preamble Vite/plugin-react injects at the top of <head> in dev.
+function contentSecurityPolicy(dev: boolean): string {
+  return [
+    "default-src 'self'",
+    dev ? "script-src 'self' 'unsafe-inline'" : "script-src 'self'",
+    dev ? "connect-src 'self' ws:" : "connect-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self' data:",
+    "img-src 'self' data: blob:",
+    "media-src 'self' blob:"
+  ].join('; ')
+}
+
+function installCsp(): void {
+  const csp = contentSecurityPolicy(!app.isPackaged && !!process.env['ELECTRON_RENDERER_URL'])
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: { ...details.responseHeaders, 'Content-Security-Policy': [csp] }
+    })
+  })
+}
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -32,6 +55,7 @@ function windowOf(e: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent): Brows
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null)
+  installCsp()
   ipcMain.on('rcm:minimize', (e) => windowOf(e)?.minimize())
   ipcMain.on('rcm:toggle-maximize', (e) => {
     const win = windowOf(e)

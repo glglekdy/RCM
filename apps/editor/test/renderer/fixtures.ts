@@ -1,7 +1,7 @@
-import { emptyEditorData, serializeEditorData } from '@rcm/core'
+import { emptyEditorData, serializeEditorData, type Note, type TimingPoint } from '@rcm/core'
 import type { ProjectFiles } from '../../src/shared/api'
 import { loadProject } from '../../src/renderer/src/editor/state/loadProject'
-import type { ProjectDoc } from '../../src/renderer/src/editor/state/doc'
+import { getChart, replaceChart, type ProjectDoc } from '../../src/renderer/src/editor/state/doc'
 
 export function files(): ProjectFiles {
   const song = {
@@ -26,3 +26,17 @@ export function files(): ProjectFiles {
 const loaded = loadProject(files())
 if (!loaded.ok) throw new Error(`fixture failed to load: ${loaded.errors.join(', ')}`)
 export const d0: ProjectDoc = loaded.doc
+
+export function withNotes(
+  doc: ProjectDoc,
+  notes: Note[],
+  lanes?: number,
+  file = 'normal.chart.json'
+): ProjectDoc {
+  const chart = getChart(doc, file)
+  return replaceChart(doc, file, { ...chart, notes, lanes: lanes ?? chart.lanes })
+}
+
+export function withTiming(doc: ProjectDoc, timing: TimingPoint[]): ProjectDoc {
+  return { ...doc, song: { ...doc.song, timing } }
+}

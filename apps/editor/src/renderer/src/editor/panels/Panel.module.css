@@ -1,0 +1,14 @@
+.buttons {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.buttons > * {
+  flex: 1;
+}
+
+.position {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}

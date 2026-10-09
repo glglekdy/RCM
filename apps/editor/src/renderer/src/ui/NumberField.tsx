@@ -3,7 +3,10 @@ import styles from './NumberField.module.css'
 
 interface NumberFieldProps {
   value: number
-  onChange: (v: number) => void
+  /** 유효한 값이 입력될 때마다(글자마다) 호출 */
+  onChange?: (v: number) => void
+  /** blur·Enter·방향키 증감 때 최종 값으로 호출 (값이 바뀐 경우만) */
+  onCommit?: (v: number) => void
   prefix?: string
   suffix?: string
   step?: number
@@ -11,7 +14,7 @@ interface NumberFieldProps {
   max?: number
 }
 
-export function NumberField({ value, onChange, prefix, suffix, step = 1, min, max }: NumberFieldProps) {
+export function NumberField({ value, onChange, onCommit, prefix, suffix, step = 1, min, max }: NumberFieldProps) {
   const [draft, setDraft] = useState(String(value))
   const [focused, setFocused] = useState(false)
 
@@ -25,7 +28,7 @@ export function NumberField({ value, onChange, prefix, suffix, step = 1, min, ma
   const handleChange = (text: string) => {
     setDraft(text)
     const n = text.trim() === '' ? NaN : Number(text)
-    if (inRange(n)) onChange(n)
+    if (inRange(n)) onChange?.(n)
   }
 
   const bump = (dir: 1 | -1) => {
@@ -35,7 +38,8 @@ export function NumberField({ value, onChange, prefix, suffix, step = 1, min, ma
     const next = Number((base + dir * step).toFixed(10))
     if (inRange(next)) {
       setDraft(String(next))
-      onChange(next)
+      onChange?.(next)
+      onCommit?.(next)
     }
   }
 
@@ -50,6 +54,8 @@ export function NumberField({ value, onChange, prefix, suffix, step = 1, min, ma
         onFocus={() => setFocused(true)}
         onBlur={() => {
           setFocused(false)
+          const n = draft.trim() === '' ? NaN : Number(draft)
+          if (inRange(n) && n !== value) onCommit?.(n)
           setDraft(String(value)) // 잘못된 값이면 원래 값으로 복원
         }}
         onChange={(e) => handleChange(e.target.value)}

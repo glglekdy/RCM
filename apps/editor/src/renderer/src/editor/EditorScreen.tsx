@@ -197,6 +197,11 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     return () => cancelAnimationFrame(id)
   }, [playing, engine, store])
 
+  const hitsoundVolume = useEditor((s) => s.hitsoundVolume)
+  useEffect(() => {
+    engine.setHitVolume(hitsoundVolume)
+  }, [engine, hitsoundVolume])
+
   // 재생 중 채보·타이밍이 바뀌면 효과음 예약을 다시 계산한다
   useEffect(() => {
     if (engine.playing) engine.setHits(hitTimesForChart(chart, tm))

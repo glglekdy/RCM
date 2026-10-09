@@ -106,7 +106,14 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
               <RecentTable
                 projects={shown}
                 onOpen={(p) => void openRecent(p)}
-                onShowInExplorer={(p) => void window.rcm.showInExplorer(p.dir)}
+                onShowInExplorer={(p) =>
+                  void window.rcm.showInExplorer(p.dir).catch(async (err: unknown) => {
+                    await dialogs.alert(
+                      '탐색기에서 열 수 없어요',
+                      err instanceof Error ? err.message : String(err)
+                    )
+                  })
+                }
                 onRemove={(p) => void removeFromList(p)}
               />
             )}

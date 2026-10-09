@@ -26,7 +26,10 @@ export function Menu({ trigger, items, placement = 'down', align = 'left' }: Men
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key !== 'Escape') return
+      // 메뉴를 닫는 Esc는 편집기 단축키로 넘기지 않는다
+      e.stopPropagation()
+      setOpen(false)
     }
     document.addEventListener('mousedown', onDown)
     document.addEventListener('keydown', onKey)

@@ -2,6 +2,8 @@ import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import {
   FORMAT_VERSION,
+  MAX_LANES,
+  MIN_LANES,
   emptyEditorData,
   parseChart,
   parseSong,
@@ -18,7 +20,48 @@ export function resolveProjectDir(parentDir: string, title: string): string {
   return path.join(parentDir, name)
 }
 
-export async function createProject(opts: CreateProjectOptions): Promise<string> {
+const AUDIO_EXTENSIONS = ['.ogg', '.mp3', '.wav']
+
+const isAudioFile = (file: string): boolean => AUDIO_EXTENSIONS.includes(path.extname(file).toLowerCase())
+
+/**
+ * renderer가 보낸 새 프로젝트 옵션을 검사해 알려진 키만 돌려준다 (renderer는 신뢰 경계 밖).
+ * 잘못됐으면 무엇이 잘못됐는지 적은 오류를 던진다.
+ */
+export function validateCreateProjectOptions(raw: unknown): CreateProjectOptions {
+  if (typeof raw !== 'object' || raw === null) throw new Error('새 프로젝트 옵션이 올바르지 않아요')
+  const o = raw as Record<string, unknown>
+  const text = (key: string, label: string, nonEmpty: boolean): string => {
+    const v = o[key]
+    if (typeof v !== 'string' || (nonEmpty && v.trim() === '')) {
+      throw new Error(nonEmpty ? `${label}을(를) 입력해 주세요` : `${label}이(가) 올바르지 않아요`)
+    }
+    return v
+  }
+  const title = text('title', '제목', true)
+  const artist = text('artist', '아티스트', false)
+  const chartName = text('chartName', '난이도 이름', true)
+  const parentDir = o.parentDir
+  if (typeof parentDir !== 'string' || !path.isAbsolute(parentDir)) {
+    throw new Error('저장 위치가 올바르지 않아요')
+  }
+  const audioPath = o.audioPath
+  if (typeof audioPath !== 'string' || !path.isAbsolute(audioPath) || !isAudioFile(audioPath)) {
+    throw new Error('음악 파일은 ogg, mp3, wav만 쓸 수 있어요')
+  }
+  const bpm = o.bpm
+  if (typeof bpm !== 'number' || !Number.isFinite(bpm) || bpm <= 0) {
+    throw new Error('BPM은 0보다 큰 숫자여야 해요')
+  }
+  const lanes = o.lanes
+  if (typeof lanes !== 'number' || !Number.isInteger(lanes) || lanes < MIN_LANES || lanes > MAX_LANES) {
+    throw new Error(`레인 수는 ${MIN_LANES}~${MAX_LANES}이어야 해요`)
+  }
+  return { parentDir, title, artist, audioPath, bpm, chartName, lanes }
+}
+
+export async function createProject(raw: CreateProjectOptions): Promise<string> {
+  const opts = validateCreateProjectOptions(raw)
   await fs.mkdir(opts.parentDir, { recursive: true })
   // mkdir is non-recursive and outside the try: only a directory this call created is ever cleaned up.
   let dir: string
@@ -138,10 +181,15 @@ export async function summarizeProject(dir: string): Promise<Omit<RecentProject,
   }
 }
 
-const AUDIO_EXTENSIONS = ['.ogg', '.mp3', '.wav']
+/** 탐색기로 열 경로가 이미 있는 폴더(절대 경로)인지 확인한다. 아니면 throw (파일을 실행하지 않도록). */
+export async function assertDirectory(dir: string): Promise<void> {
+  const stat =
+    typeof dir === 'string' && path.isAbsolute(dir) ? await fs.stat(dir).catch(() => null) : null
+  if (!stat?.isDirectory()) throw new Error('폴더를 찾을 수 없어요')
+}
 
 export async function readAudioFile(file: string): Promise<ArrayBuffer> {
-  if (!AUDIO_EXTENSIONS.includes(path.extname(file).toLowerCase())) {
+  if (!isAudioFile(file)) {
     throw new Error('오디오 파일(ogg, mp3, wav)만 읽을 수 있어요')
   }
   const buf = await fs.readFile(file)

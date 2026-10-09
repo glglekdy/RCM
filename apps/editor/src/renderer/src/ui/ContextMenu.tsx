@@ -24,7 +24,10 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose()
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Escape') return
+      // 메뉴를 닫는 Esc는 편집기 단축키로 넘기지 않는다
+      e.stopPropagation()
+      onClose()
     }
     document.addEventListener('mousedown', onDown)
     document.addEventListener('keydown', onKey)

@@ -73,6 +73,12 @@ describe('parseEditorData', () => {
   it('ms가 숫자가 아니면 오류', () => {
     expect(errorsOf(parseEditorData('{"formatVersion":1,"markers":[{"ms":"a"}]}')).join('\n')).toContain('markers[0]');
   });
+  it('손으로 고친 파일의 마커도 ms 순으로 (같은 ms는 원래 순서)', () => {
+    const r = parseEditorData(
+      '{"formatVersion":1,"markers":[{"ms":3000,"label":"c"},{"ms":1000,"label":"a"},{"ms":2000,"label":"b1"},{"ms":2000,"label":"b2"}]}',
+    );
+    expect(r.ok && r.value.markers.map((m) => m.label)).toEqual(['a', 'b1', 'b2', 'c']);
+  });
 });
 
 describe('notesOverlap', () => {

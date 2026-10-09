@@ -4,7 +4,10 @@ import { msToY, xToLane, yToMs, type TimelineLayout, type TimelineView } from '.
 /** 노트 머리의 높이(px). 세로 중앙이 노트의 시각이다. */
 export const NOTE_HEIGHT = 10
 
-/** 화면 좌표가 가리키는 레인과 스냅된 tick. 레인 밖이면 null. */
+/**
+ * 화면 좌표가 가리키는 레인과 스냅된 tick. 레인 밖이거나, 스냅한 tick이 0보다 앞(곡 시작 전)이면 null.
+ * tick 0보다 반 칸 이내로 아래는 스냅하면 0이 되므로 tick 0 셀이다.
+ */
 export function pointerToCell(
   tm: TimingMap,
   view: TimelineView,
@@ -15,8 +18,10 @@ export function pointerToCell(
 ): { lane: number; tick: number } | null {
   const lane = xToLane(layout, x)
   if (lane === null) return null
-  const tick = Math.max(0, snapTick(tm, tm.msToTick(yToMs(view, y)), snap))
-  return { lane, tick }
+  const tick = snapTick(tm, tm.msToTick(yToMs(view, y)), snap)
+  if (tick < 0) return null
+  // -0을 0으로
+  return { lane, tick: Math.max(0, tick) }
 }
 
 /** 화면 좌표 아래의 노트 (머리 또는 롱노트 몸통). 여러 개면 tick이 큰 것. */

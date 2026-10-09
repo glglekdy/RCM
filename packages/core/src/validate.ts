@@ -182,5 +182,7 @@ export function validateEditorData(root: Obj, file: string): ParseResult<EditorD
     }
   }
   if (c.errors.length > 0) return { ok: false, errors: c.errors };
+  // 손으로 고친 파일도 ms 순으로 (같은 ms는 원래 순서: sort는 안정 정렬)
+  markers.sort((a, b) => a.ms - b.ms);
   return { ok: true, value: { formatVersion: 1, markers } };
 }

@@ -13,7 +13,10 @@ export function Modal({ open, title, onClose, children, footer }: ModalProps) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Escape') return
+      // 이 Esc는 창을 닫는 데 썼다: window의 편집기 단축키(정지·테스트 플레이 종료)까지 가지 않게 한다
+      e.stopPropagation()
+      onClose()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)

@@ -1,5 +1,5 @@
 import type { Chart, TimingMap } from '@rcm/core';
-import { HOLD_RELEASE_TOLERANCE, judgeDelta, type JudgeEvent, type Judgement } from './judge';
+import { HOLD_RELEASE_TOLERANCE, JUDGE_WINDOWS, judgeDelta, type JudgeEvent, type Judgement } from './judge';
 
 /** 플레이 중인 노트 하나 (시각은 ms). */
 export interface PlayNote {
@@ -60,7 +60,7 @@ export class PlayState {
       const idx = list[c];
       const n = this.playNotes[idx];
       if (n.headJudged) continue;
-      if (n.startMs - ms > 120) break;
+      if (n.startMs - ms > JUDGE_WINDOWS.good) break;
       const j = judgeDelta(ms - n.startMs);
       if (j === null) continue;
       n.headJudged = true;
@@ -96,7 +96,7 @@ export class PlayState {
       for (let c = this.advance(lane); c < list.length; c++) {
         const n = this.playNotes[list[c]];
         if (n.headJudged) continue;
-        if (ms <= n.startMs + 120) break;
+        if (ms <= n.startMs + JUDGE_WINDOWS.good) break;
         n.headJudged = true;
         pending.push({ idx: list[c], part: 0, lane, judgement: 'miss' });
         if (n.endMs !== undefined) {

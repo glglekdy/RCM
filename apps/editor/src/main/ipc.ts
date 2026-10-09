@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { CreateProjectOptions, RecentProject } from '../shared/api'
 import {
+  assertDirectory,
   createProject,
   deleteProjectFiles,
   openProjectFiles,
@@ -101,6 +102,9 @@ export function registerProjectIpc(): void {
   })
 
   ipcMain.handle('rcm:show-in-explorer', async (_e, dir: string) => {
-    await shell.openPath(dir)
+    // openPath는 파일이면 실행하므로 이미 있는 폴더만 연다
+    await assertDirectory(dir)
+    const error = await shell.openPath(dir)
+    if (error) throw new Error(error)
   })
 }

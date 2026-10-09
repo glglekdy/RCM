@@ -15,8 +15,17 @@ describe('timeline hit-test', () => {
   it('포인터 → 셀', () => {
     expect(pointerToCell(tm, view, layout, 410, 600, 4)).toEqual({ lane: 0, tick: 0 })
     expect(pointerToCell(tm, view, layout, 460, 600 - 230, 4)).toEqual({ lane: 1, tick: 480 })
-    expect(pointerToCell(tm, view, layout, 460, 700, 4)).toEqual({ lane: 1, tick: 0 }) // 음수는 0
+    // tick 0보다 반 칸 이내 아래(−200 tick, 1/4 한 칸 = 480)는 스냅하면 0이다
+    expect(pointerToCell(tm, view, layout, 460, 700, 4)).toEqual({ lane: 1, tick: 0 })
     expect(pointerToCell(tm, view, layout, 100, 600, 4)).toBeNull()
+  })
+
+  it('스냅하면 tick 0보다 앞이 되는 곳은 셀이 없다 (0에 놓지 않는다)', () => {
+    // y 900 = −625ms = −600 tick → 1/4 스냅 −480
+    expect(pointerToCell(tm, view, layout, 460, 900, 4)).toBeNull()
+    // 1/16(한 칸 120 tick): y 620 = −40 tick → 0, y 640 = −80 tick → −120
+    expect(pointerToCell(tm, view, layout, 460, 620, 16)).toEqual({ lane: 1, tick: 0 })
+    expect(pointerToCell(tm, view, layout, 460, 640, 16)).toBeNull()
   })
 
   it('노트 hit-test', () => {

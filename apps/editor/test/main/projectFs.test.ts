@@ -4,11 +4,13 @@ import os from 'node:os'
 import path from 'node:path'
 import { parseChart, parseSong } from '@rcm/core'
 import {
+  assertDirectory,
   createProject,
   deleteProjectFiles,
   openProjectFiles,
   readAudioFile,
   summarizeProject,
+  validateCreateProjectOptions,
   writeProjectFiles
 } from '../../src/main/project/projectFs'
 
@@ -113,6 +115,48 @@ describe('projectFs', () => {
     }
     expect((await fs.readdir(dir)).sort()).toEqual(['a.chart.json', 'editor.json', 'song.json'])
     expect(existsSync(path.join(tmp, 'outside.chart.json'))).toBe(true)
+  })
+  it('새 프로젝트 옵션 검사', () => {
+    expect(validateCreateProjectOptions(opts)).toEqual(opts)
+    // 알려진 키만 남긴다
+    expect(validateCreateProjectOptions({ ...opts, extra: 1 })).toEqual(opts)
+    const bad: [Record<string, unknown>, string][] = [
+      [{ lanes: 3 }, '레인'],
+      [{ lanes: 9 }, '레인'],
+      [{ lanes: 4.5 }, '레인'],
+      [{ lanes: '4' }, '레인'],
+      [{ bpm: 0 }, 'BPM'],
+      [{ bpm: -120 }, 'BPM'],
+      [{ bpm: Number.NaN }, 'BPM'],
+      [{ bpm: Number.POSITIVE_INFINITY }, 'BPM'],
+      [{ bpm: '120' }, 'BPM'],
+      [{ audioPath: path.join(tmp, 'x.exe') }, '음악 파일'],
+      [{ audioPath: path.join(tmp, 'x.json') }, '음악 파일'],
+      [{ audioPath: 'x.mp3' }, '음악 파일'],
+      [{ title: '' }, '제목'],
+      [{ title: '   ' }, '제목'],
+      [{ title: 1 }, '제목'],
+      [{ chartName: ' ' }, '난이도'],
+      [{ artist: null }, '아티스트'],
+      [{ parentDir: '' }, '저장 위치'],
+      [{ parentDir: 'relative/dir' }, '저장 위치']
+    ]
+    for (const [patch, message] of bad) {
+      expect(() => validateCreateProjectOptions({ ...opts, ...patch }), JSON.stringify(patch)).toThrow(message)
+    }
+    expect(() => validateCreateProjectOptions(null)).toThrow()
+    expect(() => validateCreateProjectOptions('x')).toThrow()
+  })
+  it('잘못된 옵션이면 폴더를 만들지 않음', async () => {
+    await expect(createProject({ ...opts, title: 'badlanes', lanes: 12 })).rejects.toThrow('레인')
+    expect(existsSync(path.join(tmp, 'badlanes'))).toBe(false)
+  })
+  it('탐색기로 열 경로는 있는 폴더여야 함', async () => {
+    await expect(assertDirectory(tmp)).resolves.toBeUndefined()
+    await expect(assertDirectory(mp3)).rejects.toThrow('폴더')
+    await expect(assertDirectory(path.join(tmp, 'gone'))).rejects.toThrow('폴더')
+    await expect(assertDirectory('relative')).rejects.toThrow('폴더')
+    await expect(assertDirectory(42 as unknown as string)).rejects.toThrow('폴더')
   })
   it('실패해도 이미 있던 폴더는 남김', async () => {
     await fs.mkdir(path.join(tmp, 'keep'))

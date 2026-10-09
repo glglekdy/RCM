@@ -181,7 +181,13 @@ function AddChartDialog({ onClose, onAdded }: AddChartDialogProps) {
         </>
       }
     >
-      <div className={styles.addForm}>
+      <div
+        className={styles.addForm}
+        onKeyDown={(e) => {
+          // 이름 칸에서 Enter = 추가 (세그먼트 버튼의 Enter는 그 버튼을 누르는 것)
+          if (e.key === 'Enter' && e.target instanceof HTMLInputElement) add()
+        }}
+      >
         <Row label="이름">
           <TextField value={name} onChange={setName} placeholder="HARD" />
         </Row>

@@ -64,6 +64,8 @@ type RectDrag = {
   additive: boolean
   /** 드래그 전 선택 (취소하면 되돌린다) */
   before: ReadonlySet<string>
+  /** 한 번이라도 움직였는지. 움직이지 않은 클릭은 사각형 없이 선택만 해제한다 */
+  moved: boolean
   rect: SelectRect | null
 }
 type MoveDrag = {
@@ -131,6 +133,7 @@ export function createToolController(
 
   /** 시작점과 현재 점이 걸친 레인(레인 범위로 자름)과 tick 범위. 레인에 걸치지 않으면 null. */
   const rectTo = (d: RectDrag, x: number, y: number) => {
+    d.moved = true
     const { layout } = getGeometry()
     const lane0 = Math.max(0, laneAt(Math.min(d.x, x)))
     const lane1 = Math.min(layout.lanes - 1, laneAt(Math.max(d.x, x)))
@@ -174,10 +177,11 @@ export function createToolController(
         y: e.y,
         additive: e.shift,
         before: s.selection,
+        moved: false,
         rect: null
       }
       drag = d
-      rectTo(d, e.x, e.y)
+      store.set({ selection: e.shift ? s.selection : new Set() })
       return
     }
     const key = noteKey(hit)
@@ -252,7 +256,7 @@ export function createToolController(
         eraseAt(d, e.x, e.y)
         if (d.keys.size > 0) store.apply('노트 지우기', removeNotes(s.doc, d.file, d.keys), d.file)
       } else if (d.kind === 'rect') {
-        rectTo(d, e.x, e.y)
+        if (d.moved) rectTo(d, e.x, e.y)
       } else {
         moveTo(d, e.x, e.y)
         if (d.dLane === 0 && d.dTick === 0) return

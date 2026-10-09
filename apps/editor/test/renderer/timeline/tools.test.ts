@@ -194,6 +194,20 @@ describe('선택 도구', () => {
     expect(commit).not.toHaveBeenCalled()
   })
 
+  it('움직이지 않은 빈 곳 클릭은 사각형 없이 선택만 해제 (Shift면 유지)', () => {
+    const { store, tools } = setup(withNotes(d0, start), 'select')
+    store.set({ selection: new Set(['0:0']) })
+    tools.onPointerDown(left(X2, yOf(240), true))
+    expect(tools.overlay().selectRect).toBeNull()
+    tools.onPointerUp(left(X2, yOf(240), true))
+    expect(selection(store)).toEqual(['0:0'])
+    tools.onPointerDown(left(X2, yOf(240)))
+    expect(tools.overlay().selectRect).toBeNull()
+    expect(selection(store)).toEqual([])
+    tools.onPointerUp(left(X2, yOf(240)))
+    expect(selection(store)).toEqual([])
+  })
+
   it('레인 밖까지 끌어도 걸친 레인만 선택', () => {
     const { store, tools } = setup(withNotes(d0, start), 'select')
     tools.onPointerDown(left(layout.waveX, yOf(-100)))

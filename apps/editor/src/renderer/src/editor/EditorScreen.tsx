@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PanelRight } from 'lucide-react'
-import { snapTick, TimingMap } from '@rcm/core'
+import { TimingMap } from '@rcm/core'
 import type { ProjectFiles } from '../../../shared/api'
 import { NewProjectDialog } from '../home/NewProjectDialog'
 import { addMarker, neighborMarkerMs } from './commands/markers'
-import { copyNotes, mirrorNotes, pasteClip, removeNotes } from './commands/notes'
+import { runEditAction } from './commands/editActions'
 import { pushTap } from './commands/tap'
 import { IconButton, TitleBar, useDialogs, useToast } from '../ui'
 import { AudioEngine } from './audio/AudioEngine'
@@ -282,45 +282,6 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     [stop, store]
   )
 
-  // ---- 노트 편집 ----
-  const copy = (): boolean => {
-    const s = store.getState()
-    const clip = copyNotes(getChart(s.doc, s.activeChart), s.selection)
-    if (!clip) return false
-    store.set({ clipboard: clip })
-    toast(`${clip.notes.length}개 복사`)
-    return true
-  }
-
-  const removeSelected = (label: string) => {
-    const s = store.getState()
-    if (store.apply(label, removeNotes(s.doc, s.activeChart, s.selection), s.activeChart)) {
-      store.set({ selection: new Set() })
-    }
-  }
-
-  const paste = () => {
-    const s = store.getState()
-    if (!s.clipboard) return
-    const tm = tmRef.current
-    const atTick = snapTick(tm, Math.max(0, Math.round(tm.msToTick(s.playheadMs))), s.snap)
-    const pasted = pasteClip(s.doc, s.activeChart, s.clipboard, atTick)
-    if (!pasted) {
-      toast('여기에는 붙여넣을 수 없어요 (겹치거나 레인 수가 달라요)')
-      return
-    }
-    store.apply('붙여넣기', pasted.doc, s.activeChart)
-    store.set({ selection: pasted.keys })
-  }
-
-  const mirror = () => {
-    const s = store.getState()
-    const mirrored = mirrorNotes(s.doc, s.activeChart, s.selection)
-    if (mirrored && store.apply('좌우 반전', mirrored.doc, s.activeChart)) {
-      store.set({ selection: mirrored.keys })
-    }
-  }
-
   // ---- 단축키 ----
   const runAction = (action: Action) => {
     if (typeof action === 'object') {
@@ -348,20 +309,14 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
         store.redo()
         break
       case 'copy':
-        copy()
-        break
       case 'cut':
-        if (copy()) removeSelected('잘라내기')
-        break
       case 'paste':
-        paste()
-        break
       case 'delete':
-        removeSelected('노트 삭제')
+      case 'mirror': {
+        const message = runEditAction(store, action, tmRef.current)
+        if (message) toast(message)
         break
-      case 'mirror':
-        mirror()
-        break
+      }
       case 'tap': {
         const st = store.getState()
         if (!st.playing) break

@@ -1,10 +1,14 @@
-import { TitleBar } from './ui/TitleBar'
+import { DialogProvider, TitleBar, ToastProvider } from './ui'
 
 export function App() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <TitleBar title="RCM" />
-      <div style={{ flex: 1 }} />
-    </div>
+    <DialogProvider>
+      <ToastProvider>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <TitleBar title="RCM" />
+          <div style={{ flex: 1 }} />
+        </div>
+      </ToastProvider>
+    </DialogProvider>
   )
 }

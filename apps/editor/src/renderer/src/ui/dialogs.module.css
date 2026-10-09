@@ -1,0 +1,19 @@
+.text {
+  margin: 0;
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+.list {
+  margin: 0;
+  padding: 8px 8px 8px 24px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  user-select: text;
+}
+
+.list li + li {
+  margin-top: 4px;
+}

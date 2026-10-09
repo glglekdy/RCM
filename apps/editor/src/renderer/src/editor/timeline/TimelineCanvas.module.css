@@ -13,3 +13,7 @@
   left: 0;
   display: block;
 }
+
+.draw {
+  cursor: crosshair;
+}

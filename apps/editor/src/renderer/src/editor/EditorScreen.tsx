@@ -310,6 +310,15 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
         store.apply('마커 추가', addMarker(st.doc, st.playheadMs))
         break
       }
+      case 'toolDraw':
+        store.set({ tool: 'draw' })
+        break
+      case 'toolErase':
+        store.set({ tool: 'erase' })
+        break
+      case 'toolSelect':
+        store.set({ tool: 'select' })
+        break
       case 'markerPrev':
       case 'markerNext': {
         const st = store.getState()

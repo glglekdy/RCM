@@ -59,12 +59,23 @@ export function BottomToolbar({
 
       <div className={styles.center}>
         <div className={styles.group}>
-          <IconButton icon={Pencil} label="그리기 (B)" active={tool === 'draw'} />
-          <IconButton icon={Eraser} label="지우기 (E)" active={tool === 'erase'} />
+          <IconButton
+            icon={Pencil}
+            label="그리기 (B)"
+            active={tool === 'draw'}
+            onClick={() => store.set({ tool: 'draw' })}
+          />
+          <IconButton
+            icon={Eraser}
+            label="지우기 (E)"
+            active={tool === 'erase'}
+            onClick={() => store.set({ tool: 'erase' })}
+          />
           <IconButton
             icon={SquareDashedMousePointer}
             label="선택 (V)"
             active={tool === 'select'}
+            onClick={() => store.set({ tool: 'select' })}
           />
         </div>
         <div className={styles.group}>

@@ -1,4 +1,13 @@
-import type { Chart, Marker, Note, SnapDivision, TimingMap, TimingPoint } from '@rcm/core'
+import {
+  noteKey,
+  type Chart,
+  type Marker,
+  type Note,
+  type SnapDivision,
+  type TimingMap,
+  type TimingPoint
+} from '@rcm/core'
+import { NOTE_HEIGHT } from './hitTest'
 import { msToY, yToMs, type TimelineLayout, type TimelineView } from './view'
 
 export interface DrawParams {
@@ -12,6 +21,8 @@ export interface DrawParams {
   timing: TimingPoint[]
   durationMs: number
   preview?: Note | null
+  /** 지우기 드래그 중이라 숨기는 노트 키 */
+  hiddenKeys?: ReadonlySet<string>
   selectRect?: { lane0: number; lane1: number; tick0: number; tick1: number } | null
 }
 
@@ -26,14 +37,16 @@ const COLORS = {
   bpm: '#f59e0b',
   bpmChip: 'rgba(245, 158, 11, 0.16)',
   marker: '#22d3ee',
-  playhead: '#8b5cf6'
+  playhead: '#8b5cf6',
+  selected: '#8b5cf6'
 }
 
-const NOTE_HEIGHT = 10
 const NOTE_RADIUS = 3
 const NOTE_INSET = 4
 const HOLD_BODY_INSET = 8
 const HOLD_BODY_ALPHA = 0.6
+const PREVIEW_ALPHA = 0.5
+const SELECTED_BORDER = 2
 const CHIP_HEIGHT = 20
 const FONT = '500 12px "Pretendard Variable", Pretendard, system-ui, sans-serif'
 
@@ -126,8 +139,11 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
   for (const note of p.chart.notes) {
     const endTick = note.type === 'hold' ? note.endTick : note.tick
     if (note.tick > toTick || endTick < fromTick) continue
-    drawNote(ctx, p, note)
+    const key = noteKey(note)
+    if (p.hiddenKeys?.has(key)) continue
+    drawNote(ctx, p, note, 1, p.selection.has(key))
   }
+  if (p.preview) drawNote(ctx, p, p.preview, PREVIEW_ALPHA, false)
 
   // 재생선
   const py = Math.round(msToY(view, view.playheadMs))
@@ -139,15 +155,24 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
   ctx.stroke()
 }
 
-function drawNote(ctx: CanvasRenderingContext2D, p: DrawParams, note: Note): void {
+function drawNote(
+  ctx: CanvasRenderingContext2D,
+  p: DrawParams,
+  note: Note,
+  alpha: number,
+  selected: boolean
+): void {
   const { view, layout, tm } = p
   const x = layout.lanesX + note.lane * layout.laneWidth
   const y = msToY(view, tm.tickToMs(note.tick))
   ctx.fillStyle = COLORS.note
+  ctx.strokeStyle = COLORS.selected
+  ctx.lineWidth = SELECTED_BORDER
+  ctx.globalAlpha = alpha
 
   if (note.type === 'hold') {
     const yEnd = msToY(view, tm.tickToMs(note.endTick))
-    ctx.globalAlpha = HOLD_BODY_ALPHA
+    ctx.globalAlpha = HOLD_BODY_ALPHA * alpha
     ctx.beginPath()
     ctx.roundRect(
       x + HOLD_BODY_INSET,
@@ -157,7 +182,8 @@ function drawNote(ctx: CanvasRenderingContext2D, p: DrawParams, note: Note): voi
       NOTE_RADIUS
     )
     ctx.fill()
-    ctx.globalAlpha = 1
+    ctx.globalAlpha = alpha
+    if (selected) ctx.stroke()
   }
 
   ctx.beginPath()
@@ -169,6 +195,8 @@ function drawNote(ctx: CanvasRenderingContext2D, p: DrawParams, note: Note): voi
     NOTE_RADIUS
   )
   ctx.fill()
+  if (selected) ctx.stroke()
+  ctx.globalAlpha = 1
 }
 
 function formatBpm(bpm: number): string {

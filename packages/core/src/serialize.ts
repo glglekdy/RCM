@@ -1,4 +1,6 @@
-import type { Chart, EditorData, Note, Song } from './types';
+import { DEFAULT_NOTE_COLOR } from './constants';
+import { compareNotes } from './tracks';
+import type { Chart, EditorData, Note, Song, Track } from './types';
 
 const dump = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
 
@@ -24,17 +26,24 @@ export function serializeSong(song: Song): string {
 
 function noteOut(n: Note) {
   return n.type === 'hold'
-    ? { tick: n.tick, lane: n.lane, type: n.type, endTick: n.endTick }
-    : { tick: n.tick, lane: n.lane, type: n.type };
+    ? { tick: n.tick, track: n.track, type: n.type, endTick: n.endTick }
+    : { tick: n.tick, track: n.track, type: n.type };
+}
+
+function trackOut(t: Track) {
+  const out: Track = { id: t.id };
+  if (t.color !== undefined && t.color.toLowerCase() !== DEFAULT_NOTE_COLOR) out.color = t.color;
+  if (t.width !== undefined && t.width !== 'normal') out.width = t.width;
+  return out;
 }
 
 export function serializeChart(chart: Chart): string {
-  const notes = [...chart.notes].sort((a, b) => a.tick - b.tick || a.lane - b.lane);
+  const notes = [...chart.notes].sort(compareNotes(chart.tracks));
   return dump({
     formatVersion: chart.formatVersion,
     name: chart.name,
     level: chart.level,
-    lanes: chart.lanes,
+    tracks: chart.tracks.map(trackOut),
     notes: notes.map(noteOut),
   });
 }

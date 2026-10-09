@@ -6,5 +6,5 @@ describe('constants', () => {
   it('스냅 한 칸 tick', () => {
     expect(SNAP_DIVISIONS.map(snapStepTicks)).toEqual([480, 240, 160, 120, 80, 60]);
   });
-  it('noteKey', () => expect(noteKey({ tick: 960, lane: 2, type: 'tap' })).toBe('2:960'));
+  it('noteKey', () => expect(noteKey({ tick: 960, track: 'Side_L', type: 'tap' })).toBe('Side_L:960'));
 });

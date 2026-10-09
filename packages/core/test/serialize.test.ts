@@ -1,29 +1,39 @@
 import { describe, expect, it } from 'vitest';
 import {
-  emptyEditorData, noteKey, parseChart, parseEditorData, parseSong,
-  serializeChart, serializeEditorData, serializeSong, type Chart, type Song,
+  basicTracks, emptyEditorData, noteKey, parseChart, parseEditorData, parseSong,
+  serializeChart, serializeEditorData, serializeSong, type Chart, type Note, type Song,
 } from '../src';
 
 describe('serialize', () => {
   it('노트 정렬 + 2칸 들여쓰기 + 끝 개행 + 왕복', () => {
-    const chart: Chart = { formatVersion: 1, name: 'N', level: 1, lanes: 4, notes: [
-      { tick: 480, lane: 1, type: 'tap' }, { tick: 0, lane: 3, type: 'tap' }, { tick: 480, lane: 0, type: 'tap' } ] };
+    const chart: Chart = { formatVersion: 1, name: 'N', level: 1, tracks: basicTracks(4), notes: [
+      { tick: 480, track: 'Note_2', type: 'tap' }, { tick: 0, track: 'Note_4', type: 'tap' }, { tick: 480, track: 'Note_1', type: 'tap' } ] };
     const text = serializeChart(chart);
     expect(text.endsWith('\n')).toBe(true);
     expect(text).toContain('\n  "notes"');
     const back = parseChart(text, 'n.chart.json');
-    expect(back.ok && back.value.notes.map(noteKey)).toEqual(['3:0', '0:480', '1:480']);
+    expect(back.ok && back.value.notes.map(noteKey)).toEqual(['Note_4:0', 'Note_1:480', 'Note_2:480']);
   });
   it('입력 객체를 변경하지 않는다', () => {
-    const notes: Chart['notes'] = [{ tick: 480, lane: 1, type: 'tap' }, { tick: 0, lane: 0, type: 'tap' }];
-    serializeChart({ formatVersion: 1, name: 'N', level: 1, lanes: 4, notes });
+    const notes: Chart['notes'] = [{ tick: 480, track: 'Note_2', type: 'tap' }, { tick: 0, track: 'Note_1', type: 'tap' }];
+    serializeChart({ formatVersion: 1, name: 'N', level: 1, tracks: basicTracks(4), notes });
     expect(notes[0].tick).toBe(480);
   });
   it('필드 순서', () => {
-    const text = serializeChart({ formatVersion: 1, name: 'N', level: 1, lanes: 4,
-      notes: [{ tick: 0, lane: 0, type: 'hold', endTick: 480 }] });
-    expect(Object.keys(JSON.parse(text))).toEqual(['formatVersion', 'name', 'level', 'lanes', 'notes']);
-    expect(Object.keys(JSON.parse(text).notes[0])).toEqual(['tick', 'lane', 'type', 'endTick']);
+    const text = serializeChart({ formatVersion: 1, name: 'N', level: 1, tracks: basicTracks(4),
+      notes: [{ tick: 0, track: 'Note_1', type: 'hold', endTick: 480 }] });
+    expect(Object.keys(JSON.parse(text))).toEqual(['formatVersion', 'name', 'level', 'tracks', 'notes']);
+    expect(Object.keys(JSON.parse(text).notes[0])).toEqual(['tick', 'track', 'type', 'endTick']);
+  });
+  it('기본 색·폭은 생략, 나머지는 유지', () => {
+    const text = serializeChart({ formatVersion: 1, name: 'N', level: 1, notes: [],
+      tracks: [{ id: 'Side_L', color: '#f59e0b', width: 'wide' }, { id: 'Note_1', color: '#F2F2F2', width: 'normal' }] });
+    expect(JSON.parse(text).tracks).toEqual([{ id: 'Side_L', color: '#f59e0b', width: 'wide' }, { id: 'Note_1' }]);
+  });
+  it('같은 tick은 트랙 순서로 저장', () => {
+    const text = serializeChart({ formatVersion: 1, name: 'N', level: 1, tracks: [{ id: 'B' }, { id: 'A' }],
+      notes: [{ tick: 0, track: 'A', type: 'tap' }, { tick: 0, track: 'B', type: 'tap' }] });
+    expect(JSON.parse(text).notes.map((n: Note) => n.track)).toEqual(['B', 'A']);
   });
   it('beatsPerMeasure 없으면 생략', () => {
     const song: Song = { formatVersion: 1, title: 't', artist: '', audio: 'a.ogg', offsetMs: 0, previewStartMs: 0, timing: [{ tick: 0, bpm: 120 }] };

@@ -1,5 +1,6 @@
-import { FORMAT_VERSION, MAX_LANES, MIN_LANES } from './constants';
-import type { Chart, EditorData, Marker, Note, Song, TimingPoint } from './types';
+import { FORMAT_VERSION } from './constants';
+import { trackErrors } from './tracks';
+import type { Chart, EditorData, Marker, Note, Song, TimingPoint, Track } from './types';
 
 export type ParseResult<T> = { ok: true; value: T } | { ok: false; errors: string[] };
 
@@ -9,9 +10,9 @@ const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
-/** 같은 레인이고 `[tick, endTick ?? tick]` 구간이 (끝 포함) 겹치면 true. */
+/** 같은 트랙이고 `[tick, endTick ?? tick]` 구간이 (끝 포함) 겹치면 true. */
 export function notesOverlap(a: Note, b: Note): boolean {
-  if (a.lane !== b.lane) return false;
+  if (a.track !== b.track) return false;
   const aEnd = a.type === 'hold' ? a.endTick : a.tick;
   const bEnd = b.type === 'hold' ? b.endTick : b.tick;
   return a.tick <= bEnd && b.tick <= aEnd;
@@ -93,21 +94,33 @@ export function validateSong(root: Obj, file: string): ParseResult<Song> {
   }
 
   if (c.errors.length > 0) return { ok: false, errors: c.errors };
-  return { ok: true, value: { formatVersion: 1, title, artist, audio, offsetMs, previewStartMs, timing } };
+  return { ok: true, value: { formatVersion: FORMAT_VERSION, title, artist, audio, offsetMs, previewStartMs, timing } };
 }
 
 export function validateChart(root: Obj, file: string): ParseResult<Chart> {
+  if (
+    root.lanes !== undefined ||
+    (Array.isArray(root.notes) && root.notes.some((n) => isObj(n) && n.lane !== undefined))
+  ) {
+    return { ok: false, errors: [`${file}: 예전 포맷은 지원하지 않아요`] };
+  }
   const c = new Collector(file);
   checkFormatVersion(root, c);
   const name = str(root, 'name', c);
   const level = num(root, 'level', c);
 
-  let lanes = 0;
-  if (!isInt(root.lanes) || root.lanes < MIN_LANES || root.lanes > MAX_LANES) {
-    c.add('lanes', `${MIN_LANES}~${MAX_LANES} 정수여야 함`);
-  } else {
-    lanes = root.lanes;
+  const tracks: Track[] = [];
+  const trackProblems = trackErrors(root.tracks, `${file} › tracks`);
+  c.errors.push(...trackProblems);
+  if (trackProblems.length === 0) {
+    for (const raw of root.tracks as Obj[]) {
+      const t: Track = { id: raw.id as string };
+      if (raw.color !== undefined) t.color = raw.color as string;
+      if (raw.width !== undefined) t.width = raw.width as Track['width'];
+      tracks.push(t);
+    }
   }
+  const trackIds = new Set(tracks.map((t) => t.id));
 
   const notes: Note[] = [];
   const noteIndex: number[] = [];
@@ -122,10 +135,10 @@ export function validateChart(root: Obj, file: string): ParseResult<Chart> {
       }
       const before = c.errors.length;
       if (!isInt(raw.tick) || raw.tick < 0) c.add(p, 'tick은 0 이상의 정수여야 함');
-      if (!isInt(raw.lane)) c.add(p, 'lane은 정수여야 함');
-      else if (lanes > 0 && (raw.lane < 0 || raw.lane >= lanes)) {
-        c.add(p, `lane ${raw.lane}은 범위를 벗어남 (0~${lanes - 1})`);
-      } else if (lanes === 0 && raw.lane < 0) c.add(p, `lane ${raw.lane}은 범위를 벗어남`);
+      if (typeof raw.track !== 'string') c.add(`${p}.track`, '문자열이어야 함');
+      else if (trackProblems.length === 0 && !trackIds.has(raw.track)) {
+        c.add(`${p}.track`, `'${raw.track}' 트랙이 없음`);
+      }
       if (raw.type !== 'tap' && raw.type !== 'hold') c.add(p, 'type은 "tap" 또는 "hold"여야 함');
       else if (raw.type === 'hold') {
         if (!isInt(raw.endTick)) c.add(p, 'hold의 endTick은 정수여야 함');
@@ -134,34 +147,34 @@ export function validateChart(root: Obj, file: string): ParseResult<Chart> {
       if (c.errors.length > before) return;
       notes.push(
         raw.type === 'hold'
-          ? { tick: raw.tick as number, lane: raw.lane as number, type: 'hold', endTick: raw.endTick as number }
-          : { tick: raw.tick as number, lane: raw.lane as number, type: 'tap' },
+          ? { tick: raw.tick as number, track: raw.track as string, type: 'hold', endTick: raw.endTick as number }
+          : { tick: raw.tick as number, track: raw.track as string, type: 'tap' },
       );
       noteIndex.push(i);
     });
 
-    // 겹침: 레인별로 tick 정렬 후 인접한 노트끼리 비교
-    const byLane = new Map<number, number[]>();
+    // 겹침: 트랙별로 tick 정렬 후 인접한 노트끼리 비교
+    const byTrack = new Map<string, number[]>();
     notes.forEach((n, k) => {
-      const list = byLane.get(n.lane);
+      const list = byTrack.get(n.track);
       if (list) list.push(k);
-      else byLane.set(n.lane, [k]);
+      else byTrack.set(n.track, [k]);
     });
-    for (const list of byLane.values()) {
+    for (const list of byTrack.values()) {
       list.sort((a, b) => notes[a].tick - notes[b].tick || noteIndex[a] - noteIndex[b]);
       for (let j = 1; j < list.length; j++) {
         const prev = list[j - 1];
         const cur = list[j];
         if (notesOverlap(notes[prev], notes[cur])) {
           const [first, second] = [noteIndex[prev], noteIndex[cur]].sort((x, y) => x - y);
-          c.add(`notes[${second}]`, `lane ${notes[cur].lane}에서 notes[${first}]와 겹침`);
+          c.add(`notes[${second}]`, `트랙 ${notes[cur].track}에서 notes[${first}]와 겹침`);
         }
       }
     }
   }
 
   if (c.errors.length > 0) return { ok: false, errors: c.errors };
-  return { ok: true, value: { formatVersion: 1, name, level, lanes, notes } };
+  return { ok: true, value: { formatVersion: FORMAT_VERSION, name, level, tracks, notes } };
 }
 
 export function validateEditorData(root: Obj, file: string): ParseResult<EditorData> {
@@ -184,5 +197,5 @@ export function validateEditorData(root: Obj, file: string): ParseResult<EditorD
   if (c.errors.length > 0) return { ok: false, errors: c.errors };
   // 손으로 고친 파일도 ms 순으로 (같은 ms는 원래 순서: sort는 안정 정렬)
   markers.sort((a, b) => a.ms - b.ms);
-  return { ok: true, value: { formatVersion: 1, markers } };
+  return { ok: true, value: { formatVersion: FORMAT_VERSION, markers } };
 }

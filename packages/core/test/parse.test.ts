@@ -1,26 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { notesOverlap, parseChart, parseEditorData, parseSong, type ParseResult } from '../src';
+import { basicTracks, notesOverlap, parseChart, parseEditorData, parseSong, type ParseResult } from '../src';
 
 const chartText = (notes: unknown[], extra = {}) =>
-  JSON.stringify({ formatVersion: 1, name: 'HARD', level: 12, lanes: 7, notes, ...extra });
+  JSON.stringify({ formatVersion: 1, name: 'HARD', level: 12, tracks: basicTracks(4), notes, ...extra });
+const tr = (ids: string[]) => ids.map((id) => ({ id }));
 const errorsOf = (r: ParseResult<unknown>) => (r.ok ? [] : r.errors);
 
 describe('parseChart', () => {
   it('정상 채보', () => {
     const r = parseChart(
-      chartText([{ tick: 2400, lane: 3, type: 'hold', endTick: 3360 }, { tick: 0, lane: 0, type: 'tap' }]),
+      chartText([{ tick: 2400, track: 'Note_4', type: 'hold', endTick: 3360 }, { tick: 0, track: 'Note_1', type: 'tap' }]),
       'hard.chart.json',
     );
     expect(r.ok).toBe(true);
   });
   it.each([
     [chartText([], { formatVersion: 2 }), 'formatVersion'],
-    [chartText([], { lanes: 9 }), 'lanes'],
-    [chartText([{ tick: 0, lane: 0, type: 'tap' }, { tick: 0, lane: 7, type: 'tap' }]), 'notes[1]'],
-    [chartText([{ tick: 480, lane: 0, type: 'hold', endTick: 480 }]), 'notes[0]'],
-    [chartText([{ tick: -1, lane: 0, type: 'tap' }]), 'notes[0]'],
-    [chartText([{ tick: 1.5, lane: 0, type: 'tap' }]), 'notes[0]'],
-    [chartText([{ tick: 0, lane: 0, type: 'hold', endTick: 960 }, { tick: 480, lane: 0, type: 'tap' }]), '겹침'],
+    [chartText([{ tick: 0, track: 'Note_1', type: 'tap' }, { tick: 0, track: 'Nope', type: 'tap' }]), 'notes[1]'],
+    [chartText([{ tick: 480, track: 'Note_1', type: 'hold', endTick: 480 }]), 'notes[0]'],
+    [chartText([{ tick: -1, track: 'Note_1', type: 'tap' }]), 'notes[0]'],
+    [chartText([{ tick: 1.5, track: 'Note_1', type: 'tap' }]), 'notes[0]'],
+    [chartText([{ tick: 0, track: 'Note_1', type: 'hold', endTick: 960 }, { tick: 480, track: 'Note_1', type: 'tap' }]), '겹침'],
     ['{ not json', 'JSON'],
   ])('잘못된 채보 %#', (text, needle) => {
     const errors = errorsOf(parseChart(text, 'hard.chart.json'));
@@ -28,14 +28,37 @@ describe('parseChart', () => {
     expect(errors.join('\n')).toContain('hard.chart.json');
     expect(errors.join('\n')).toContain(needle);
   });
-  it('lane 범위 오류 메시지 형식', () => {
-    const errors = errorsOf(parseChart(chartText([{ tick: 0, lane: 7, type: 'tap' }]), 'hard.chart.json'));
-    expect(errors).toEqual(['hard.chart.json › notes[0]: lane 7은 범위를 벗어남 (0~6)']);
+  it('없는 트랙 오류 메시지 형식', () => {
+    const errors = errorsOf(parseChart(chartText([{ tick: 0, track: 'Nope', type: 'tap' }]), 'hard.chart.json'));
+    expect(errors).toEqual(["hard.chart.json › notes[0].track: 'Nope' 트랙이 없음"]);
+  });
+  it.each([
+    [{ tracks: [] }, 'tracks'],
+    [{ tracks: tr(Array.from({ length: 17 }, (_, i) => `T${i}`)) }, 'tracks'],
+    [{ tracks: tr(['A', 'A']) }, 'tracks[1].id'],
+    [{ tracks: tr(['bad id']) }, 'tracks[0].id'],
+    [{ tracks: [{ id: 'A', color: 'red' }] }, 'tracks[0].color'],
+    [{ tracks: [{ id: 'A', width: 'huge' }] }, 'tracks[0].width'],
+    [{ notes: [{ tick: 0, track: 'Nope', type: 'tap' }] }, 'notes[0].track'],
+  ])('트랙 오류 %#', (patch, needle) => {
+    const errors = errorsOf(parseChart(chartText((patch as { notes?: unknown[] }).notes ?? [], patch), 'hard.chart.json'));
+    expect(errors.join('\n')).toContain('hard.chart.json');
+    expect(errors.join('\n')).toContain(needle);
+  });
+  it('예전 포맷 거부', () => {
+    const errors = errorsOf(parseChart(JSON.stringify({ formatVersion: 1, name: 'N', level: 1, lanes: 4, notes: [] }), 'n.chart.json'));
+    expect(errors).toEqual(['n.chart.json: 예전 포맷은 지원하지 않아요']);
+    const noteLane = errorsOf(parseChart(chartText([{ tick: 0, lane: 0, type: 'tap' }]), 'n.chart.json'));
+    expect(noteLane).toEqual(['n.chart.json: 예전 포맷은 지원하지 않아요']);
+  });
+  it('겹침은 트랙별', () => {
+    const ok = parseChart(chartText([{ tick: 0, track: 'Note_1', type: 'tap' }, { tick: 0, track: 'Note_2', type: 'tap' }]), 'n.chart.json');
+    expect(ok.ok).toBe(true);
   });
   it('모르는 필드는 버린다', () => {
-    const r = parseChart(chartText([{ tick: 0, lane: 0, type: 'tap', foo: 1 }], { extra: 1 }), 'a.chart.json');
+    const r = parseChart(chartText([{ tick: 0, track: 'Note_1', type: 'tap', foo: 1 }], { extra: 1 }), 'a.chart.json');
     expect(r.ok && r.value).toEqual({
-      formatVersion: 1, name: 'HARD', level: 12, lanes: 7, notes: [{ tick: 0, lane: 0, type: 'tap' }],
+      formatVersion: 1, name: 'HARD', level: 12, tracks: basicTracks(4), notes: [{ tick: 0, track: 'Note_1', type: 'tap' }],
     });
   });
   it('최상위가 객체가 아니면 오류', () => {
@@ -83,7 +106,7 @@ describe('parseEditorData', () => {
 
 describe('notesOverlap', () => {
   it('끝 포함', () => {
-    expect(notesOverlap({ tick: 0, lane: 0, type: 'hold', endTick: 480 }, { tick: 480, lane: 0, type: 'tap' })).toBe(true);
-    expect(notesOverlap({ tick: 0, lane: 0, type: 'hold', endTick: 480 }, { tick: 480, lane: 1, type: 'tap' })).toBe(false);
+    expect(notesOverlap({ tick: 0, track: 'Note_1', type: 'hold', endTick: 480 }, { tick: 480, track: 'Note_1', type: 'tap' })).toBe(true);
+    expect(notesOverlap({ tick: 0, track: 'Note_1', type: 'hold', endTick: 480 }, { tick: 480, track: 'Note_2', type: 'tap' })).toBe(false);
   });
 });

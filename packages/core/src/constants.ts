@@ -1,7 +1,10 @@
 export const TICKS_PER_BEAT = 480;
 export const FORMAT_VERSION = 1;
-export const MIN_LANES = 4;
-export const MAX_LANES = 8;
+export const MIN_TRACKS = 1;
+export const MAX_TRACKS = 16;
+export const TRACK_ID_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
+export const DEFAULT_NOTE_COLOR = '#f2f2f2';
+export const TRACK_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
 export type SnapDivision = 4 | 8 | 12 | 16 | 24 | 32;
 

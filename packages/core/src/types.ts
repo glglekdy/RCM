@@ -14,15 +14,23 @@ export interface Song {
   timing: TimingPoint[];
 }
 
+export type TrackWidth = 'narrow' | 'normal' | 'wide';
+
+export interface Track {
+  id: string;
+  color?: string;
+  width?: TrackWidth;
+}
+
 export type Note =
-  | { tick: number; lane: number; type: 'tap' }
-  | { tick: number; lane: number; type: 'hold'; endTick: number };
+  | { tick: number; track: string; type: 'tap' }
+  | { tick: number; track: string; type: 'hold'; endTick: number };
 
 export interface Chart {
   formatVersion: 1;
   name: string;
   level: number;
-  lanes: number;
+  tracks: Track[];
   notes: Note[];
 }
 
@@ -38,5 +46,5 @@ export interface EditorData {
 
 /** 채보 안에서 유일한 노트 키 (겹침 금지 규칙). */
 export function noteKey(note: Note): string {
-  return `${note.lane}:${note.tick}`;
+  return `${note.track}:${note.tick}`;
 }

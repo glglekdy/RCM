@@ -19,7 +19,6 @@ export interface PlayfieldColors {
   laneLine: string;
   /** 누르고 있는 레인 위에 덧칠하는 색 */
   pressedLane: string;
-  note: string;
   judgeLine: string;
   keyLabel: string;
   keyLabelPressed: string;
@@ -30,13 +29,12 @@ export interface PlayfieldColors {
   miss: string;
 }
 
-/** 기본 색: 에디터 타임라인 노트 색(6.3절), 판정선은 `--accent` */
+/** 기본 색: 에디터 타임라인 색(6.3절), 판정선은 `--accent`. 노트는 트랙 색으로 그린다 */
 export const DEFAULT_PLAYFIELD_COLORS: PlayfieldColors = {
   background: '#141414',
   lane: '#161616',
   laneLine: '#2a2a2a',
   pressedLane: 'rgba(255, 255, 255, 0.08)',
-  note: '#f2f2f2',
   judgeLine: '#8b5cf6',
   keyLabel: '#8c8c8c',
   keyLabelPressed: '#e6e6e6',

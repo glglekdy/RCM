@@ -3,6 +3,7 @@ import {
   MAX_TRACKS,
   MIN_TRACKS,
   TRACK_COLOR_PATTERN,
+  TRACK_WIDTHS,
   compareNotes,
   isValidTrackId,
   nextTrackId,
@@ -11,8 +12,6 @@ import {
   type TrackWidth
 } from '@rcm/core'
 import { getChart, replaceChart, type ProjectDoc } from '../state/doc'
-
-const WIDTHS: readonly TrackWidth[] = ['narrow', 'normal', 'wide']
 
 const validIndex = (tracks: readonly Track[], i: number): boolean =>
   Number.isInteger(i) && i >= 0 && i < tracks.length
@@ -59,7 +58,7 @@ export function updateTrackLook(
   const chart = getChart(doc, file)
   if (!validIndex(chart.tracks, index)) return null
   if (patch.color !== undefined && !TRACK_COLOR_PATTERN.test(patch.color)) return null
-  if (patch.width !== undefined && !WIDTHS.includes(patch.width)) return null
+  if (patch.width !== undefined && !TRACK_WIDTHS.includes(patch.width)) return null
   const cur = chart.tracks[index]
   const next: Track = { ...cur, ...patch }
   const colorOf = (t: Track) => (t.color ?? DEFAULT_NOTE_COLOR).toLowerCase()

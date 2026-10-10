@@ -7,6 +7,7 @@ import {
   hasPresetErrors,
   newPresetId,
   presetErrors,
+  shadowingPreset,
   type PresetTrack,
   type TrackPreset
 } from '../../../shared/presets'
@@ -37,6 +38,8 @@ export function PresetsPage() {
   const shown = shownOf(stored)
   const issues = presetErrors(shown)
   const invalid = hasPresetErrors(issues)
+  /** 트랙 구성이 같은 앞 프리셋. 있으면 녹음·플레이에는 그 프리셋의 키가 쓰인다 (트랙 스펙 3.4) */
+  const shadow = shadowingPreset(presets, presets.indexOf(stored))
 
   const save = async (next: TrackPreset[]) => {
     try {
@@ -164,6 +167,14 @@ export function PresetsPage() {
               <TextField value={shown.name} onCommit={(name) => edit((p) => ({ ...p, name: name.trim() }))} />
             </span>
           </div>
+          {shadow && (
+            <div className={styles.notice}>
+              <CircleAlert size={14} />
+              <span>
+                트랙 구성이 같은 '{shadow.name}'이 먼저 있어서 녹음·플레이에는 그 프리셋의 키가 쓰여요
+              </span>
+            </div>
+          )}
           {invalid && (
             <div className={styles.notice}>
               <CircleAlert size={14} />
@@ -178,7 +189,7 @@ export function PresetsPage() {
             tracks={shown.tracks}
             showKeys
             issues={issues.tracks}
-            onRename={(i, id) => edit((p) => withTrack(p, i, { id }))}
+            onRename={(i, id) => edit((p) => withTrack(p, i, { id: id.trim() }))}
             onLook={(i, patch) => edit((p) => withTrack(p, i, patch))}
             onKey={(i, key) => edit((p) => withTrack(p, i, { key }))}
             onMove={(from, to) => edit((p) => ({ ...p, tracks: moveIndex(p.tracks, from, to) }))}

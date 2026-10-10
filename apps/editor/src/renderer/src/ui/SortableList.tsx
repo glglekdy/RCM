@@ -18,6 +18,8 @@ interface SortableListProps<T> {
 
 interface Drag {
   from: number
+  /** 끌기 시작할 때 from 행의 key. 끄는 동안 목록이 바뀌어 다른 행이 그 자리에 오면 취소한다 */
+  key: string
   pointerId: number
   startY: number
   dy: number
@@ -34,11 +36,14 @@ export function SortableList<T>({ items, rowHeight, getKey, onMove, renderRow }:
   const [drag, setDragState] = useState<Drag | null>(null)
   const dragRef = useRef<Drag | null>(null)
   const onMoveRef = useRef(onMove)
+  /** 놓을 때의 목록에서 끈 행이 아직 from 자리에 있는지 */
+  const isAtRef = useRef<(from: number, key: string) => boolean>(() => false)
   const count = items.length
 
   useEffect(() => {
     onMoveRef.current = onMove
-  }, [onMove])
+    isAtRef.current = (from, key) => from < items.length && getKey(items[from]) === key
+  }, [onMove, items, getKey])
 
   const setDrag = (d: Drag | null) => {
     dragRef.current = d
@@ -66,6 +71,7 @@ export function SortableList<T>({ items, rowHeight, getKey, onMove, renderRow }:
       setDrag(null)
       const slot = slotAt(e)
       if (slot === null) return
+      if (!isAtRef.current(d.from, d.key)) return
       const to = slotToIndex(d.from, slot)
       if (to !== d.from) onMoveRef.current(d.from, to)
     }
@@ -94,7 +100,14 @@ export function SortableList<T>({ items, rowHeight, getKey, onMove, renderRow }:
       if (e.button !== 0 || dragRef.current) return
       e.preventDefault()
       e.currentTarget.setPointerCapture(e.pointerId)
-      setDrag({ from: index, pointerId: e.pointerId, startY: e.clientY, dy: 0, slot: index })
+      setDrag({
+        from: index,
+        key: getKey(items[index]),
+        pointerId: e.pointerId,
+        startY: e.clientY,
+        dy: 0,
+        slot: index
+      })
     }
   })
 

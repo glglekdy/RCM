@@ -3,6 +3,7 @@ import {
   MAX_TRACKS,
   MIN_TRACKS,
   TRACK_COLOR_PATTERN,
+  TRACK_WIDTHS,
   isValidTrackId,
   type Track,
   type TrackWidth
@@ -22,6 +23,9 @@ export const AUTO_KEYS: readonly string[] = [
   'KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon',
   'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyU', 'KeyI', 'KeyO', 'KeyP'
 ]
+
+/** 프리셋 id 최대 길이 (설정 파일·마지막 프리셋 id 검사) */
+export const MAX_PRESET_ID_LENGTH = 64
 
 const SIDE_COLOR = '#f59e0b'
 
@@ -102,7 +106,7 @@ function parseTrack(v: unknown): PresetTrack | null {
     t.color = v.color
   }
   if (v.width !== undefined) {
-    if (v.width !== 'narrow' && v.width !== 'normal' && v.width !== 'wide') return null
+    if (!(TRACK_WIDTHS as readonly unknown[]).includes(v.width)) return null
     t.width = v.width as TrackWidth
   }
   return t
@@ -112,6 +116,7 @@ function parsePreset(v: unknown): TrackPreset | null {
   if (!isObject(v) || typeof v.id !== 'string' || typeof v.name !== 'string' || !Array.isArray(v.tracks)) {
     return null
   }
+  if (v.id.length > MAX_PRESET_ID_LENGTH) return null
   const tracks: PresetTrack[] = []
   for (const raw of v.tracks) {
     const t = parseTrack(raw)
@@ -149,11 +154,14 @@ export interface ResolvedKeymap {
   source: { kind: 'preset'; name: string } | { kind: 'auto' }
 }
 
+/** 프리셋의 트랙 id 집합이 `ids`와 같은지 (순서 무관). */
+function sameTrackIds(p: TrackPreset, ids: ReadonlySet<string>): boolean {
+  return p.tracks.length === ids.size && p.tracks.every((t) => ids.has(t.id))
+}
+
 export function resolveKeymap(tracks: readonly Track[], presets: readonly TrackPreset[]): ResolvedKeymap {
   const ids = new Set(tracks.map((t) => t.id))
-  const match = presets.find(
-    (p) => p.tracks.length === ids.size && p.tracks.every((t) => ids.has(t.id))
-  )
+  const match = presets.find((p) => sameTrackIds(p, ids))
   const keys = new Map<string, string | null>()
   if (match) {
     for (const t of match.tracks) keys.set(t.id, t.key)
@@ -161,6 +169,17 @@ export function resolveKeymap(tracks: readonly Track[], presets: readonly TrackP
   }
   tracks.forEach((t, i) => keys.set(t.id, AUTO_KEYS[i] ?? null))
   return { keys, source: { kind: 'auto' } }
+}
+
+/**
+ * `index` 프리셋보다 앞에 있고 트랙 id 집합이 같은 첫 프리셋. 키 매칭은 앞의 것이 이기므로(트랙 스펙 3.4)
+ * 이런 프리셋이 있으면 `index` 프리셋의 키는 녹음·플레이에 쓰이지 않는다. 없으면 null.
+ */
+export function shadowingPreset(presets: readonly TrackPreset[], index: number): TrackPreset | null {
+  const target = presets[index]
+  if (!target) return null
+  const ids = new Set(target.tracks.map((t) => t.id))
+  return presets.slice(0, index).find((p) => sameTrackIds(p, ids)) ?? null
 }
 
 export function presetToChartTracks(p: TrackPreset): Track[] {

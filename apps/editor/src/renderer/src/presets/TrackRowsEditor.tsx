@@ -206,7 +206,10 @@ function ColorSwatch({ value, onCommit }: { value: string; onCommit: (color: str
   )
 }
 
-/** 키 지정 버튼: 누르면 `키를 누르세요` → 다음 키로 지정. Esc 취소, Backspace/Delete는 비움. */
+/**
+ * 키 지정 버튼: 누르면 `키를 누르세요` → 다음 키로 지정. Esc 취소, Backspace/Delete는 비움.
+ * Tab은 지정하지 않고 취소한 뒤 포커스를 그대로 옮긴다.
+ */
 function KeyButton({
   code,
   issue,
@@ -232,6 +235,10 @@ function KeyButton({
       onBlur={() => setCapturing(false)}
       onKeyDown={(e) => {
         if (!capturing) return
+        if (e.key === 'Tab') {
+          setCapturing(false)
+          return
+        }
         e.preventDefault()
         e.stopPropagation()
         if (e.repeat || e.code === '') return

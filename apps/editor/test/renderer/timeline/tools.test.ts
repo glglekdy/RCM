@@ -96,6 +96,23 @@ describe('그리기 도구', () => {
     expect(notes()).toEqual([])
   })
 
+  it('끄는 동안 시작 트랙이 사라지거나 바뀌면 드래그 취소', () => {
+    for (const tracks of [basicTracks(1), [{ id: 'Note_2' }, { id: 'Other' }]]) {
+      const store = new EditorStore({ dir: 'C:/p', audioPath: 'C:/p/audio.ogg' }, d0)
+      store.set({ tool: 'draw', snap: 4 })
+      let geo = { tm, view, layout }
+      const tools = createToolController(store, () => geo)
+      tools.onPointerDown(left(X1, yOf(0)))
+      expect(tools.overlay().preview).toEqual([tap(0, 'Note_2')])
+      geo = { tm, view, layout: layoutTimeline(1000, tracks) }
+      tools.onPointerMove(left(X1, yOf(960)))
+      expect(tools.overlay().preview).toEqual([])
+      tools.onPointerUp(left(X1, yOf(960)))
+      expect(getChart(store.getState().doc, F).notes).toEqual([])
+    }
+    expect(commit).not.toHaveBeenCalled()
+  })
+
   it('재생 중에는 무시', () => {
     const { store, tools, notes } = setup()
     store.set({ playing: true })

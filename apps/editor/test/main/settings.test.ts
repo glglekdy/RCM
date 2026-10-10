@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -124,30 +124,51 @@ describe('settings', () => {
     expect(raw.presets).toEqual(presets)
   })
 
-  it('고칠 때 파일이 없으면 새로 만들고, 읽지 못하거나 깨졌으면 덮어쓰지 않고 거부', async () => {
+  const touchD = (s: { recent: { dir: string; lastOpened: number }[] }) => {
+    s.recent = touchRecent(s.recent, 'd', 1)
+  }
+
+  it('고칠 때 파일이 없으면 새로 만듦', async () => {
     tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
     const file = path.join(tmp, 'settings.json')
     await updateSettings(file, (s) => {
       s.lastPresetId = 'p1'
     })
     expect((await loadSettings(file)).lastPresetId).toBe('p1')
+  })
 
-    const touchD = (s: { recent: { dir: string; lastOpened: number }[] }) => {
-      s.recent = touchRecent(s.recent, 'd', 1)
+  it('고칠 때 내용이 깨졌으면 broken 파일로 옮겨 두고 빈 설정에서 새로 저장', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      for (const broken of ['{"recent": [', 'null', '[]']) {
+        tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
+        const file = path.join(tmp, 'settings.json')
+        await fs.writeFile(file, broken)
+        // 그냥 읽을 때는 예전처럼 빈 설정
+        expect(await loadSettings(file)).toEqual({ recent: [] })
+        await updateSettings(file, touchD)
+        const names = await fs.readdir(tmp)
+        const moved = names.filter((n) => /^settings\.json\.broken-\d+$/.test(n))
+        expect(moved, broken).toHaveLength(1)
+        expect(await fs.readFile(path.join(tmp, moved[0]), 'utf8')).toBe(broken)
+        expect(JSON.parse(await fs.readFile(file, 'utf8'))).toEqual({ recent: [{ dir: 'd', lastOpened: 1 }] })
+        await fs.rm(tmp, { recursive: true, force: true })
+      }
+      expect(logged).toHaveBeenCalledTimes(3)
+    } finally {
+      logged.mockRestore()
     }
-    for (const broken of ['{"recent": [', 'null', '[]']) {
-      await fs.writeFile(file, broken)
-      await expect(updateSettings(file, touchD), broken).rejects.toThrow()
-      expect(await fs.readFile(file, 'utf8')).toBe(broken)
-      // 그냥 읽을 때는 예전처럼 빈 설정
-      expect(await loadSettings(file)).toEqual({ recent: [] })
-    }
+  })
 
-    // 읽기 오류(ENOENT가 아님): 폴더라서 읽을 수 없는 경로
-    const dirAsFile = path.join(tmp, 'dir.json')
+  it('고칠 때 읽기 오류(ENOENT가 아님)면 아무것도 쓰지 않고 거부', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
+    // 폴더라서 읽을 수 없는 경로 (EISDIR)
+    const dirAsFile = path.join(tmp, 'settings.json')
     await fs.mkdir(dirAsFile)
     await expect(updateSettings(dirAsFile, touchD)).rejects.toThrow()
     expect((await fs.stat(dirAsFile)).isDirectory()).toBe(true)
+    expect(await fs.readdir(tmp)).toEqual(['settings.json'])
+    expect(await fs.readdir(dirAsFile)).toEqual([])
   })
 
   it('마지막 프리셋 id 검사', () => {

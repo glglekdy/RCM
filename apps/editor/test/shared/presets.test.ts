@@ -7,7 +7,9 @@ import {
   presetToChartTracks,
   resolveKeymap,
   sanitizePresets,
-  type PresetTrack
+  shadowingPreset,
+  type PresetTrack,
+  type TrackPreset
 } from '../../src/shared/presets'
 
 const t = (id: string, key: string | null = null): PresetTrack => ({ id, key })
@@ -100,5 +102,31 @@ describe('presets', () => {
     } finally {
       now.mockRestore()
     }
+  })
+
+  it('프리셋 id가 64자를 넘으면 버림', () => {
+    const ok = { id: 'x'.repeat(64), name: 'A', tracks: [t('Note_1', 'KeyD')] }
+    const long = { id: 'y'.repeat(65), name: 'B', tracks: [t('Note_1', 'KeyD')] }
+    expect(sanitizePresets([ok, long])).toEqual([ok])
+  })
+
+  it('트랙 구성이 같은 앞 프리셋', () => {
+    const p = (id: string, ids: string[]): TrackPreset => ({ id, name: id.toUpperCase(), tracks: ids.map((x) => t(x)) })
+    const list = [
+      p('a', ['A', 'B']),
+      p('b', ['C']),
+      p('c', ['B', 'A']),
+      p('d', ['A', 'B', 'C']),
+      p('e', ['A', 'B'])
+    ]
+    expect(shadowingPreset(list, 0)).toBeNull()
+    expect(shadowingPreset(list, 1)).toBeNull()
+    // 순서가 달라도 id 집합이 같으면 가려진다. 가장 앞의 것을 돌려준다
+    expect(shadowingPreset(list, 2)).toBe(list[0])
+    expect(shadowingPreset(list, 3)).toBeNull()
+    expect(shadowingPreset(list, 4)).toBe(list[0])
+    expect(shadowingPreset(list, 9)).toBeNull()
+    // 기본 프리셋은 서로 가리지 않는다
+    DEFAULT_PRESETS.forEach((_, i) => expect(shadowingPreset(DEFAULT_PRESETS, i)).toBeNull())
   })
 })

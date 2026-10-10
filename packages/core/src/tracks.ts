@@ -1,11 +1,9 @@
-import { MAX_TRACKS, MIN_TRACKS, TRACK_COLOR_PATTERN, TRACK_ID_PATTERN } from './constants';
+import { MAX_TRACKS, MIN_TRACKS, TRACK_COLOR_PATTERN, TRACK_ID_PATTERN, TRACK_WIDTHS } from './constants';
 import type { Note, Track } from './types';
 
 export function isValidTrackId(id: string): boolean {
   return TRACK_ID_PATTERN.test(id);
 }
-
-const WIDTHS: readonly unknown[] = ['narrow', 'normal', 'wide'];
 
 /** 트랙 목록 검사. 메시지는 `${prefix}[i].필드: 이유` 형태. */
 export function trackErrors(tracks: unknown, prefix: string): string[] {
@@ -32,7 +30,7 @@ export function trackErrors(tracks: unknown, prefix: string): string[] {
     if (t.color !== undefined && (typeof t.color !== 'string' || !TRACK_COLOR_PATTERN.test(t.color))) {
       errors.push(`${p}.color: #rrggbb 형식이어야 함`);
     }
-    if (t.width !== undefined && !WIDTHS.includes(t.width)) {
+    if (t.width !== undefined && !(TRACK_WIDTHS as readonly unknown[]).includes(t.width)) {
       errors.push(`${p}.width: narrow, normal, wide 중 하나여야 함`);
     }
   });

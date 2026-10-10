@@ -1,5 +1,5 @@
 import { promises as fs } from 'node:fs'
-import { sanitizePresets, type TrackPreset } from '../../shared/presets'
+import { MAX_PRESET_ID_LENGTH, sanitizePresets, type TrackPreset } from '../../shared/presets'
 import { writeFileAtomic } from './atomicWrite'
 
 export interface RecentEntry {
@@ -21,9 +21,12 @@ export function touchRecent(list: RecentEntry[], dir: string, now: number): Rece
   return [{ dir, lastOpened: now }, ...list.filter((e) => e.dir !== dir)].slice(0, MAX_RECENT)
 }
 
+/** 설정 파일 내용이 깨짐 (JSON이 아니거나 형식이 틀림). 읽기 오류와 구별한다. */
+class SettingsFormatError extends Error {}
+
 function parseSettings(raw: unknown): Settings {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-    throw new Error('설정 파일 형식이 올바르지 않아요')
+    throw new SettingsFormatError('설정 파일 형식이 올바르지 않아요')
   }
   const obj = raw as {
     recent?: unknown
@@ -57,7 +60,13 @@ async function readSettingsStrict(file: string): Promise<Settings> {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { recent: [] }
     throw err
   }
-  return parseSettings(JSON.parse(text))
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch (err) {
+    throw new SettingsFormatError('설정 파일이 올바른 JSON이 아니에요', { cause: err })
+  }
+  return parseSettings(raw)
 }
 
 /** 읽기 전용: 읽지 못하거나 깨졌으면 빈 설정. */
@@ -73,16 +82,34 @@ export async function saveSettings(file: string, s: Settings): Promise<void> {
   await writeFileAtomic(file, `${JSON.stringify(s, null, 2)}\n`)
 }
 
+/**
+ * 고치기 전 읽기. 내용이 깨졌으면 원본을 같은 폴더의 `<파일 이름>.broken-<시각>`으로 옮겨 두고
+ * 빈 설정에서 시작한다 (깨진 파일 때문에 설정을 영영 저장하지 못하는 일이 없게).
+ * 읽기 오류(EBUSY·EACCES 등)는 그대로 throw.
+ */
+async function readSettingsForUpdate(file: string): Promise<Settings> {
+  try {
+    return await readSettingsStrict(file)
+  } catch (err) {
+    if (!(err instanceof SettingsFormatError)) throw err
+    const broken = `${file}.broken-${Date.now()}`
+    await fs.rename(file, broken)
+    console.error(`설정 파일이 깨져서 ${broken}(으)로 옮기고 새로 만들어요`, err)
+    return { recent: [] }
+  }
+}
+
 let pending: Promise<unknown> = Promise.resolve()
 
 /**
  * 설정 파일을 읽고 `mutate`로 고쳐 저장한다. 앞선 호출이 끝난 뒤에 실행되므로
  * 동시에 불려도 서로의 변경을 덮어쓰지 않는다. `mutate`가 throw하면 저장하지 않고 reject.
- * 파일을 읽지 못했거나 깨졌으면(없는 경우 제외) 저장된 프리셋 등을 지우지 않도록 덮어쓰지 않고 reject.
+ * 내용이 깨졌으면 원본을 `.broken-<시각>` 파일로 옮겨 두고 빈 설정에서 고친다.
+ * 파일을 읽지 못했으면(없는 경우 제외) 저장된 프리셋 등을 지우지 않도록 덮어쓰지 않고 reject.
  */
 export function updateSettings(file: string, mutate: (s: Settings) => void): Promise<void> {
   const run = pending.then(async () => {
-    const settings = await readSettingsStrict(file)
+    const settings = await readSettingsForUpdate(file)
     mutate(settings)
     await saveSettings(file, settings)
   })
@@ -108,8 +135,6 @@ export function validatePresets(raw: unknown): TrackPreset[] {
   if (kept.length !== raw.length + 1) throw new Error('프리셋에 잘못된 값이 있어요')
   return kept.slice(0, -1)
 }
-
-const MAX_PRESET_ID_LENGTH = 64
 
 export function validateLastPresetId(raw: unknown): string {
   if (typeof raw !== 'string' || raw.length > MAX_PRESET_ID_LENGTH) {

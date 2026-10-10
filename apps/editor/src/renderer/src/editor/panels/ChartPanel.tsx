@@ -47,7 +47,7 @@ export function ChartPanel() {
 
   const rename = (i: number, id: string) => {
     if (isLocked()) return
-    const next = renameTrack(store.getState().doc, file, i, id)
+    const next = renameTrack(store.getState().doc, file, i, id.trim())
     // 거부되면 입력칸은 원래 값으로 돌아간다
     if (!next) toast('이름을 바꿀 수 없어요 (형식이 틀렸거나 이미 있는 이름)')
     else applyTracks('트랙 이름 변경', next, true)

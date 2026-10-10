@@ -109,10 +109,14 @@ export function createToolController(
     return tm.msToTick(yToMs(view, y))
   }
 
-  /** 그리기 드래그의 현재 노트: 같은 트랙에서 시작 칸보다 위면 hold, 아니면 tap. */
-  const drawNote = (d: DrawDrag, y: number): Note => {
+  /**
+   * 그리기 드래그의 현재 노트: 같은 트랙에서 시작 칸보다 위면 hold, 아니면 tap.
+   * 끄는 동안 시작 트랙이 사라졌거나 다른 트랙으로 바뀌었으면 null.
+   */
+  const drawNote = (d: DrawDrag, y: number): Note | null => {
     const { tm, view, layout } = getGeometry()
     const col = layout.columns[d.lane]
+    if (!col || col.id !== d.track) return null
     const end = pointerToCell(tm, view, layout, col.x + col.width / 2, y, store.getState().snap)
     return end && end.tick > d.tick
       ? { tick: d.tick, track: d.track, type: 'hold', endTick: end.tick }
@@ -242,8 +246,13 @@ export function createToolController(
       const d = drag
       if (!d) return
       if (d.kind === 'draw') {
-        d.preview = drawNote(d, e.y)
-        d.invalid = !addNote(store.getState().doc, d.file, d.preview)
+        const note = drawNote(d, e.y)
+        if (!note) {
+          drag = null
+          return
+        }
+        d.preview = note
+        d.invalid = !addNote(store.getState().doc, d.file, note)
       } else if (d.kind === 'erase') {
         eraseAt(d, e.x, e.y)
       } else if (d.kind === 'rect') {
@@ -261,7 +270,7 @@ export function createToolController(
       if (s.playing) return
       if (d.kind === 'draw') {
         const note = drawNote(d, e.y)
-        store.apply('노트 추가', addNote(s.doc, d.file, note), d.file)
+        if (note) store.apply('노트 추가', addNote(s.doc, d.file, note), d.file)
       } else if (d.kind === 'erase') {
         eraseAt(d, e.x, e.y)
         if (d.keys.size > 0) store.apply('노트 지우기', removeNotes(s.doc, d.file, d.keys), d.file)

@@ -22,8 +22,9 @@ import {
   Row,
   TextField
 } from '../../ui'
-import { DEFAULT_PRESETS, presetToChartTracks } from '../../../../shared/presets'
+import { presetToChartTracks } from '../../../../shared/presets'
 import { PresetPicker } from '../../presets/PresetPicker'
+import { defaultPresetId, setLastPresetId, usePresets } from '../../presets/presetStore'
 import { addChart } from '../commands/charts'
 import { DEFAULT_PX_PER_MS } from '../minimap/geometry'
 import { useEditor, useStore } from '../state/useStore'
@@ -188,9 +189,6 @@ export function BottomToolbar({
   )
 }
 
-/** 저장된 프리셋을 쓰기 전까지는 기본 프리셋 목록 (첫 번째 = 4K) */
-const PRESETS = DEFAULT_PRESETS
-
 interface AddChartDialogProps {
   onClose: () => void
   onAdded: (file: string) => void
@@ -200,14 +198,19 @@ interface AddChartDialogProps {
 function AddChartDialog({ onClose, onAdded }: AddChartDialogProps) {
   const store = useStore()
   const [name, setName] = useState('')
-  const [presetId, setPresetId] = useState(PRESETS[0].id)
+  const presets = usePresets()
+  const [presetId, setPresetId] = useState(() => defaultPresetId(presets))
+  const chosenId = presets.some((p) => p.id === presetId) ? presetId : defaultPresetId(presets)
 
   const add = () => {
-    const preset = PRESETS.find((p) => p.id === presetId)
+    const preset = presets.find((p) => p.id === chosenId)
     if (!preset) return
     const added = addChart(store.getState().doc, name, presetToChartTracks(preset))
     if (!added) return
     store.apply('난이도 추가', added.doc)
+    void setLastPresetId(preset.id).catch(() => {
+      // 마지막 선택을 기억하지 못해도 난이도는 추가됐다
+    })
     onAdded(added.file)
   }
 
@@ -235,7 +238,7 @@ function AddChartDialog({ onClose, onAdded }: AddChartDialogProps) {
         <Row label="이름">
           <TextField value={name} onChange={setName} placeholder="HARD" />
         </Row>
-        <PresetPicker presets={PRESETS} value={presetId} onChange={setPresetId} />
+        <PresetPicker presets={presets} value={chosenId} onChange={setPresetId} />
       </div>
     </Modal>
   )

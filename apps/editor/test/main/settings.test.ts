@@ -8,6 +8,7 @@ import {
   presetsOf,
   saveSettings,
   touchRecent,
+  updateSettings,
   validateLastPresetId,
   validatePresets
 } from '../../src/main/project/settings'
@@ -64,6 +65,63 @@ describe('settings', () => {
       DEFAULT_PRESETS.map((p) => ({ ...p, name: '' }))
     ]
     for (const raw of bad) expect(() => validatePresets(raw), JSON.stringify(raw)).toThrow('프리셋에 잘못된 값이 있어요')
+  })
+
+  it('깨진 프리셋은 버리고, 없으면 기본 프리셋', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
+    const file = path.join(tmp, 'settings.json')
+    await fs.writeFile(file, JSON.stringify({ recent: [], presets: [{ id: 'x', name: '', tracks: [] }] }))
+    expect((await loadSettings(file)).presets).toEqual(DEFAULT_PRESETS)
+  })
+
+  it('읽을 때 깨진 프리셋만 버림, 프리셋 필드가 없으면 그대로 없음', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
+    const file = path.join(tmp, 'settings.json')
+    const good: TrackPreset = { id: 'p1', name: 'A', tracks: [{ id: 'Note_1', key: 'KeyD' }] }
+    await fs.writeFile(file, JSON.stringify({ recent: [], presets: [good, { id: 'p2', name: 'B' }] }))
+    expect((await loadSettings(file)).presets).toEqual([good])
+    await fs.writeFile(file, JSON.stringify({ recent: [] }))
+    expect((await loadSettings(file)).presets).toBeUndefined()
+  })
+
+  it('동시에 고쳐도 변경이 사라지지 않음', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
+    const file = path.join(tmp, 'settings.json')
+    const presets: TrackPreset[] = [{ id: 'p1', name: 'A', tracks: [{ id: 'Note_1', key: null }] }]
+    await Promise.all([
+      ...Array.from({ length: 8 }, (_, i) =>
+        updateSettings(file, (s) => {
+          s.recent = touchRecent(s.recent, `d${i}`, i)
+        })
+      ),
+      updateSettings(file, (s) => {
+        s.presets = presets
+      }),
+      updateSettings(file, (s) => {
+        s.lastPresetId = 'p1'
+      })
+    ])
+    const loaded = await loadSettings(file)
+    expect(loaded.recent).toHaveLength(8)
+    expect(presetsOf(loaded)).toEqual({ presets, lastPresetId: 'p1' })
+  })
+
+  it('고치다 실패해도 다음 고치기는 실행됨, 최근 목록만 고쳐도 프리셋은 남음', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
+    const file = path.join(tmp, 'settings.json')
+    const presets: TrackPreset[] = [{ id: 'p1', name: 'A', tracks: [{ id: 'Note_1', key: null }] }]
+    await saveSettings(file, { recent: [], presets })
+    const failed = updateSettings(file, () => {
+      throw new Error('boom')
+    })
+    const next = updateSettings(file, (s) => {
+      s.recent = touchRecent(s.recent, 'd', 1)
+    })
+    await expect(failed).rejects.toThrow('boom')
+    await next
+    const raw = JSON.parse(await fs.readFile(file, 'utf8'))
+    expect(raw.recent).toEqual([{ dir: 'd', lastOpened: 1 }])
+    expect(raw.presets).toEqual(presets)
   })
 
   it('마지막 프리셋 id 검사', () => {

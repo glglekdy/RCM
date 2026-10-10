@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FolderOpen, House, Plus, Search } from 'lucide-react'
+import { FolderOpen, House, Plus, Search, SlidersHorizontal } from 'lucide-react'
 import type { ProjectFiles, RecentProject } from '../../../shared/api'
+import { PresetsPage } from '../presets/PresetsPage'
 import { Button, TextField, useDialogs } from '../ui'
 import { NewProjectDialog } from './NewProjectDialog'
 import { RecentTable } from './RecentTable'
@@ -15,6 +16,7 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
   const [recent, setRecent] = useState<RecentProject[] | null>(null)
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
+  const [page, setPage] = useState<'home' | 'presets'>('home')
 
   const refresh = useCallback(async () => {
     const list = await window.rcm.getRecentProjects()
@@ -80,42 +82,61 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
           <FolderOpen size={16} /> 프로젝트 열기
         </Button>
         <div className={styles.divider} />
-        <div className={styles.navItem}>
+        <button
+          type="button"
+          className={`${styles.navItem} ${page === 'home' ? styles.navActive : ''}`}
+          aria-current={page === 'home'}
+          onClick={() => setPage('home')}
+        >
           <House size={16} /> 홈
-        </div>
+        </button>
+        <button
+          type="button"
+          className={`${styles.navItem} ${page === 'presets' ? styles.navActive : ''}`}
+          aria-current={page === 'presets'}
+          onClick={() => setPage('presets')}
+        >
+          <SlidersHorizontal size={16} /> 트랙 프리셋
+        </button>
       </aside>
       <main className={styles.main}>
-        <h1 className={styles.welcome}>RCM 채보 에디터</h1>
-        {recent !== null && recent.length === 0 ? (
-          <div className={styles.empty}>
-            <p>새 프로젝트를 만들어 보세요</p>
-            <Button variant="primary" onClick={() => setCreating(true)}>
-              <Plus size={16} /> 새 프로젝트
-            </Button>
-          </div>
+        {page === 'presets' ? (
+          <PresetsPage />
         ) : (
           <>
-            <div className={styles.listHead}>
-              <h2 className={styles.sectionTitle}>최근 프로젝트</h2>
-              <div className={styles.search}>
-                <Search size={14} className={styles.searchIcon} />
-                <TextField value={query} onChange={setQuery} placeholder="검색" />
+            <h1 className={styles.welcome}>RCM 채보 에디터</h1>
+            {recent !== null && recent.length === 0 ? (
+              <div className={styles.empty}>
+                <p>새 프로젝트를 만들어 보세요</p>
+                <Button variant="primary" onClick={() => setCreating(true)}>
+                  <Plus size={16} /> 새 프로젝트
+                </Button>
               </div>
-            </div>
-            {recent !== null && (
-              <RecentTable
-                projects={shown}
-                onOpen={(p) => void openRecent(p)}
-                onShowInExplorer={(p) =>
-                  void window.rcm.showInExplorer(p.dir).catch(async (err: unknown) => {
-                    await dialogs.alert(
-                      '탐색기에서 열 수 없어요',
-                      err instanceof Error ? err.message : String(err)
-                    )
-                  })
-                }
-                onRemove={(p) => void removeFromList(p)}
-              />
+            ) : (
+              <>
+                <div className={styles.listHead}>
+                  <h2 className={styles.sectionTitle}>최근 프로젝트</h2>
+                  <div className={styles.search}>
+                    <Search size={14} className={styles.searchIcon} />
+                    <TextField value={query} onChange={setQuery} placeholder="검색" />
+                  </div>
+                </div>
+                {recent !== null && (
+                  <RecentTable
+                    projects={shown}
+                    onOpen={(p) => void openRecent(p)}
+                    onShowInExplorer={(p) =>
+                      void window.rcm.showInExplorer(p.dir).catch(async (err: unknown) => {
+                        await dialogs.alert(
+                          '탐색기에서 열 수 없어요',
+                          err instanceof Error ? err.message : String(err)
+                        )
+                      })
+                    }
+                    onRemove={(p) => void removeFromList(p)}
+                  />
+                )}
+              </>
             )}
           </>
         )}

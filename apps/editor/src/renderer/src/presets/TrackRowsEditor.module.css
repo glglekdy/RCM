@@ -1,0 +1,122 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+}
+
+.grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 28px;
+  color: var(--text-muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+.grip:hover {
+  color: var(--text);
+}
+
+.id {
+  flex: 1 1 0;
+  min-width: 64px;
+}
+
+.id input {
+  width: 100%;
+}
+
+.hex {
+  flex: none;
+}
+
+.hex input {
+  width: 76px;
+  font-variant-numeric: tabular-nums;
+}
+
+.invalid input,
+.invalid input:focus {
+  border-color: var(--danger);
+}
+
+.swatch {
+  position: relative;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.swatch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+}
+
+.widths {
+  flex: none;
+}
+
+.widths button {
+  height: 24px;
+  padding: 0 8px;
+}
+
+.key {
+  flex: none;
+  width: 92px;
+  height: 28px;
+  padding: 0 6px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.key:hover {
+  background: var(--bg-hover);
+}
+
+.key:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.capturing,
+.capturing:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 400;
+}
+
+.invalidKey,
+.invalidKey:focus-visible {
+  border-color: var(--danger);
+}
+
+.footer {
+  display: flex;
+}

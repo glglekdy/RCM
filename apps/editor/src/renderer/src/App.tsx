@@ -1,7 +1,8 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ProjectFiles } from '../../shared/api'
 import { EditorScreen } from './editor/EditorScreen'
 import { HomeScreen } from './home/HomeScreen'
+import { loadPresets } from './presets/presetStore'
 import { DialogProvider, TitleBar, ToastProvider } from './ui'
 
 /** `id`는 같은 폴더를 다시 열어도 편집 화면을 새로 만들기 위한 값이다. */
@@ -10,6 +11,12 @@ type Screen = { screen: 'home' } | { screen: 'editor'; files: ProjectFiles; id: 
 export function App() {
   const [state, setState] = useState<Screen>({ screen: 'home' })
   const nextId = useRef(0)
+
+  useEffect(() => {
+    loadPresets().catch(() => {
+      // 설정을 못 읽으면 기본 프리셋으로 계속한다
+    })
+  }, [])
 
   const openProject = useCallback((files: ProjectFiles) => {
     setState({ screen: 'editor', files, id: nextId.current++ })

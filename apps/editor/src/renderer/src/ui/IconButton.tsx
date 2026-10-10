@@ -5,10 +5,11 @@ interface IconButtonProps {
   icon: LucideIcon
   label: string
   active?: boolean
+  disabled?: boolean
   onClick?: () => void
 }
 
-export function IconButton({ icon: Icon, label, active, onClick }: IconButtonProps) {
+export function IconButton({ icon: Icon, label, active, disabled, onClick }: IconButtonProps) {
   return (
     <button
       type="button"
@@ -16,6 +17,7 @@ export function IconButton({ icon: Icon, label, active, onClick }: IconButtonPro
       title={label}
       aria-label={label}
       aria-pressed={active}
+      disabled={disabled}
       onClick={onClick}
     >
       <Icon size={18} />

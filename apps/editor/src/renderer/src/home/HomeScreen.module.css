@@ -31,9 +31,29 @@
   gap: 6px;
   height: 34px;
   padding: 0 12px;
+  border: 0;
   border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: default;
+}
+
+.navItem:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.navItem:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.navActive,
+.navActive:hover {
   background: var(--bg-card);
   box-shadow: inset 3px 0 0 var(--accent);
+  color: var(--text);
   font-weight: 500;
 }
 

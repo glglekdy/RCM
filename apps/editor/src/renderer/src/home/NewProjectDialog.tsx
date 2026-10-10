@@ -9,8 +9,9 @@ import {
   TextField,
   useDialogs
 } from '../ui'
-import { DEFAULT_PRESETS, presetToChartTracks } from '../../../shared/presets'
+import { presetToChartTracks } from '../../../shared/presets'
 import { PresetPicker } from '../presets/PresetPicker'
+import { defaultPresetId, getPresets, setLastPresetId, usePresets } from '../presets/presetStore'
 import styles from './NewProjectDialog.module.css'
 
 interface NewProjectDialogProps {
@@ -25,8 +26,6 @@ type Audio =
   | { state: 'ok'; path: string; buffer: AudioBuffer }
   | { state: 'error'; path: string }
 
-/** 저장된 프리셋을 쓰기 전까지는 기본 프리셋 목록 (첫 번째 = 4K) */
-const PRESETS = DEFAULT_PRESETS
 const TITLE_MAX = 100
 
 function baseName(path: string): string {
@@ -40,12 +39,13 @@ function formatDuration(sec: number): string {
 
 export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogProps) {
   const dialogs = useDialogs()
+  const presets = usePresets()
   const [title, setTitle] = useState('')
   const [artist, setArtist] = useState('')
   const [audio, setAudio] = useState<Audio>({ state: 'none' })
   const [bpm, setBpm] = useState(120)
   const [chartName, setChartName] = useState('NORMAL')
-  const [presetId, setPresetId] = useState(PRESETS[0].id)
+  const [presetId, setPresetId] = useState(() => defaultPresetId(presets))
   const [parentDir, setParentDir] = useState('')
   const [preview, setPreview] = useState('')
   const [playing, setPlaying] = useState(false)
@@ -77,7 +77,7 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
     setAudio({ state: 'none' })
     setBpm(120)
     setChartName('NORMAL')
-    setPresetId(PRESETS[0].id)
+    setPresetId(defaultPresetId(getPresets()))
     setPreview('')
     setCreating(false)
     pickToken.current++
@@ -166,7 +166,9 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
     if (dir) setParentDir(dir)
   }
 
-  const preset = PRESETS.find((p) => p.id === presetId)
+  // 고른 프리셋이 목록에서 사라졌으면(다시 불러온 경우 등) 처음 선택으로
+  const chosenId = presets.some((p) => p.id === presetId) ? presetId : defaultPresetId(presets)
+  const preset = presets.find((p) => p.id === chosenId)
 
   const canCreate =
     !creating &&
@@ -190,6 +192,9 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
         bpm,
         chartName: chartName.trim(),
         tracks: presetToChartTracks(preset)
+      })
+      void setLastPresetId(preset.id).catch(() => {
+        // 마지막 선택을 기억하지 못해도 프로젝트는 만들어졌다
       })
       onCreated(dir)
     } catch (err) {
@@ -256,7 +261,7 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
             <TextField value={chartName} onChange={setChartName} placeholder="NORMAL" />
           </div>
         </Row>
-        <PresetPicker presets={PRESETS} value={presetId} onChange={setPresetId} />
+        <PresetPicker presets={presets} value={chosenId} onChange={setPresetId} />
         <Row label="저장 위치">
           <span className={styles.fileName} title={parentDir}>
             {parentDir}

@@ -7,7 +7,8 @@ import {
   Playfield,
   type Judgement
 } from '@rcm/playfield'
-import { DEFAULT_PRESETS, resolveKeymap } from '../../../../shared/presets'
+import { resolveKeymap } from '../../../../shared/presets'
+import { getPresets } from '../../presets/presetStore'
 import { getChart } from '../state/doc'
 import { useEditor } from '../state/useStore'
 import styles from './PlaytestOverlay.module.css'
@@ -51,7 +52,7 @@ export function PlaytestOverlay({ fromMs, tm, getTimeMs, onExit }: PlaytestOverl
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const { keys: keymap } = resolveKeymap(chart.tracks, DEFAULT_PRESETS)
+    const { keys: keymap } = resolveKeymap(chart.tracks, getPresets())
     const pf = new Playfield(canvas, { chart, tm, getTimeMs, fromMs, speed: DEFAULT_SPEED, keymap })
     playfieldRef.current = pf
     pf.start()

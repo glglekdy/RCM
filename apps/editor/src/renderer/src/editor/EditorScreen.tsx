@@ -3,8 +3,9 @@ import { PanelRight } from 'lucide-react'
 import { TimingMap } from '@rcm/core'
 import { trackForCode, trackForKey } from '@rcm/playfield'
 import type { ProjectFiles } from '../../../shared/api'
-import { DEFAULT_PRESETS, resolveKeymap } from '../../../shared/presets'
+import { resolveKeymap } from '../../../shared/presets'
 import { NewProjectDialog } from '../home/NewProjectDialog'
+import { getPresets } from '../presets/presetStore'
 import { addMarker, neighborMarkerMs } from './commands/markers'
 import { applyRecording, recordingMessage, type RecordSession } from './commands/record'
 import { runEditAction } from './commands/editActions'
@@ -227,7 +228,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     if (s.playing) return
     play()
     if (!store.getState().playing) return
-    const { keys } = resolveKeymap(getChart(s.doc, s.activeChart).tracks, DEFAULT_PRESETS)
+    const { keys } = resolveKeymap(getChart(s.doc, s.activeChart).tracks, getPresets())
     recordingRef.current = {
       recorder: new Recorder(keys),
       session: { file: s.activeChart, snap: s.snap },

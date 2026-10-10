@@ -14,8 +14,8 @@ import {
 import {
   loadSettings,
   presetsOf,
-  saveSettings,
   touchRecent,
+  updateSettings,
   validateLastPresetId,
   validatePresets
 } from './project/settings'
@@ -23,11 +23,11 @@ import {
 const settingsFile = (): string => join(app.getPath('userData'), 'settings.json')
 const defaultProjectDir = (): string => join(app.getPath('documents'), 'RCM Projects')
 
-async function touch(dir: string, extra?: { defaultProjectDir: string }): Promise<void> {
-  const settings = await loadSettings(settingsFile())
-  settings.recent = touchRecent(settings.recent, dir, Date.now())
-  if (extra) settings.defaultProjectDir = extra.defaultProjectDir
-  await saveSettings(settingsFile(), settings)
+function touch(dir: string, extra?: { defaultProjectDir: string }): Promise<void> {
+  return updateSettings(settingsFile(), (settings) => {
+    settings.recent = touchRecent(settings.recent, dir, Date.now())
+    if (extra) settings.defaultProjectDir = extra.defaultProjectDir
+  })
 }
 
 export function registerProjectIpc(): void {
@@ -102,26 +102,26 @@ export function registerProjectIpc(): void {
     return list.sort((a, b) => b.lastOpened - a.lastOpened)
   })
 
-  ipcMain.handle('rcm:remove-recent-project', async (_e, dir: string) => {
-    const settings = await loadSettings(settingsFile())
-    settings.recent = settings.recent.filter((r) => r.dir !== dir)
-    await saveSettings(settingsFile(), settings)
-  })
+  ipcMain.handle('rcm:remove-recent-project', (_e, dir: string) =>
+    updateSettings(settingsFile(), (settings) => {
+      settings.recent = settings.recent.filter((r) => r.dir !== dir)
+    })
+  )
 
   ipcMain.handle('rcm:get-presets', async () => presetsOf(await loadSettings(settingsFile())))
 
   ipcMain.handle('rcm:save-presets', async (_e, raw: unknown) => {
     const presets = validatePresets(raw)
-    const settings = await loadSettings(settingsFile())
-    settings.presets = presets
-    await saveSettings(settingsFile(), settings)
+    return updateSettings(settingsFile(), (settings) => {
+      settings.presets = presets
+    })
   })
 
   ipcMain.handle('rcm:set-last-preset-id', async (_e, raw: unknown) => {
     const id = validateLastPresetId(raw)
-    const settings = await loadSettings(settingsFile())
-    settings.lastPresetId = id
-    await saveSettings(settingsFile(), settings)
+    return updateSettings(settingsFile(), (settings) => {
+      settings.lastPresetId = id
+    })
   })
 
   ipcMain.handle('rcm:show-in-explorer', async (_e, dir: string) => {

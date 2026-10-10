@@ -10,7 +10,7 @@ export interface RecentEntry {
 export interface Settings {
   recent: RecentEntry[]
   defaultProjectDir?: string
-  /** 읽은 그대로의 값. 쓸 때는 `presetsOf`로 정리한다. */
+  /** `sanitizePresets`로 정리한 값. 파일에 프리셋이 없으면(첫 실행) 비워 둔다. */
   presets?: TrackPreset[]
   lastPresetId?: string
 }
@@ -42,7 +42,8 @@ export async function loadSettings(file: string): Promise<Settings> {
       : []
     const settings: Settings = { recent }
     if (typeof obj.defaultProjectDir === 'string') settings.defaultProjectDir = obj.defaultProjectDir
-    if (Array.isArray(obj.presets)) settings.presets = obj.presets as TrackPreset[]
+    // 필드가 있을 때만 채운다: 다른 설정만 고쳐 다시 저장해도 프리셋은 남고, 첫 실행 파일에는 기본 프리셋을 쓰지 않는다
+    if (obj.presets !== undefined) settings.presets = sanitizePresets(obj.presets)
     if (typeof obj.lastPresetId === 'string') settings.lastPresetId = obj.lastPresetId
     return settings
   } catch {
@@ -52,6 +53,22 @@ export async function loadSettings(file: string): Promise<Settings> {
 
 export async function saveSettings(file: string, s: Settings): Promise<void> {
   await writeFileAtomic(file, `${JSON.stringify(s, null, 2)}\n`)
+}
+
+let pending: Promise<unknown> = Promise.resolve()
+
+/**
+ * 설정 파일을 읽고 `mutate`로 고쳐 저장한다. 앞선 호출이 끝난 뒤에 실행되므로
+ * 동시에 불려도 서로의 변경을 덮어쓰지 않는다. `mutate`가 throw하면 저장하지 않고 reject.
+ */
+export function updateSettings(file: string, mutate: (s: Settings) => void): Promise<void> {
+  const run = pending.then(async () => {
+    const settings = await loadSettings(file)
+    mutate(settings)
+    await saveSettings(file, settings)
+  })
+  pending = run.catch(() => {})
+  return run
 }
 
 /** renderer에 줄 프리셋: 저장된 것을 정리하고, 없으면 기본 프리셋. */

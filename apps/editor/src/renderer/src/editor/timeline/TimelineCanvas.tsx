@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { TimingMap, Track } from '@rcm/core'
 import { keyLabel } from '@rcm/playfield'
-import { DEFAULT_PRESETS, resolveKeymap } from '../../../../shared/presets'
 import type { WaveformPeaks } from '../audio/waveform'
 import type { Recorder } from '../input/recorder'
 import { getChart } from '../state/doc'
@@ -15,15 +14,14 @@ interface TimelineCanvasProps {
   tm: TimingMap
   durationMs: number
   peaks?: WaveformPeaks
-  /** 진행 중인 녹음. 눌린 트랙과 키 이름을 겹쳐 그린다 */
-  recordingRef?: RefObject<{ recorder: Recorder } | null>
+  /** 진행 중인 녹음. 눌린 트랙과 (녹음이 실제로 듣는) 키 이름을 겹쳐 그린다 */
+  recordingRef?: RefObject<{ recorder: Recorder; keymap: ReadonlyMap<string, string | null> } | null>
 }
 
 /** 트랙 위치별 키 이름 (3.4절 키 배치). 키가 없는 트랙은 `-`. */
-function trackKeyLabels(tracks: readonly Track[]): string[] {
-  const { keys } = resolveKeymap(tracks, DEFAULT_PRESETS)
+function trackKeyLabels(tracks: readonly Track[], keymap: ReadonlyMap<string, string | null>): string[] {
   return tracks.map((t) => {
-    const code = keys.get(t.id)
+    const code = keymap.get(t.id)
     return code ? keyLabel(code) : '-'
   })
 }
@@ -63,7 +61,7 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
       const s = store.getState()
       const chart = getChart(s.doc, s.activeChart)
       const { tm, durationMs, peaks, recordingRef } = propsRef.current
-      const recorder = s.mode === 'recording' ? recordingRef?.current?.recorder : null
+      const recording = s.mode === 'recording' ? recordingRef?.current : null
       const dpr = window.devicePixelRatio || 1
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, width, height)
@@ -83,8 +81,11 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
         previewInvalid,
         hiddenKeys,
         selectRect,
-        recording: recorder
-          ? { pressed: recorder.pressed(), labels: trackKeyLabels(chart.tracks) }
+        recording: recording
+          ? {
+              pressed: recording.recorder.pressed(),
+              labels: trackKeyLabels(chart.tracks, recording.keymap)
+            }
           : undefined
       })
     }

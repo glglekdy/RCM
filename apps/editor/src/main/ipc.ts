@@ -23,11 +23,16 @@ import {
 const settingsFile = (): string => join(app.getPath('userData'), 'settings.json')
 const defaultProjectDir = (): string => join(app.getPath('documents'), 'RCM Projects')
 
-function touch(dir: string, extra?: { defaultProjectDir: string }): Promise<void> {
-  return updateSettings(settingsFile(), (settings) => {
-    settings.recent = touchRecent(settings.recent, dir, Date.now())
-    if (extra) settings.defaultProjectDir = extra.defaultProjectDir
-  })
+/** 최근 목록 갱신. 설정 파일을 읽지 못해도 프로젝트 열기·만들기는 실패시키지 않는다. */
+async function touch(dir: string, extra?: { defaultProjectDir: string }): Promise<void> {
+  try {
+    await updateSettings(settingsFile(), (settings) => {
+      settings.recent = touchRecent(settings.recent, dir, Date.now())
+      if (extra) settings.defaultProjectDir = extra.defaultProjectDir
+    })
+  } catch (err) {
+    console.error('최근 프로젝트 목록을 저장하지 못했어요', err)
+  }
 }
 
 export function registerProjectIpc(): void {

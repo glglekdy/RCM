@@ -21,31 +21,49 @@ export function touchRecent(list: RecentEntry[], dir: string, now: number): Rece
   return [{ dir, lastOpened: now }, ...list.filter((e) => e.dir !== dir)].slice(0, MAX_RECENT)
 }
 
+function parseSettings(raw: unknown): Settings {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    throw new Error('설정 파일 형식이 올바르지 않아요')
+  }
+  const obj = raw as {
+    recent?: unknown
+    defaultProjectDir?: unknown
+    presets?: unknown
+    lastPresetId?: unknown
+  }
+  const recent = Array.isArray(obj.recent)
+    ? obj.recent.filter(
+        (e): e is RecentEntry =>
+          typeof e === 'object' &&
+          e !== null &&
+          typeof (e as RecentEntry).dir === 'string' &&
+          typeof (e as RecentEntry).lastOpened === 'number'
+      )
+    : []
+  const settings: Settings = { recent }
+  if (typeof obj.defaultProjectDir === 'string') settings.defaultProjectDir = obj.defaultProjectDir
+  // 필드가 있을 때만 채운다: 다른 설정만 고쳐 다시 저장해도 프리셋은 남고, 첫 실행 파일에는 기본 프리셋을 쓰지 않는다
+  if (obj.presets !== undefined) settings.presets = sanitizePresets(obj.presets)
+  if (typeof obj.lastPresetId === 'string') settings.lastPresetId = obj.lastPresetId
+  return settings
+}
+
+/** 파일이 없으면 빈 설정. 그 밖의 읽기 오류(EBUSY 등)나 깨진 내용은 throw. */
+async function readSettingsStrict(file: string): Promise<Settings> {
+  let text: string
+  try {
+    text = await fs.readFile(file, 'utf8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { recent: [] }
+    throw err
+  }
+  return parseSettings(JSON.parse(text))
+}
+
+/** 읽기 전용: 읽지 못하거나 깨졌으면 빈 설정. */
 export async function loadSettings(file: string): Promise<Settings> {
   try {
-    const raw: unknown = JSON.parse(await fs.readFile(file, 'utf8'))
-    if (typeof raw !== 'object' || raw === null) return { recent: [] }
-    const obj = raw as {
-      recent?: unknown
-      defaultProjectDir?: unknown
-      presets?: unknown
-      lastPresetId?: unknown
-    }
-    const recent = Array.isArray(obj.recent)
-      ? obj.recent.filter(
-          (e): e is RecentEntry =>
-            typeof e === 'object' &&
-            e !== null &&
-            typeof (e as RecentEntry).dir === 'string' &&
-            typeof (e as RecentEntry).lastOpened === 'number'
-        )
-      : []
-    const settings: Settings = { recent }
-    if (typeof obj.defaultProjectDir === 'string') settings.defaultProjectDir = obj.defaultProjectDir
-    // 필드가 있을 때만 채운다: 다른 설정만 고쳐 다시 저장해도 프리셋은 남고, 첫 실행 파일에는 기본 프리셋을 쓰지 않는다
-    if (obj.presets !== undefined) settings.presets = sanitizePresets(obj.presets)
-    if (typeof obj.lastPresetId === 'string') settings.lastPresetId = obj.lastPresetId
-    return settings
+    return await readSettingsStrict(file)
   } catch {
     return { recent: [] }
   }
@@ -60,10 +78,11 @@ let pending: Promise<unknown> = Promise.resolve()
 /**
  * 설정 파일을 읽고 `mutate`로 고쳐 저장한다. 앞선 호출이 끝난 뒤에 실행되므로
  * 동시에 불려도 서로의 변경을 덮어쓰지 않는다. `mutate`가 throw하면 저장하지 않고 reject.
+ * 파일을 읽지 못했거나 깨졌으면(없는 경우 제외) 저장된 프리셋 등을 지우지 않도록 덮어쓰지 않고 reject.
  */
 export function updateSettings(file: string, mutate: (s: Settings) => void): Promise<void> {
   const run = pending.then(async () => {
-    const settings = await loadSettings(file)
+    const settings = await readSettingsStrict(file)
     mutate(settings)
     await saveSettings(file, settings)
   })

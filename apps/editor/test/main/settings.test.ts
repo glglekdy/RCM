@@ -124,6 +124,32 @@ describe('settings', () => {
     expect(raw.presets).toEqual(presets)
   })
 
+  it('고칠 때 파일이 없으면 새로 만들고, 읽지 못하거나 깨졌으면 덮어쓰지 않고 거부', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
+    const file = path.join(tmp, 'settings.json')
+    await updateSettings(file, (s) => {
+      s.lastPresetId = 'p1'
+    })
+    expect((await loadSettings(file)).lastPresetId).toBe('p1')
+
+    const touchD = (s: { recent: { dir: string; lastOpened: number }[] }) => {
+      s.recent = touchRecent(s.recent, 'd', 1)
+    }
+    for (const broken of ['{"recent": [', 'null', '[]']) {
+      await fs.writeFile(file, broken)
+      await expect(updateSettings(file, touchD), broken).rejects.toThrow()
+      expect(await fs.readFile(file, 'utf8')).toBe(broken)
+      // 그냥 읽을 때는 예전처럼 빈 설정
+      expect(await loadSettings(file)).toEqual({ recent: [] })
+    }
+
+    // 읽기 오류(ENOENT가 아님): 폴더라서 읽을 수 없는 경로
+    const dirAsFile = path.join(tmp, 'dir.json')
+    await fs.mkdir(dirAsFile)
+    await expect(updateSettings(dirAsFile, touchD)).rejects.toThrow()
+    expect((await fs.stat(dirAsFile)).isDirectory()).toBe(true)
+  })
+
   it('마지막 프리셋 id 검사', () => {
     expect(validateLastPresetId('6k-side')).toBe('6k-side')
     expect(() => validateLastPresetId(1)).toThrow()

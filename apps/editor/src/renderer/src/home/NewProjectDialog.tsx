@@ -221,18 +221,15 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
     >
       <div className={styles.form}>
         <Row label="프로젝트 이름">
-          <div className={styles.wide}>
-            <TextField
-              value={title}
-              onChange={(v) => setTitle(v.slice(0, TITLE_MAX))}
-              placeholder="곡 제목"
-            />
-          </div>
+          <TextField
+            value={title}
+            onChange={(v) => setTitle(v.slice(0, TITLE_MAX))}
+            placeholder="곡 제목"
+            width={240}
+          />
         </Row>
         <Row label="아티스트">
-          <div className={styles.wide}>
-            <TextField value={artist} onChange={setArtist} placeholder="(선택)" />
-          </div>
+          <TextField value={artist} onChange={setArtist} placeholder="(선택)" width={240} />
         </Row>
         <Row label="음악 파일">
           <span className={styles.fileName} title={audio.state === 'none' ? '' : audio.path}>
@@ -257,9 +254,7 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
         </Row>
         <div className={styles.hint}>모르면 나중에 탭 BPM으로 잡을 수 있어요</div>
         <Row label="첫 난이도 이름">
-          <div className={styles.medium}>
-            <TextField value={chartName} onChange={setChartName} placeholder="NORMAL" />
-          </div>
+          <TextField value={chartName} onChange={setChartName} placeholder="NORMAL" width={140} />
         </Row>
         <PresetPicker presets={presets} value={chosenId} onChange={setPresetId} />
         <Row label="저장 위치">

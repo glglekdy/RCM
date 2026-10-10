@@ -10,11 +10,13 @@ interface TextFieldProps {
   /** blur·Enter 때 최종 값으로 호출 (사용자가 고쳐서 값이 바뀐 경우만) */
   onCommit?: (v: string) => void
   placeholder?: string
+  /** 입력칸 폭(px). 생략하면 기본 168px */
+  width?: number
 }
 
 const identity = (t: string) => t
 
-export function TextField({ value, onChange, onCommit, placeholder }: TextFieldProps) {
+export function TextField({ value, onChange, onCommit, placeholder, width }: TextFieldProps) {
   const [draft, setDraft] = useState(() => initDraft(value))
 
   // 바깥 값이 바뀌면(Undo 등) 사용자가 고치는 중이 아닐 때만 새 값을 보여준다
@@ -25,6 +27,7 @@ export function TextField({ value, onChange, onCommit, placeholder }: TextFieldP
   return (
     <input
       className={styles.input}
+      style={width === undefined ? undefined : { width }}
       type="text"
       value={draft.text}
       placeholder={placeholder}

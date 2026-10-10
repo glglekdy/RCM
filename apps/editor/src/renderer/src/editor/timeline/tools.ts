@@ -10,7 +10,7 @@ import {
   pointerToCell,
   type SelectRect
 } from './hitTest'
-import { xToLane, yToMs, type TimelineLayout, type TimelineView } from './view'
+import { inTrackNameBand, xToLane, yToMs, type TimelineLayout, type TimelineView } from './view'
 
 export interface ToolGeometry {
   tm: TimingMap
@@ -126,6 +126,8 @@ export function createToolController(
     for (let i = 1; i <= steps; i++) {
       const px = d.x + ((x - d.x) * i) / steps
       const py = d.y + ((y - d.y) * i) / steps
+      // 이름 줄에 가려진 노트는 지우지 않는다
+      if (inTrackNameBand(layout, px, py)) continue
       const hit = hitTestNote(notes, tm, view, layout, px, py)
       if (hit) d.keys.add(noteKey(hit))
     }
@@ -217,6 +219,8 @@ export function createToolController(
       const s = store.getState()
       if (e.button !== 0 || s.playing) return
       drag = null
+      // 트랙 이름 줄에서는 그리기·지우기·선택을 시작하지 않는다 (가려진 노트를 보지 않고 고치게 된다)
+      if (inTrackNameBand(getGeometry().layout, e.x, e.y)) return
       const file = s.activeChart
       if (s.tool === 'draw') {
         const { tm, view, layout } = getGeometry()
@@ -284,7 +288,7 @@ export function createToolController(
         if (index >= 0) store.apply('마커 삭제', removeMarker(s.doc, index))
         return
       }
-      if (s.playing) return
+      if (s.playing || inTrackNameBand(layout, e.x, e.y)) return
       const file = s.activeChart
       const hit = hitTestNote(chartNotes(file), tm, view, layout, e.x, e.y)
       if (hit) store.apply('노트 삭제', removeNotes(s.doc, file, new Set([noteKey(hit)])), file)

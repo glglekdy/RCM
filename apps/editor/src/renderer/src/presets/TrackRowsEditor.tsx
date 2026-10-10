@@ -26,6 +26,10 @@ interface TrackRowsEditorProps {
   tracks: readonly (Track | PresetTrack)[]
   /** 키 칸을 보일지 (프리셋 표만) */
   showKeys: boolean
+  /** 좁은 자리(채보 탭)용: 색은 스와치만, 폭은 작은 그림 버튼 */
+  compact?: boolean
+  /** 모든 입력·버튼과 끌기를 막는다 */
+  disabled?: boolean
   /** 행별 규칙 위반 메시지 */
   issues?: PresetIssues['tracks']
   onRename(i: number, id: string): void
@@ -46,6 +50,8 @@ interface RowItem {
 export function TrackRowsEditor({
   tracks,
   showKeys,
+  compact = false,
+  disabled = false,
   issues,
   onRename,
   onLook,
@@ -62,7 +68,7 @@ export function TrackRowsEditor({
   })
 
   return (
-    <div className={styles.editor}>
+    <fieldset className={`${styles.editor} ${compact ? styles.compact : ''}`} disabled={disabled}>
       <SortableList
         items={rows}
         rowHeight={TRACK_ROW_HEIGHT}
@@ -74,7 +80,11 @@ export function TrackRowsEditor({
           const width = track.width ?? 'normal'
           return (
             <div className={styles.row}>
-              <span className={styles.grip} onPointerDown={handle.onPointerDown} title="끌어서 순서 변경">
+              <span
+                className={styles.grip}
+                onPointerDown={disabled ? undefined : handle.onPointerDown}
+                title="끌어서 순서 변경"
+              >
                 <GripVertical size={14} />
               </span>
               <span className={`${styles.id} ${issue.id ? styles.invalid : ''}`} title={issue.id}>
@@ -86,25 +96,36 @@ export function TrackRowsEditor({
                   if (c !== color.toLowerCase()) onLook(i, { color: c })
                 }}
               />
-              <span className={`${styles.hex} ${issue.color ? styles.invalid : ''}`} title={issue.color}>
-                <TextField
-                  value={color}
-                  onCommit={(text) => {
-                    const c = text.trim().toLowerCase()
-                    // 형식이 틀리면 반영하지 않는다 (입력칸은 원래 값으로 돌아간다)
-                    if (TRACK_COLOR_PATTERN.test(c) && c !== color.toLowerCase()) onLook(i, { color: c })
-                  }}
-                />
-              </span>
-              <span className={styles.widths}>
-                <SegmentedControl
-                  options={WIDTH_OPTIONS}
+              {!compact && (
+                <span className={`${styles.hex} ${issue.color ? styles.invalid : ''}`} title={issue.color}>
+                  <TextField
+                    value={color}
+                    onCommit={(text) => {
+                      const c = text.trim().toLowerCase()
+                      // 형식이 틀리면 반영하지 않는다 (입력칸은 원래 값으로 돌아간다)
+                      if (TRACK_COLOR_PATTERN.test(c) && c !== color.toLowerCase()) onLook(i, { color: c })
+                    }}
+                  />
+                </span>
+              )}
+              {compact ? (
+                <WidthPicker
                   value={width}
                   onChange={(w) => {
                     if (w !== width) onLook(i, { width: w })
                   }}
                 />
-              </span>
+              ) : (
+                <span className={styles.widths}>
+                  <SegmentedControl
+                    options={WIDTH_OPTIONS}
+                    value={width}
+                    onChange={(w) => {
+                      if (w !== width) onLook(i, { width: w })
+                    }}
+                  />
+                </span>
+              )}
               {showKeys && (
                 <KeyButton
                   code={'key' in track ? track.key : null}
@@ -127,7 +148,29 @@ export function TrackRowsEditor({
           <Plus size={16} /> 트랙 추가
         </Button>
       </div>
-    </div>
+    </fieldset>
+  )
+}
+
+/** 좁은 자리용 폭 고르기: 폭을 막대 굵기로 보여주는 세 버튼. */
+function WidthPicker({ value, onChange }: { value: TrackWidth; onChange: (w: TrackWidth) => void }) {
+  return (
+    <span className={styles.widthPicker} role="radiogroup" aria-label="트랙 폭">
+      {WIDTH_OPTIONS.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="radio"
+          aria-checked={o.value === value}
+          aria-label={o.label}
+          title={o.label}
+          className={`${styles.widthOption} ${o.value === value ? styles.widthSelected : ''}`}
+          onClick={() => onChange(o.value)}
+        >
+          <span className={`${styles.widthBar} ${styles[o.value]}`} />
+        </button>
+      ))}
+    </span>
   )
 }
 

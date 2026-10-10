@@ -10,6 +10,8 @@ import {
 import { peakInRange, type WaveformPeaks } from '../audio/waveform'
 import { NOTE_HEIGHT, type SelectRect } from './hitTest'
 import {
+  TRACK_NAME_HEIGHT,
+  laneSpan,
   msToY,
   yToMs,
   type TimelineColumn,
@@ -77,8 +79,7 @@ const CHIP_HEIGHT = 20
 const KEY_CHIP_BOTTOM = 8
 const KEY_CHIP_HEIGHT = 20
 const KEY_CHIP_INSET = 4
-/** 맨 위 트랙 이름 줄 높이와 글자 좌우 여백 */
-const NAME_ROW_HEIGHT = 20
+/** 맨 위 트랙 이름 줄의 글자 좌우 여백 */
 const NAME_PADDING = 4
 const FONT = '500 12px "Pretendard Variable", Pretendard, system-ui, sans-serif'
 
@@ -188,12 +189,11 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
   }
   if (p.recording) drawRecording(ctx, p, p.recording)
 
-  // 사각 선택 범위: 걸친 트랙 전체 폭
-  if (p.selectRect) {
-    const r = p.selectRect
-    const last = layout.columns[r.lane1]
-    const x0 = layout.columns[r.lane0].x
-    const x1 = last.x + last.width
+  // 사각 선택 범위: 걸친 트랙 전체 폭 (끄는 중에 트랙이 줄었으면 남은 트랙까지만)
+  const r = p.selectRect
+  const span = r && laneSpan(layout, r.lane0, r.lane1)
+  if (r && span) {
+    const { x0, x1 } = span
     const yTop = msToY(view, tm.tickToMs(r.tick1))
     const yBottom = msToY(view, tm.tickToMs(r.tick0))
     ctx.fillStyle = COLORS.selectFill
@@ -236,11 +236,11 @@ function drawDividers(
 function drawTrackNames(ctx: CanvasRenderingContext2D, layout: TimelineLayout): void {
   const { tracksX, totalWidth } = layout
   ctx.fillStyle = COLORS.laneBg
-  ctx.fillRect(tracksX, 0, totalWidth, NAME_ROW_HEIGHT)
-  drawDividers(ctx, layout, 0, NAME_ROW_HEIGHT)
+  ctx.fillRect(tracksX, 0, totalWidth, TRACK_NAME_HEIGHT)
+  drawDividers(ctx, layout, 0, TRACK_NAME_HEIGHT)
   ctx.beginPath()
-  ctx.moveTo(tracksX, crisp(NAME_ROW_HEIGHT))
-  ctx.lineTo(tracksX + totalWidth, crisp(NAME_ROW_HEIGHT))
+  ctx.moveTo(tracksX, crisp(TRACK_NAME_HEIGHT))
+  ctx.lineTo(tracksX + totalWidth, crisp(TRACK_NAME_HEIGHT))
   ctx.stroke()
 
   ctx.font = FONT
@@ -249,7 +249,7 @@ function drawTrackNames(ctx: CanvasRenderingContext2D, layout: TimelineLayout): 
   ctx.fillStyle = COLORS.trackName
   for (const col of layout.columns) {
     const text = fitText(ctx, col.id, col.width - NAME_PADDING * 2)
-    ctx.fillText(text, col.x + col.width / 2, NAME_ROW_HEIGHT / 2 + 0.5)
+    ctx.fillText(text, col.x + col.width / 2, TRACK_NAME_HEIGHT / 2 + 0.5)
   }
   ctx.textAlign = 'start'
 }

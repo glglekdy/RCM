@@ -41,3 +41,23 @@
 .markerName input {
   width: 100%;
 }
+
+.trackActions {
+  display: flex;
+}
+
+.keyRow {
+  height: 24px;
+  line-height: 24px;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.dialogForm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 0;
+}

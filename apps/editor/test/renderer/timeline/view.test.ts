@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { TimingMap, basicTracks } from '@rcm/core'
 import {
+  TRACK_NAME_HEIGHT,
   TRACK_PX,
   clampPlayheadMs,
   clampZoom,
+  inTrackNameBand,
+  laneSpan,
   layoutTimeline,
   msToY,
   stepPlayheadMs,
@@ -45,6 +48,24 @@ describe('timeline view', () => {
     expect(TRACK_PX).toEqual({ narrow: 32, normal: 48, wide: 80 })
     const l = layoutTimeline(1000, [{ id: 'A', color: '#f59e0b' }, { id: 'B' }])
     expect(l.columns.map((c) => c.color)).toEqual(['#f59e0b', '#f2f2f2'])
+  })
+  it('트랙 이름 줄: 트랙 영역의 위 20px', () => {
+    const l = layoutTimeline(1000, basicTracks(4)) // 404~596
+    expect(TRACK_NAME_HEIGHT).toBe(20)
+    expect(inTrackNameBand(l, 404, 0)).toBe(true)
+    expect(inTrackNameBand(l, 595, 19.9)).toBe(true)
+    expect(inTrackNameBand(l, 500, 20)).toBe(false)
+    // 트랙 밖(파형·라벨 영역)은 이름 줄이 아니다
+    expect(inTrackNameBand(l, 403, 10)).toBe(false)
+    expect(inTrackNameBand(l, 596, 10)).toBe(false)
+  })
+  it('트랙 위치 범위의 x 구간: 지금 있는 트랙으로 자르고, 하나도 없으면 null', () => {
+    const l = layoutTimeline(1000, basicTracks(4)) // 404, 452, 500, 548 (폭 48)
+    expect(laneSpan(l, 1, 2)).toEqual({ x0: 452, x1: 548 })
+    // 트랙이 줄어든 뒤의 오래된 범위 (트랙 삭제·Undo 중 사각 선택)
+    expect(laneSpan(l, 2, 6)).toEqual({ x0: 500, x1: 596 })
+    expect(laneSpan(l, 4, 6)).toBeNull()
+    expect(laneSpan(layoutTimeline(1000, []), 0, 0)).toBeNull()
   })
   it('줌 범위', () => {
     expect(clampZoom(5)).toBe(2)

@@ -305,3 +305,51 @@ describe('선택 도구', () => {
     expect(commit).not.toHaveBeenCalled()
   })
 })
+
+describe('트랙 이름 줄 (위 20px)', () => {
+  // tick 1180 = y 10: 머리가 이름 줄에 가려 보이지 않는 노트
+  const hidden = tap(1180, 'Note_1')
+
+  it('그리기: 노트를 만들지 않는다', () => {
+    const { tools, notes } = setup()
+    tools.onPointerDown(left(X0, 10))
+    expect(tools.overlay().preview).toEqual([])
+    tools.onPointerUp(left(X0, 10))
+    expect(notes()).toEqual([])
+    expect(commit).not.toHaveBeenCalled()
+  })
+
+  it('지우기: 이름 줄을 지나가도 가려진 노트는 지우지 않는다', () => {
+    const start = [tap(960, 'Note_1'), hidden]
+    const { tools, notes } = setup(withNotes(d0, start), 'erase')
+    tools.onPointerDown(left(X0, 10))
+    expect(tools.overlay().hiddenKeys.size).toBe(0)
+    tools.onPointerUp(left(X0, 10))
+    expect(commit).not.toHaveBeenCalled()
+    // 아래에서 시작해 이름 줄까지 끌면 이름 줄 밖의 노트만 지운다
+    tools.onPointerDown(left(X0, yOf(900)))
+    tools.onPointerMove(left(X0, 0))
+    tools.onPointerUp(left(X0, 0))
+    expect(notes()).toEqual([hidden])
+  })
+
+  it('선택: 노트를 잡거나 사각 선택을 시작하지 않는다', () => {
+    const { store, tools, notes } = setup(withNotes(d0, [hidden]), 'select')
+    store.set({ selection: new Set(['Note_1:1180']) })
+    tools.onPointerDown(left(X0, 10))
+    tools.onPointerMove(left(X1, yOf(0)))
+    expect(tools.overlay().selectRect).toBeNull()
+    expect(tools.overlay().preview).toEqual([])
+    tools.onPointerUp(left(X1, yOf(0)))
+    expect([...store.getState().selection]).toEqual(['Note_1:1180'])
+    expect(notes()).toEqual([hidden])
+    expect(commit).not.toHaveBeenCalled()
+  })
+
+  it('우클릭: 가려진 노트를 지우지 않는다', () => {
+    const { tools, notes } = setup(withNotes(d0, [hidden]))
+    tools.onContextMenu(right(X0, 10))
+    expect(notes()).toEqual([hidden])
+    expect(commit).not.toHaveBeenCalled()
+  })
+})

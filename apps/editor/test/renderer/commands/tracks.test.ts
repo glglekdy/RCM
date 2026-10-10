@@ -65,10 +65,24 @@ describe('track commands', () => {
       color: '#f59e0b',
       width: 'wide'
     })
-    expect(getChart(updateTrackLook(d0, F, 0, { color: '#f2f2f2', width: 'normal' })!, F).tracks[0]).toEqual({
-      id: 'Note_1'
-    })
     expect(updateTrackLook(d0, F, 0, { color: 'red' })).toBeNull()
+  })
+
+  it('모양 변경: 바뀌는 것이 없으면 null (빈 Undo 기록을 만들지 않는다)', () => {
+    // 기본값 트랙에 기본값을 지정
+    expect(updateTrackLook(d0, F, 0, { color: '#f2f2f2', width: 'normal' })).toBeNull()
+    expect(updateTrackLook(d0, F, 0, {})).toBeNull()
+    const d = updateTrackLook(d0, F, 0, { color: '#f59e0b', width: 'wide' })!
+    // 이미 지정된 값을 다시 지정 (색은 대소문자 무관)
+    expect(updateTrackLook(d, F, 0, { width: 'wide' })).toBeNull()
+    expect(updateTrackLook(d, F, 0, { color: '#F59E0B' })).toBeNull()
+    expect(updateTrackLook(d, F, 0, { color: '#f59e0b', width: 'wide' })).toBeNull()
+    // 하나라도 바뀌면 새 문서
+    expect(getChart(updateTrackLook(d, F, 0, { color: '#f59e0b', width: 'narrow' })!, F).tracks[0]).toEqual({
+      id: 'Note_1',
+      color: '#f59e0b',
+      width: 'narrow'
+    })
   })
 
   it('모양 변경: 기본값으로 되돌리면 필드 삭제, 고치지 않은 필드는 유지', () => {

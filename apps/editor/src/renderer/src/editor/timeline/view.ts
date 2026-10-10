@@ -73,6 +73,26 @@ export function xToLane(l: TimelineLayout, x: number): number | null {
   return lane >= 0 ? lane : null
 }
 
+/** 타임라인 맨 위 트랙 이름 줄의 높이(px). */
+export const TRACK_NAME_HEIGHT = 20
+
+/** 트랙 이름 줄 위인지. 이름 줄에 가려진 노트는 보이지 않으므로 여기서는 편집하지 않는다. */
+export function inTrackNameBand(l: TimelineLayout, x: number, y: number): boolean {
+  return y < TRACK_NAME_HEIGHT && xToLane(l, x) !== null
+}
+
+/**
+ * 트랙 위치 lane0~lane1(양 끝 포함)이 차지하는 x 구간. 지금 있는 트랙으로 자르고,
+ * 걸친 트랙이 없으면 null (트랙이 줄어든 뒤의 오래된 범위).
+ */
+export function laneSpan(l: TimelineLayout, lane0: number, lane1: number): { x0: number; x1: number } | null {
+  const lo = Math.max(0, lane0)
+  const hi = Math.min(l.columns.length - 1, lane1)
+  if (lo > hi) return null
+  const last = l.columns[hi]
+  return { x0: l.columns[lo].x, x1: last.x + last.width }
+}
+
 export const MIN_ZOOM = 0.05
 export const MAX_ZOOM = 2
 

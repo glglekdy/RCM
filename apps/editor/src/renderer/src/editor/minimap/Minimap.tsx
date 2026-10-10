@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { Chart, Marker, TimingMap, TimingPoint } from '@rcm/core'
 import { getChart } from '../state/doc'
 import { useStore } from '../state/useStore'
-import { clampPlayheadMs, type TimelineView } from '../timeline/view'
+import { clampPlayheadMs, layoutTimeline, type TimelineView } from '../timeline/view'
 import {
   MINIMAP_WIDTH,
   minimapDyToMs,
@@ -19,7 +19,6 @@ interface MinimapProps {
 
 /** 스펙 6.3절 색 (토큰 --accent, --accent-soft 값) */
 const COLORS = {
-  note: 'rgba(242, 242, 242, 0.7)',
   bpm: '#f59e0b',
   marker: '#22d3ee',
   accent: '#8b5cf6',
@@ -30,7 +29,9 @@ const COLORS = {
 const PADDING = 4
 const TICK_LENGTH = 6
 const TAP_HEIGHT = 2
-const LANE_GAP = 1
+const TRACK_GAP = 1
+/** 노트 막대는 트랙 색을 이만큼 흐리게 */
+const NOTE_ALPHA = 0.7
 
 const crisp = (v: number) => Math.round(v) + 0.5
 
@@ -57,20 +58,31 @@ function drawStatic(canvas: HTMLCanvasElement, p: StaticInput): void {
 
   const { tm, durationMs, height } = p
   const y = (ms: number) => msToMinimapY(ms, height, durationMs)
-  const laneWidth = (p.width - 2 * PADDING) / p.chart.lanes
+  // 트랙 열을 타임라인과 같은 폭 비율로 띠 폭에 맞춘다
+  const layout = layoutTimeline(0, p.chart.tracks)
+  const scale = (p.width - 2 * PADDING) / layout.totalWidth
+  const columns = new Map(
+    layout.columns.map((c) => [
+      c.id,
+      { x: PADDING + (c.x - layout.tracksX) * scale, width: c.width * scale, color: c.color }
+    ])
+  )
 
-  // 막대는 픽셀 경계에 맞추고, 옆 레인과 붙지 않게 1px 띄운다
-  ctx.fillStyle = COLORS.note
+  // 막대는 픽셀 경계에 맞추고, 옆 트랙과 붙지 않게 1px 띄운다
+  ctx.globalAlpha = NOTE_ALPHA
   for (const note of p.chart.notes) {
-    const x = PADDING + note.lane * laneWidth
+    const col = columns.get(note.track)
+    if (!col) continue
+    ctx.fillStyle = col.color
     const start = Math.round(y(tm.tickToMs(note.tick)))
     if (note.type === 'hold') {
       const end = Math.round(y(tm.tickToMs(note.endTick)))
-      ctx.fillRect(x, end, laneWidth - LANE_GAP, Math.max(TAP_HEIGHT, start - end))
+      ctx.fillRect(col.x, end, col.width - TRACK_GAP, Math.max(TAP_HEIGHT, start - end))
     } else {
-      ctx.fillRect(x, start - TAP_HEIGHT / 2, laneWidth - LANE_GAP, TAP_HEIGHT)
+      ctx.fillRect(col.x, start - TAP_HEIGHT / 2, col.width - TRACK_GAP, TAP_HEIGHT)
     }
   }
+  ctx.globalAlpha = 1
 
   ctx.fillStyle = COLORS.bpm
   for (const point of p.timing) {

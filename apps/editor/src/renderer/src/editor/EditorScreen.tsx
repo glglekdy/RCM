@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PanelRight } from 'lucide-react'
 import { TimingMap } from '@rcm/core'
-import { laneForCode, laneForKey } from '@rcm/playfield'
+import { trackForCode, trackForKey } from '@rcm/playfield'
 import type { ProjectFiles } from '../../../shared/api'
+import { DEFAULT_PRESETS, resolveKeymap } from '../../../shared/presets'
 import { NewProjectDialog } from '../home/NewProjectDialog'
 import { addMarker, neighborMarkerMs } from './commands/markers'
 import { applyRecording, recordingMessage, type RecordSession } from './commands/record'
@@ -113,10 +114,12 @@ function LoadingBody() {
 /** 테스트 플레이에서 시작 위치보다 먼저 재생하는 준비 시간(ms) */
 const PLAYTEST_LEAD_IN_MS = 1500
 
-/** 진행 중인 녹음: 누름 기록과 시작할 때 정한 대상 채보·스냅 */
+/** 진행 중인 녹음: 누름 기록과 시작할 때 정한 대상 채보·스냅·키 배치 */
 interface Recording {
   recorder: Recorder
   session: RecordSession
+  /** 트랙 id → 키 code (3.4절) */
+  keymap: ReadonlyMap<string, string | null>
 }
 
 interface EditorBodyProps {
@@ -224,9 +227,11 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     if (s.playing) return
     play()
     if (!store.getState().playing) return
+    const { keys } = resolveKeymap(getChart(s.doc, s.activeChart).tracks, DEFAULT_PRESETS)
     recordingRef.current = {
-      recorder: new Recorder(getChart(s.doc, s.activeChart).lanes),
-      session: { file: s.activeChart, snap: s.snap }
+      recorder: new Recorder(keys),
+      session: { file: s.activeChart, snap: s.snap },
+      keymap: keys
     }
     store.set({ mode: 'recording' })
   }, [play, stop, store])
@@ -494,13 +499,9 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   runActionRef.current = runAction
 
   useEffect(() => {
-    /** 녹음 중이면 녹음하는 채보의 레인 수와 Recorder. */
-    const activeRecording = (): { lanes: number; recorder: Recorder } | null => {
-      const s = store.getState()
-      const recording = recordingRef.current
-      if (s.mode !== 'recording' || !recording) return null
-      return { lanes: getChart(s.doc, recording.session.file).lanes, recorder: recording.recorder }
-    }
+    /** 녹음 중이면 진행 중인 녹음. */
+    const activeRecording = (): Recording | null =>
+      store.getState().mode === 'recording' ? recordingRef.current : null
     /** 입력을 처리하는 지금의 오디오 시계 (탭·마커와 같은 시계) */
     const now = () => inputTimeMs(engine, store.getState().playheadMs)
     const onKeyDown = (e: KeyboardEvent) => {
@@ -508,8 +509,8 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       // 입력 필드에서는 Ctrl+S(필드를 확정하고 저장)와 Esc만 받는다
       const typing = isTyping(e.target)
       const rec = typing ? null : activeRecording()
-      // Ctrl/Alt/Meta 조합(Ctrl+S 등)은 레인 키로 치지 않는다
-      if (rec && laneForKey(rec.lanes, e) !== null) {
+      // Ctrl/Alt/Meta 조합(Ctrl+S 등)은 트랙 키로 치지 않는다
+      if (rec && trackForKey(rec.keymap, e) !== null) {
         // 키 반복(e.repeat)은 Recorder가 무시한다
         e.preventDefault()
         rec.recorder.keyDown(e.code, now())
@@ -526,7 +527,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     }
     const onKeyUp = (e: KeyboardEvent) => {
       const rec = activeRecording()
-      if (rec && laneForCode(rec.lanes, e.code) !== null) {
+      if (rec && trackForCode(rec.keymap, e.code) !== null) {
         e.preventDefault()
         rec.recorder.keyUp(e.code, now())
         return

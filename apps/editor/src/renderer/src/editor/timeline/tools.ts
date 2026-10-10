@@ -51,6 +51,7 @@ type DrawDrag = {
   kind: 'draw'
   file: string
   lane: number
+  track: string
   tick: number
   preview: Note
   invalid: boolean
@@ -72,7 +73,7 @@ type MoveDrag = {
   kind: 'move'
   file: string
   keys: ReadonlySet<string>
-  /** 시작 지점의 레인과 스냅 tick */
+  /** 시작 지점의 트랙 위치와 스냅 tick */
   lane: number
   tick: number
   dLane: number
@@ -95,10 +96,11 @@ export function createToolController(
 
   const chartNotes = (file: string) => getChart(store.getState().doc, file).notes
 
-  /** 레인 번호. 레인 밖이면 0 미만이거나 lanes 이상. */
+  /** 트랙 위치. 트랙 영역 왼쪽 밖이면 -1, 오른쪽 밖이면 트랙 수. */
   const laneAt = (x: number) => {
     const { layout } = getGeometry()
-    return Math.floor((x - layout.lanesX) / layout.laneWidth)
+    if (x < layout.tracksX) return -1
+    return xToLane(layout, x) ?? layout.columns.length
   }
 
   /** 스냅하지 않은 tick */
@@ -107,14 +109,14 @@ export function createToolController(
     return tm.msToTick(yToMs(view, y))
   }
 
-  /** 그리기 드래그의 현재 노트: 같은 레인에서 시작 칸보다 위면 hold, 아니면 tap. */
-  const drawNote = (lane: number, tick: number, y: number): Note => {
+  /** 그리기 드래그의 현재 노트: 같은 트랙에서 시작 칸보다 위면 hold, 아니면 tap. */
+  const drawNote = (d: DrawDrag, y: number): Note => {
     const { tm, view, layout } = getGeometry()
-    const laneX = layout.lanesX + (lane + 0.5) * layout.laneWidth
-    const end = pointerToCell(tm, view, layout, laneX, y, store.getState().snap)
-    return end && end.tick > tick
-      ? { tick, lane, type: 'hold', endTick: end.tick }
-      : { tick, lane, type: 'tap' }
+    const col = layout.columns[d.lane]
+    const end = pointerToCell(tm, view, layout, col.x + col.width / 2, y, store.getState().snap)
+    return end && end.tick > d.tick
+      ? { tick: d.tick, track: d.track, type: 'hold', endTick: end.tick }
+      : { tick: d.tick, track: d.track, type: 'tap' }
   }
 
   const eraseAt = (d: EraseDrag, x: number, y: number) => {
@@ -131,24 +133,26 @@ export function createToolController(
     d.y = y
   }
 
-  /** 시작점과 현재 점이 걸친 레인(레인 범위로 자름)과 tick 범위. 레인에 걸치지 않으면 null. */
+  /** 시작점과 현재 점이 걸친 트랙 위치(트랙 범위로 자름)와 tick 범위. 트랙에 걸치지 않으면 null. */
   const rectTo = (d: RectDrag, x: number, y: number) => {
     d.moved = true
     const { layout } = getGeometry()
     const lane0 = Math.max(0, laneAt(Math.min(d.x, x)))
-    const lane1 = Math.min(layout.lanes - 1, laneAt(Math.max(d.x, x)))
+    const lane1 = Math.min(layout.columns.length - 1, laneAt(Math.max(d.x, x)))
     const t0 = tickAt(d.y)
     const t1 = tickAt(y)
     d.rect =
       lane0 <= lane1 ? { lane0, lane1, tick0: Math.min(t0, t1), tick1: Math.max(t0, t1) } : null
-    const picked = d.rect
-      ? notesInRect(chartNotes(d.file), d.rect.lane0, d.rect.lane1, d.rect.tick0, d.rect.tick1)
+    const { notes, tracks } = getChart(store.getState().doc, d.file)
+    const r = d.rect
+    const picked = r
+      ? notesInRect(notes, tracks, r.lane0, r.lane1, r.tick0, r.tick1)
       : new Set<string>()
     if (d.additive) for (const key of d.before) picked.add(key)
     store.set({ selection: picked })
   }
 
-  /** 옮기기 드래그: 시작점과 현재 포인터의 스냅 tick 차이·레인 차이만큼 옮긴 미리보기. */
+  /** 옮기기 드래그: 시작점과 현재 포인터의 스냅 tick 차이·트랙 위치 차이만큼 옮긴 미리보기. */
   const moveTo = (d: MoveDrag, x: number, y: number) => {
     const s = store.getState()
     d.dLane = laneAt(x) - d.lane
@@ -158,9 +162,11 @@ export function createToolController(
       d.invalid = false
       return
     }
-    d.preview = chartNotes(d.file)
+    const chart = getChart(s.doc, d.file)
+    d.preview = chart.notes
       .filter((n) => d.keys.has(noteKey(n)))
-      .map((n) => shiftNote(n, d.dTick, d.dLane))
+      .map((n) => shiftNote(n, d.dTick, d.dLane, chart.tracks))
+      .filter((n): n is Note => n !== null)
     d.invalid = moveNotes(s.doc, d.file, d.keys, d.dTick, d.dLane) === null
   }
 
@@ -216,7 +222,7 @@ export function createToolController(
         const { tm, view, layout } = getGeometry()
         const cell = pointerToCell(tm, view, layout, e.x, e.y, s.snap)
         if (!cell) return
-        const preview: Note = { tick: cell.tick, lane: cell.lane, type: 'tap' }
+        const preview: Note = { tick: cell.tick, track: cell.track, type: 'tap' }
         // 이미 노트가 있는 자리에서는 시작하지 않는다 (같은 칸에서 시작하는 hold도 겹친다)
         if (!addNote(s.doc, file, preview)) return
         drag = { kind: 'draw', file, ...cell, preview, invalid: false }
@@ -232,7 +238,7 @@ export function createToolController(
       const d = drag
       if (!d) return
       if (d.kind === 'draw') {
-        d.preview = drawNote(d.lane, d.tick, e.y)
+        d.preview = drawNote(d, e.y)
         d.invalid = !addNote(store.getState().doc, d.file, d.preview)
       } else if (d.kind === 'erase') {
         eraseAt(d, e.x, e.y)
@@ -250,7 +256,7 @@ export function createToolController(
       const s = store.getState()
       if (s.playing) return
       if (d.kind === 'draw') {
-        const note = drawNote(d.lane, d.tick, e.y)
+        const note = drawNote(d, e.y)
         store.apply('노트 추가', addNote(s.doc, d.file, note), d.file)
       } else if (d.kind === 'erase') {
         eraseAt(d, e.x, e.y)
@@ -270,7 +276,7 @@ export function createToolController(
       // 왼쪽 드래그 중의 우클릭은 무시한다 (한 동작이 기록 두 개로 갈라지지 않게)
       if (drag) return
       const s = store.getState()
-      // 녹음 중에는 레인 키 외의 편집을 모두 끈다 (5.10절)
+      // 녹음 중에는 트랙 키 외의 편집을 모두 끈다 (5.10절)
       if (s.mode === 'recording') return
       const { tm, view, layout } = getGeometry()
       if (xToLane(layout, e.x) === null) {

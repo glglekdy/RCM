@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import type { TimingMap } from '@rcm/core'
-import { LANE_KEYS, laneKeyLabel } from '@rcm/playfield'
+import type { TimingMap, Track } from '@rcm/core'
+import { keyLabel } from '@rcm/playfield'
+import { DEFAULT_PRESETS, resolveKeymap } from '../../../../shared/presets'
 import type { WaveformPeaks } from '../audio/waveform'
 import type { Recorder } from '../input/recorder'
 import { getChart } from '../state/doc'
@@ -14,12 +15,17 @@ interface TimelineCanvasProps {
   tm: TimingMap
   durationMs: number
   peaks?: WaveformPeaks
-  /** 진행 중인 녹음. 눌린 레인과 키 이름을 겹쳐 그린다 */
+  /** 진행 중인 녹음. 눌린 트랙과 키 이름을 겹쳐 그린다 */
   recordingRef?: RefObject<{ recorder: Recorder } | null>
 }
 
-function laneKeyLabels(lanes: number): string[] {
-  return (LANE_KEYS[lanes as keyof typeof LANE_KEYS] ?? []).map(laneKeyLabel)
+/** 트랙 위치별 키 이름 (3.4절 키 배치). 키가 없는 트랙은 `-`. */
+function trackKeyLabels(tracks: readonly Track[]): string[] {
+  const { keys } = resolveKeymap(tracks, DEFAULT_PRESETS)
+  return tracks.map((t) => {
+    const code = keys.get(t.id)
+    return code ? keyLabel(code) : '-'
+  })
 }
 
 const ZOOM_STEP = 1.1
@@ -42,7 +48,7 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
       return {
         tm: propsRef.current.tm,
         view: { playheadMs: s.playheadMs, pxPerMs: s.pxPerMs, height },
-        layout: layoutTimeline(width, getChart(s.doc, s.activeChart).lanes)
+        layout: layoutTimeline(width, getChart(s.doc, s.activeChart).tracks)
       }
     })
   )
@@ -64,7 +70,7 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
       const { preview, previewInvalid, hiddenKeys, selectRect } = tools.overlay()
       drawTimeline(ctx, {
         view: { playheadMs: s.playheadMs, pxPerMs: s.pxPerMs, height },
-        layout: layoutTimeline(width, chart.lanes),
+        layout: layoutTimeline(width, chart.tracks),
         tm,
         chart,
         snap: s.snap,
@@ -78,7 +84,7 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
         hiddenKeys,
         selectRect,
         recording: recorder
-          ? { pressed: recorder.pressed(), labels: laneKeyLabels(chart.lanes) }
+          ? { pressed: recorder.pressed(), labels: trackKeyLabels(chart.tracks) }
           : undefined
       })
     }
@@ -165,7 +171,7 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
     if (e.buttons !== 0) forward(tools.onPointerMove)(e)
   }
 
-  // 우클릭: 레인 안은 노트 삭제, 레인 밖(파형·라벨 영역)은 마커 삭제
+  // 우클릭: 트랙 안은 노트 삭제, 트랙 밖(파형·라벨 영역)은 마커 삭제
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
     forward(tools.onContextMenu)(e)

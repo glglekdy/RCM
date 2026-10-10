@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MAX_LANES, MIN_LANES, SNAP_DIVISIONS } from '@rcm/core'
+import { SNAP_DIVISIONS } from '@rcm/core'
 import {
   ChevronDown,
   Circle,
@@ -20,12 +20,12 @@ import {
   Menu,
   Modal,
   Row,
-  SegmentedControl,
   TextField
 } from '../../ui'
+import { DEFAULT_PRESETS, presetToChartTracks } from '../../../../shared/presets'
+import { PresetPicker } from '../../presets/PresetPicker'
 import { addChart } from '../commands/charts'
 import { DEFAULT_PX_PER_MS } from '../minimap/geometry'
-import { getChart } from '../state/doc'
 import { useEditor, useStore } from '../state/useStore'
 import { clampZoom } from '../timeline/view'
 import styles from './BottomToolbar.module.css'
@@ -188,27 +188,24 @@ export function BottomToolbar({
   )
 }
 
-const LANE_OPTIONS = Array.from({ length: MAX_LANES - MIN_LANES + 1 }, (_, i) => ({
-  value: MIN_LANES + i,
-  label: `${MIN_LANES + i}키`
-}))
+/** 저장된 프리셋을 쓰기 전까지는 기본 프리셋 목록 (첫 번째 = 4K) */
+const PRESETS = DEFAULT_PRESETS
 
 interface AddChartDialogProps {
   onClose: () => void
   onAdded: (file: string) => void
 }
 
-/** 난이도 추가: 이름과 레인 수를 받아 새 채보를 만든다. 레인 수는 지금 난이도를 따른다. */
+/** 난이도 추가: 이름과 트랙 프리셋을 받아 새 채보를 만든다. */
 function AddChartDialog({ onClose, onAdded }: AddChartDialogProps) {
   const store = useStore()
   const [name, setName] = useState('')
-  const [lanes, setLanes] = useState(() => {
-    const s = store.getState()
-    return getChart(s.doc, s.activeChart).lanes
-  })
+  const [presetId, setPresetId] = useState(PRESETS[0].id)
 
   const add = () => {
-    const added = addChart(store.getState().doc, name, lanes)
+    const preset = PRESETS.find((p) => p.id === presetId)
+    if (!preset) return
+    const added = addChart(store.getState().doc, name, presetToChartTracks(preset))
     if (!added) return
     store.apply('난이도 추가', added.doc)
     onAdded(added.file)
@@ -231,16 +228,14 @@ function AddChartDialog({ onClose, onAdded }: AddChartDialogProps) {
       <div
         className={styles.addForm}
         onKeyDown={(e) => {
-          // 이름 칸에서 Enter = 추가 (세그먼트 버튼의 Enter는 그 버튼을 누르는 것)
+          // 이름 칸에서 Enter = 추가 (프리셋 목록의 Enter는 그 목록을 여는 것)
           if (isSubmitEnter(e) && e.target instanceof HTMLInputElement) add()
         }}
       >
         <Row label="이름">
           <TextField value={name} onChange={setName} placeholder="HARD" />
         </Row>
-        <Row label="레인 수">
-          <SegmentedControl options={LANE_OPTIONS} value={lanes} onChange={setLanes} />
-        </Row>
+        <PresetPicker presets={PRESETS} value={presetId} onChange={setPresetId} />
       </div>
     </Modal>
   )

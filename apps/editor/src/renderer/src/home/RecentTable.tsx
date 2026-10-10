@@ -47,7 +47,9 @@ export function RecentTable({ projects, onOpen, onShowInExplorer, onRemove }: Re
               {p.missing || !p.artist ? '-' : p.artist}
             </span>
             <span className={styles.charts} role="cell">
-              {p.missing ? '찾을 수 없음' : p.charts.map((c) => `${c.name} ${c.lanes}K`).join(' · ')}
+              {p.missing
+                ? '찾을 수 없음'
+                : p.charts.map((c) => `${c.name} · ${c.trackCount}트랙`).join(', ')}
             </span>
             <span className={`${styles.time} ${styles.muted}`} role="cell">
               {relativeTime(p.lastOpened, now)}

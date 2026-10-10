@@ -9,7 +9,13 @@ import {
 } from '@rcm/core'
 import { peakInRange, type WaveformPeaks } from '../audio/waveform'
 import { NOTE_HEIGHT, type SelectRect } from './hitTest'
-import { msToY, yToMs, type TimelineLayout, type TimelineView } from './view'
+import {
+  msToY,
+  yToMs,
+  type TimelineColumn,
+  type TimelineLayout,
+  type TimelineView
+} from './view'
 
 export interface DrawParams {
   view: TimelineView
@@ -30,8 +36,8 @@ export interface DrawParams {
   /** 지우거나 옮기는 중이라 숨기는 노트 키 */
   hiddenKeys?: ReadonlySet<string>
   selectRect?: SelectRect | null
-  /** 녹음 중: 눌린 레인(→ 누른 시각 ms)과 레인별 키 이름 */
-  recording?: { pressed: ReadonlyMap<number, number>; labels: string[] }
+  /** 녹음 중: 눌린 트랙 id(→ 누른 시각 ms)와 트랙 위치별 키 이름 */
+  recording?: { pressed: ReadonlyMap<string, number>; labels: string[] }
 }
 
 /** 스펙 6.3절 타임라인 색 */
@@ -41,7 +47,6 @@ const COLORS = {
   measure: '#5a5a5a',
   beat: '#3a3a3a',
   snap: '#262626',
-  note: '#f2f2f2',
   bpm: '#f59e0b',
   bpmChip: 'rgba(245, 158, 11, 0.16)',
   marker: '#22d3ee',
@@ -56,7 +61,9 @@ const COLORS = {
   keyChip: '#232323',
   keyChipPressed: '#8b5cf6',
   keyLabel: '#8c8c8c',
-  keyLabelPressed: '#f2f2f2'
+  keyLabelPressed: '#f2f2f2',
+  /** --text-muted */
+  trackName: '#8c8c8c'
 }
 
 const NOTE_RADIUS = 3
@@ -66,10 +73,13 @@ const HOLD_BODY_ALPHA = 0.6
 const PREVIEW_ALPHA = 0.5
 const SELECTED_BORDER = 2
 const CHIP_HEIGHT = 20
-/** 녹음 중 레인 키 이름 칩: 아래 가장자리에서 띄운 거리와 크기 */
+/** 녹음 중 트랙 키 이름 칩: 아래 가장자리에서 띄운 거리와 크기 */
 const KEY_CHIP_BOTTOM = 8
 const KEY_CHIP_HEIGHT = 20
 const KEY_CHIP_INSET = 4
+/** 맨 위 트랙 이름 줄 높이와 글자 좌우 여백 */
+const NAME_ROW_HEIGHT = 20
+const NAME_PADDING = 4
 const FONT = '500 12px "Pretendard Variable", Pretendard, system-ui, sans-serif'
 
 /** 1px 선이 픽셀 경계에 걸쳐 흐려지지 않도록 반 픽셀에 맞춘다. */
@@ -77,28 +87,20 @@ const crisp = (v: number) => Math.round(v) + 0.5
 
 export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void {
   const { view, layout, tm } = p
-  const left = layout.lanesX
-  const right = layout.lanesX + layout.lanes * layout.laneWidth
+  const left = layout.tracksX
+  const right = layout.tracksX + layout.totalWidth
   const h = view.height
 
-  // 레인 바탕·구분선
+  // 트랙 바탕·구분선
   ctx.fillStyle = COLORS.laneBg
   ctx.fillRect(left, 0, right - left, h)
-  ctx.strokeStyle = COLORS.laneDivider
-  ctx.lineWidth = 1
-  ctx.beginPath()
-  for (let i = 0; i <= layout.lanes; i++) {
-    const x = crisp(left + i * layout.laneWidth)
-    ctx.moveTo(x, 0)
-    ctx.lineTo(x, h)
-  }
-  ctx.stroke()
+  drawDividers(ctx, layout, 0, h)
 
-  // 녹음 중 눌린 레인: 레인 전체 높이를 강조
+  // 녹음 중 눌린 트랙: 트랙 전체 높이를 강조
   if (p.recording) {
     ctx.fillStyle = COLORS.pressed
-    for (const lane of p.recording.pressed.keys()) {
-      ctx.fillRect(left + lane * layout.laneWidth, 0, layout.laneWidth, h)
+    for (const col of layout.columns) {
+      if (p.recording.pressed.has(col.id)) ctx.fillRect(col.x, 0, col.width, h)
     }
   }
 
@@ -154,7 +156,7 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
     ctx.fillText(text, layout.labelX + 8, y + 0.5)
   }
 
-  // 가이드 마커: 청록 점선 (레인 + 파형 영역)
+  // 가이드 마커: 청록 점선 (트랙 + 파형 영역)
   ctx.strokeStyle = COLORS.marker
   ctx.lineWidth = 1
   ctx.setLineDash([6, 4])
@@ -168,23 +170,30 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
   ctx.stroke()
   ctx.setLineDash([])
 
-  // 노트
+  // 노트: 트랙 색. 채보에 없는 트랙의 노트는 그리지 않는다
+  const columns = new Map(layout.columns.map((c) => [c.id, c]))
   for (const note of p.chart.notes) {
     const endTick = note.type === 'hold' ? note.endTick : note.tick
     if (note.tick > toTick || endTick < fromTick) continue
+    const col = columns.get(note.track)
     const key = noteKey(note)
-    if (p.hiddenKeys?.has(key)) continue
-    drawNote(ctx, p, note, COLORS.note, 1, p.selection.has(key))
+    if (!col || p.hiddenKeys?.has(key)) continue
+    drawNote(ctx, p, note, col, col.color, 1, p.selection.has(key))
   }
-  const previewColor = p.previewInvalid ? COLORS.invalid : COLORS.note
-  for (const note of p.preview ?? []) drawNote(ctx, p, note, previewColor, PREVIEW_ALPHA, false)
+  for (const note of p.preview ?? []) {
+    const col = columns.get(note.track)
+    if (!col) continue
+    const color = p.previewInvalid ? COLORS.invalid : col.color
+    drawNote(ctx, p, note, col, color, PREVIEW_ALPHA, false)
+  }
   if (p.recording) drawRecording(ctx, p, p.recording)
 
-  // 사각 선택 범위: 걸친 레인 전체 폭
+  // 사각 선택 범위: 걸친 트랙 전체 폭
   if (p.selectRect) {
     const r = p.selectRect
-    const x0 = left + r.lane0 * layout.laneWidth
-    const x1 = left + (r.lane1 + 1) * layout.laneWidth
+    const last = layout.columns[r.lane1]
+    const x0 = layout.columns[r.lane0].x
+    const x1 = last.x + last.width
     const yTop = msToY(view, tm.tickToMs(r.tick1))
     const yBottom = msToY(view, tm.tickToMs(r.tick0))
     ctx.fillStyle = COLORS.selectFill
@@ -193,6 +202,8 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
     ctx.lineWidth = 1
     ctx.strokeRect(crisp(x0), crisp(yTop), Math.round(x1 - x0) - 1, Math.round(yBottom - yTop))
   }
+
+  drawTrackNames(ctx, layout)
 
   // 재생선
   const py = Math.round(msToY(view, view.playheadMs))
@@ -204,7 +215,56 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
   ctx.stroke()
 }
 
-/** 녹음 중: 누르고 있는 키를 누른 시각부터 재생선까지 반투명 막대로, 레인 아래에 키 이름을 그린다. */
+/** 트랙 사이와 양 끝의 세로 구분선 (y0~y1). */
+function drawDividers(
+  ctx: CanvasRenderingContext2D,
+  layout: TimelineLayout,
+  y0: number,
+  y1: number
+): void {
+  ctx.strokeStyle = COLORS.laneDivider
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  for (const x of [...layout.columns.map((c) => c.x), layout.tracksX + layout.totalWidth]) {
+    ctx.moveTo(crisp(x), y0)
+    ctx.lineTo(crisp(x), y1)
+  }
+  ctx.stroke()
+}
+
+/** 맨 위 트랙 이름 줄. 지나가는 노트·격자를 가리고, 열 폭에 안 들어가는 이름은 말줄임. */
+function drawTrackNames(ctx: CanvasRenderingContext2D, layout: TimelineLayout): void {
+  const { tracksX, totalWidth } = layout
+  ctx.fillStyle = COLORS.laneBg
+  ctx.fillRect(tracksX, 0, totalWidth, NAME_ROW_HEIGHT)
+  drawDividers(ctx, layout, 0, NAME_ROW_HEIGHT)
+  ctx.beginPath()
+  ctx.moveTo(tracksX, crisp(NAME_ROW_HEIGHT))
+  ctx.lineTo(tracksX + totalWidth, crisp(NAME_ROW_HEIGHT))
+  ctx.stroke()
+
+  ctx.font = FONT
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = COLORS.trackName
+  for (const col of layout.columns) {
+    const text = fitText(ctx, col.id, col.width - NAME_PADDING * 2)
+    ctx.fillText(text, col.x + col.width / 2, NAME_ROW_HEIGHT / 2 + 0.5)
+  }
+  ctx.textAlign = 'start'
+}
+
+/** maxWidth에 안 들어가면 뒤를 잘라 `…`을 붙인다. */
+function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+  if (ctx.measureText(text).width <= maxWidth) return text
+  for (let n = text.length - 1; n > 0; n--) {
+    const cut = `${text.slice(0, n)}…`
+    if (ctx.measureText(cut).width <= maxWidth) return cut
+  }
+  return '…'
+}
+
+/** 녹음 중: 누르고 있는 키를 누른 시각부터 재생선까지 반투명 막대로, 트랙 아래에 키 이름을 그린다. */
 function drawRecording(
   ctx: CanvasRenderingContext2D,
   p: DrawParams,
@@ -212,15 +272,17 @@ function drawRecording(
 ): void {
   const { view, layout } = p
   const py = msToY(view, view.playheadMs)
-  ctx.fillStyle = COLORS.note
   ctx.globalAlpha = PREVIEW_ALPHA
-  for (const [lane, downMs] of rec.pressed) {
+  for (const col of layout.columns) {
+    const downMs = rec.pressed.get(col.id)
+    if (downMs === undefined) continue
     const y = msToY(view, downMs)
+    ctx.fillStyle = col.color
     ctx.beginPath()
     ctx.roundRect(
-      layout.lanesX + lane * layout.laneWidth + HOLD_BODY_INSET,
+      col.x + HOLD_BODY_INSET,
       py,
-      layout.laneWidth - HOLD_BODY_INSET * 2,
+      col.width - HOLD_BODY_INSET * 2,
       Math.max(y - py, 1),
       NOTE_RADIUS
     )
@@ -232,21 +294,21 @@ function drawRecording(
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   const chipY = view.height - KEY_CHIP_BOTTOM - KEY_CHIP_HEIGHT
-  rec.labels.forEach((label, lane) => {
-    const pressed = rec.pressed.has(lane)
-    const x = layout.lanesX + lane * layout.laneWidth
+  layout.columns.forEach((col, i) => {
+    const pressed = rec.pressed.has(col.id)
     ctx.fillStyle = pressed ? COLORS.keyChipPressed : COLORS.keyChip
     ctx.beginPath()
     ctx.roundRect(
-      x + KEY_CHIP_INSET,
+      col.x + KEY_CHIP_INSET,
       chipY,
-      layout.laneWidth - KEY_CHIP_INSET * 2,
+      col.width - KEY_CHIP_INSET * 2,
       KEY_CHIP_HEIGHT,
       NOTE_RADIUS
     )
     ctx.fill()
     ctx.fillStyle = pressed ? COLORS.keyLabelPressed : COLORS.keyLabel
-    ctx.fillText(label, x + layout.laneWidth / 2, chipY + KEY_CHIP_HEIGHT / 2 + 0.5)
+    const label = fitText(ctx, rec.labels[i] ?? '-', col.width - KEY_CHIP_INSET * 2)
+    ctx.fillText(label, col.x + col.width / 2, chipY + KEY_CHIP_HEIGHT / 2 + 0.5)
   })
   ctx.textAlign = 'start'
 }
@@ -274,12 +336,13 @@ function drawNote(
   ctx: CanvasRenderingContext2D,
   p: DrawParams,
   note: Note,
+  col: TimelineColumn,
   color: string,
   alpha: number,
   selected: boolean
 ): void {
-  const { view, layout, tm } = p
-  const x = layout.lanesX + note.lane * layout.laneWidth
+  const { view, tm } = p
+  const x = col.x
   const y = msToY(view, tm.tickToMs(note.tick))
   ctx.fillStyle = color
   ctx.strokeStyle = COLORS.selected
@@ -293,7 +356,7 @@ function drawNote(
     ctx.roundRect(
       x + HOLD_BODY_INSET,
       yEnd - NOTE_HEIGHT / 2,
-      layout.laneWidth - HOLD_BODY_INSET * 2,
+      col.width - HOLD_BODY_INSET * 2,
       y - yEnd + NOTE_HEIGHT / 2,
       NOTE_RADIUS
     )
@@ -306,7 +369,7 @@ function drawNote(
   ctx.roundRect(
     x + NOTE_INSET,
     y - NOTE_HEIGHT / 2,
-    layout.laneWidth - NOTE_INSET * 2,
+    col.width - NOTE_INSET * 2,
     NOTE_HEIGHT,
     NOTE_RADIUS
   )

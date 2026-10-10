@@ -257,7 +257,7 @@ describe('선택 도구', () => {
     tools.onPointerMove(left(X1, yOf(500)))
     expect([...tools.overlay().hiddenKeys].sort()).toEqual(['Note_1:0', 'Note_2:480'])
     expect(tools.overlay().preview).toEqual([tap(480, 'Note_2'), tap(960, 'Note_3')])
-    expect(tools.overlay().previewInvalid).toBe(true) // 2:960과 겹친다
+    expect(tools.overlay().previewInvalid).toBe(true) // Note_3:960과 겹친다
     tools.onPointerMove(left(X1, yOf(1400)))
     expect(tools.overlay().preview).toEqual([tap(1440, 'Note_2'), tap(1920, 'Note_3')])
     expect(tools.overlay().previewInvalid).toBe(false)

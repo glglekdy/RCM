@@ -6,10 +6,11 @@ import {
   Modal,
   NumberField,
   Row,
-  SegmentedControl,
   TextField,
   useDialogs
 } from '../ui'
+import { DEFAULT_PRESETS, presetToChartTracks } from '../../../shared/presets'
+import { PresetPicker } from '../presets/PresetPicker'
 import styles from './NewProjectDialog.module.css'
 
 interface NewProjectDialogProps {
@@ -24,7 +25,8 @@ type Audio =
   | { state: 'ok'; path: string; buffer: AudioBuffer }
   | { state: 'error'; path: string }
 
-const LANE_OPTIONS = [4, 5, 6, 7, 8].map((n) => ({ value: n, label: `${n}키` }))
+/** 저장된 프리셋을 쓰기 전까지는 기본 프리셋 목록 (첫 번째 = 4K) */
+const PRESETS = DEFAULT_PRESETS
 const TITLE_MAX = 100
 
 function baseName(path: string): string {
@@ -43,7 +45,7 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
   const [audio, setAudio] = useState<Audio>({ state: 'none' })
   const [bpm, setBpm] = useState(120)
   const [chartName, setChartName] = useState('NORMAL')
-  const [lanes, setLanes] = useState(4)
+  const [presetId, setPresetId] = useState(PRESETS[0].id)
   const [parentDir, setParentDir] = useState('')
   const [preview, setPreview] = useState('')
   const [playing, setPlaying] = useState(false)
@@ -75,7 +77,7 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
     setAudio({ state: 'none' })
     setBpm(120)
     setChartName('NORMAL')
-    setLanes(4)
+    setPresetId(PRESETS[0].id)
     setPreview('')
     setCreating(false)
     pickToken.current++
@@ -164,8 +166,11 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
     if (dir) setParentDir(dir)
   }
 
+  const preset = PRESETS.find((p) => p.id === presetId)
+
   const canCreate =
     !creating &&
+    preset !== undefined &&
     title.trim() !== '' &&
     audio.state === 'ok' &&
     bpm > 0 &&
@@ -173,7 +178,7 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
     parentDir !== ''
 
   const create = async () => {
-    if (!canCreate || audio.state !== 'ok') return
+    if (!canCreate || audio.state !== 'ok' || !preset) return
     setCreating(true)
     stopPlayback()
     try {
@@ -184,7 +189,7 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
         audioPath: audio.path,
         bpm,
         chartName: chartName.trim(),
-        lanes
+        tracks: presetToChartTracks(preset)
       })
       onCreated(dir)
     } catch (err) {
@@ -251,9 +256,7 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
             <TextField value={chartName} onChange={setChartName} placeholder="NORMAL" />
           </div>
         </Row>
-        <Row label="레인 수">
-          <SegmentedControl options={LANE_OPTIONS} value={lanes} onChange={setLanes} />
-        </Row>
+        <PresetPicker presets={PRESETS} value={presetId} onChange={setPresetId} />
         <Row label="저장 위치">
           <span className={styles.fileName} title={parentDir}>
             {parentDir}

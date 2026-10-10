@@ -1,0 +1,64 @@
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.selectWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 펼친 목록은 OS가 그리므로 어두운 색 구성을 따르게 한다 (모달 본문 밖으로도 펼쳐진다) */
+.select {
+  width: 168px;
+  height: 28px;
+  padding: 0 28px 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  color-scheme: dark;
+  font: inherit;
+  font-weight: 500;
+  outline: none;
+  appearance: none;
+  cursor: default;
+}
+
+.select:hover {
+  background: var(--bg-hover);
+}
+
+.select:focus-visible {
+  border-color: var(--accent);
+}
+
+.chevron {
+  position: absolute;
+  right: 8px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.chips {
+  display: flex;
+  gap: 4px;
+}
+
+.chip {
+  flex-basis: 0;
+  min-width: 0;
+  height: 22px;
+  padding: 0 4px;
+  overflow: hidden;
+  border: 1px solid;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

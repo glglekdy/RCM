@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   DEFAULT_PRESETS,
   hasPresetErrors,
@@ -91,8 +91,14 @@ describe('presets', () => {
   })
 
   it('새 프리셋 id는 겹치지 않는다', () => {
-    const a = newPresetId([])
-    expect(a).toMatch(/^p-[0-9a-z]+$/)
-    expect(newPresetId([{ id: a, name: 'x', tracks: [t('A')] }])).toBe(`${a}-2`)
+    // 두 호출 사이에 밀리초가 바뀌면 id가 저절로 달라지므로 시각을 고정한다
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000)
+    try {
+      const a = newPresetId([])
+      expect(a).toMatch(/^p-[0-9a-z]+$/)
+      expect(newPresetId([{ id: a, name: 'x', tracks: [t('A')] }])).toBe(`${a}-2`)
+    } finally {
+      now.mockRestore()
+    }
   })
 })

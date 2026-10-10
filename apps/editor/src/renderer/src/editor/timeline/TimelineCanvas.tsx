@@ -117,6 +117,7 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
   }, [])
 
   // 휠: 정지 중 스냅 한 칸 이동, Ctrl+휠 확대/축소. 재생 중에는 무시
+  // 끄는 중에 휠을 굴리면 화면이 움직인 만큼 드래그(선택 사각형·롱노트 길이)를 다시 계산한다
   useEffect(() => {
     const wrap = wrapRef.current
     if (!wrap) return
@@ -127,15 +128,17 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
       if (e.ctrlKey) {
         const pxPerMs = clampZoom(s.pxPerMs * ZOOM_STEP ** (e.deltaY < 0 ? 1 : -1))
         store.set({ pxPerMs })
-        return
+      } else {
+        const { tm, durationMs } = propsRef.current
+        const next = stepPlayheadMs(tm, s.playheadMs, s.snap, e.deltaY > 0 ? -1 : 1)
+        store.set({ playheadMs: clampPlayheadMs(tm, next, durationMs) })
       }
-      const { tm, durationMs } = propsRef.current
-      const next = stepPlayheadMs(tm, s.playheadMs, s.snap, e.deltaY > 0 ? -1 : 1)
-      store.set({ playheadMs: clampPlayheadMs(tm, next, durationMs) })
+      tools.refresh()
+      drawRef.current()
     }
     wrap.addEventListener('wheel', onWheel, { passive: false })
     return () => wrap.removeEventListener('wheel', onWheel)
-  }, [store])
+  }, [store, tools])
 
   // Escape: 진행 중인 드래그(미리보기) 취소
   useEffect(() => {
@@ -162,8 +165,8 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
     }
 
   const onPointerDown = (e: React.PointerEvent) => {
-    // 드래그가 캔버스 밖으로 나가도 이어지도록 포인터를 붙잡는다
-    if (e.button === 0) e.currentTarget.setPointerCapture(e.pointerId)
+    // 드래그가 캔버스 밖으로 나가도 이어지도록 포인터를 붙잡는다 (오른쪽 버튼은 그리기 도구의 지우기 드래그)
+    if (e.button === 0 || e.button === 2) e.currentTarget.setPointerCapture(e.pointerId)
     forward(tools.onPointerDown)(e)
   }
 

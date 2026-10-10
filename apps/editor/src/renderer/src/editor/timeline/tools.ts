@@ -44,6 +44,8 @@ export interface ToolController {
   onContextMenu(e: ToolPointer): void
   /** 진행 중인 드래그를 버린다 (Escape). */
   cancel(): void
+  /** 화면이 스크롤·확대되었을 때 진행 중인 드래그를 마지막 포인터 위치로 다시 계산한다. */
+  refresh(): void
   overlay(): ToolOverlay
 }
 
@@ -56,12 +58,14 @@ type DrawDrag = {
   preview: Note
   invalid: boolean
 }
-type EraseDrag = { kind: 'erase'; file: string; keys: Set<string>; x: number; y: number }
+/** 지우기 도구의 왼쪽 드래그, 또는 그리기 도구의 오른쪽 드래그(button 2) */
+type EraseDrag = { kind: 'erase'; file: string; keys: Set<string>; x: number; y: number; button: number }
 type RectDrag = {
   kind: 'rect'
   file: string
   x: number
-  y: number
+  /** 시작점의 tick (스냅 전). 화면 y가 아니라 시간에 고정해야 끄는 중 휠로 스크롤해도 시작점이 따라 움직이지 않는다 */
+  tick: number
   additive: boolean
   /** 드래그 전 선택 (취소하면 되돌린다) */
   before: ReadonlySet<string>
@@ -93,6 +97,13 @@ export function createToolController(
   getGeometry: () => ToolGeometry
 ): ToolController {
   let drag: Drag | null = null
+  /** 드래그 중 마지막 포인터 위치 (refresh용) */
+  let last: ToolPointer | null = null
+  /**
+   * 오른쪽 드래그 지우기를 끝냈으니 뒤따르는 contextmenu는 무시한다 (같은 노트를 두 번 지우지 않게).
+   * Windows는 버튼을 뗀 뒤 contextmenu가 오므로 필요하다. 다음 누름에서 다시 끈다.
+   */
+  let skipContextMenu = false
 
   const chartNotes = (file: string) => getChart(store.getState().doc, file).notes
 
@@ -145,7 +156,7 @@ export function createToolController(
     const { layout } = getGeometry()
     const lane0 = Math.max(0, laneAt(Math.min(d.x, x)))
     const lane1 = Math.min(layout.columns.length - 1, laneAt(Math.max(d.x, x)))
-    const t0 = tickAt(d.y)
+    const t0 = d.tick
     const t1 = tickAt(y)
     d.rect =
       lane0 <= lane1 ? { lane0, lane1, tick0: Math.min(t0, t1), tick1: Math.max(t0, t1) } : null
@@ -186,7 +197,7 @@ export function createToolController(
         kind: 'rect',
         file,
         x: e.x,
-        y: e.y,
+        tick: tickAt(e.y),
         additive: e.shift,
         before: s.selection,
         moved: false,
@@ -218,11 +229,46 @@ export function createToolController(
     }
   }
 
+  const pointerMove = (e: ToolPointer) => {
+    const d = drag
+    if (!d) return
+    last = e
+    if (d.kind === 'draw') {
+      const note = drawNote(d, e.y)
+      if (!note) {
+        drag = null
+        return
+      }
+      d.preview = note
+      d.invalid = !addNote(store.getState().doc, d.file, note)
+    } else if (d.kind === 'erase') {
+      eraseAt(d, e.x, e.y)
+    } else if (d.kind === 'rect') {
+      rectTo(d, e.x, e.y)
+    } else {
+      moveTo(d, e.x, e.y)
+    }
+  }
+
   return {
     onPointerDown(e) {
       const s = store.getState()
-      if (e.button !== 0 || s.playing) return
+      skipContextMenu = false
+      if (s.playing) return
+      if (e.button === 2) {
+        // 그리기 도구: 오른쪽 버튼을 누른 채 끌면 지나간 노트를 지운다.
+        // 트랙 밖(마커)이나 다른 도구의 우클릭은 contextmenu가 처리한다
+        const { layout } = getGeometry()
+        if (drag || s.tool !== 'draw' || xToLane(layout, e.x) === null) return
+        if (inTrackNameBand(layout, e.x, e.y)) return
+        last = e
+        drag = { kind: 'erase', file: s.activeChart, keys: new Set(), x: e.x, y: e.y, button: 2 }
+        eraseAt(drag, e.x, e.y)
+        return
+      }
+      if (e.button !== 0) return
       drag = null
+      last = e
       // 트랙 이름 줄에서는 그리기·지우기·선택을 시작하지 않는다 (가려진 노트를 보지 않고 고치게 된다)
       if (inTrackNameBand(getGeometry().layout, e.x, e.y)) return
       const file = s.activeChart
@@ -235,31 +281,17 @@ export function createToolController(
         if (!addNote(s.doc, file, preview)) return
         drag = { kind: 'draw', file, ...cell, preview, invalid: false }
       } else if (s.tool === 'erase') {
-        drag = { kind: 'erase', file, keys: new Set(), x: e.x, y: e.y }
+        drag = { kind: 'erase', file, keys: new Set(), x: e.x, y: e.y, button: 0 }
         eraseAt(drag, e.x, e.y)
       } else {
         selectDown(e, file)
       }
     },
 
-    onPointerMove(e) {
-      const d = drag
-      if (!d) return
-      if (d.kind === 'draw') {
-        const note = drawNote(d, e.y)
-        if (!note) {
-          drag = null
-          return
-        }
-        d.preview = note
-        d.invalid = !addNote(store.getState().doc, d.file, note)
-      } else if (d.kind === 'erase') {
-        eraseAt(d, e.x, e.y)
-      } else if (d.kind === 'rect') {
-        rectTo(d, e.x, e.y)
-      } else {
-        moveTo(d, e.x, e.y)
-      }
+    onPointerMove: pointerMove,
+
+    refresh() {
+      if (drag && last) pointerMove(last)
     },
 
     onPointerUp(e) {
@@ -272,6 +304,7 @@ export function createToolController(
         const note = drawNote(d, e.y)
         if (note) store.apply('노트 추가', addNote(s.doc, d.file, note), d.file)
       } else if (d.kind === 'erase') {
+        if (d.button === 2) skipContextMenu = true
         eraseAt(d, e.x, e.y)
         if (d.keys.size > 0) store.apply('노트 지우기', removeNotes(s.doc, d.file, d.keys), d.file)
       } else if (d.kind === 'rect') {
@@ -286,8 +319,13 @@ export function createToolController(
     },
 
     onContextMenu(e) {
-      // 왼쪽 드래그 중의 우클릭은 무시한다 (한 동작이 기록 두 개로 갈라지지 않게)
+      // 드래그 중의 우클릭은 무시한다 (한 동작이 기록 두 개로 갈라지지 않게).
+      // 오른쪽 드래그 지우기가 이미 처리한 우클릭도 무시한다
       if (drag) return
+      if (skipContextMenu) {
+        skipContextMenu = false
+        return
+      }
       const s = store.getState()
       // 녹음 중에는 트랙 키 외의 편집을 모두 끈다 (5.10절)
       if (s.mode === 'recording') return
@@ -307,6 +345,8 @@ export function createToolController(
       const d = drag
       drag = null
       if (d?.kind === 'rect') store.set({ selection: d.before })
+      // 취소한 오른쪽 드래그 뒤의 contextmenu가 노트를 지우지 않게
+      if (d?.kind === 'erase' && d.button === 2) skipContextMenu = true
     },
 
     overlay() {

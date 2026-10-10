@@ -173,6 +173,79 @@ describe('우클릭', () => {
   })
 })
 
+describe('그리기 도구 우클릭 드래그', () => {
+  const column = [tap(0, 'Note_1'), tap(480, 'Note_1'), tap(960, 'Note_1'), tap(480, 'Note_2')]
+
+  it('우클릭한 채 끌면 지나간 노트를 숨기고, 놓을 때 한 번에 삭제', () => {
+    const { tools, notes, labels } = setup(withNotes(d0, column))
+    tools.onPointerDown(right(X0, yOf(0)))
+    tools.onPointerMove(right(X0, yOf(960)))
+    expect([...tools.overlay().hiddenKeys].sort()).toEqual(['Note_1:0', 'Note_1:480', 'Note_1:960'])
+    expect(tools.overlay().preview).toEqual([])
+    tools.onPointerUp(right(X0, yOf(960)))
+    tools.onContextMenu(right(X0, yOf(960))) // Windows는 버튼을 뗀 뒤 contextmenu가 온다
+    expect(notes()).toEqual([tap(480, 'Note_2')])
+    expect(labels()).toEqual(['노트 지우기'])
+  })
+
+  it('끌지 않은 우클릭은 노트 하나만 삭제 (기록 하나)', () => {
+    const { tools, notes, labels } = setup(withNotes(d0, column))
+    tools.onPointerDown(right(X1, yOf(480)))
+    tools.onPointerUp(right(X1, yOf(480)))
+    tools.onContextMenu(right(X1, yOf(480)))
+    expect(notes()).toEqual([tap(0, 'Note_1'), tap(480, 'Note_1'), tap(960, 'Note_1')])
+    expect(labels()).toEqual(['노트 지우기'])
+  })
+
+  it('contextmenu가 먼저 와도(버튼 누를 때) 한 번만 삭제', () => {
+    const { tools, notes, labels } = setup(withNotes(d0, column))
+    tools.onPointerDown(right(X1, yOf(480)))
+    tools.onContextMenu(right(X1, yOf(480)))
+    tools.onPointerUp(right(X1, yOf(480)))
+    expect(notes()).toEqual([tap(0, 'Note_1'), tap(480, 'Note_1'), tap(960, 'Note_1')])
+    expect(labels()).toEqual(['노트 지우기'])
+  })
+
+  it('Escape로 취소하면 아무것도 지우지 않는다', () => {
+    const { tools, notes } = setup(withNotes(d0, column))
+    tools.onPointerDown(right(X0, yOf(0)))
+    tools.onPointerMove(right(X0, yOf(960)))
+    tools.cancel()
+    tools.onPointerUp(right(X0, yOf(960)))
+    expect(notes()).toEqual(column)
+    expect(commit).not.toHaveBeenCalled()
+  })
+
+  it('트랙 밖 우클릭은 드래그를 시작하지 않고 마커 삭제는 그대로', () => {
+    const doc: ProjectDoc = { ...d0, editorData: { ...d0.editorData, markers: [{ ms: 0, label: '' }] } }
+    const { store, tools, labels } = setup(doc)
+    tools.onPointerDown(right(layout.waveX + 10, 600))
+    tools.onPointerUp(right(layout.waveX + 10, 600))
+    tools.onContextMenu(right(layout.waveX + 10, 600))
+    expect(store.getState().doc.editorData.markers).toEqual([])
+    expect(labels()).toEqual(['마커 삭제'])
+  })
+
+  it('선택 도구에서는 우클릭 드래그로 지우지 않는다 (우클릭 한 번 = 노트 하나)', () => {
+    const { tools, notes, labels } = setup(withNotes(d0, column), 'select')
+    tools.onPointerDown(right(X0, yOf(0)))
+    tools.onPointerMove(right(X0, yOf(960)))
+    tools.onPointerUp(right(X0, yOf(960)))
+    tools.onContextMenu(right(X0, yOf(960)))
+    expect(notes()).toEqual([tap(0, 'Note_1'), tap(480, 'Note_1'), tap(480, 'Note_2')])
+    expect(labels()).toEqual(['노트 삭제'])
+  })
+
+  it('재생 중에는 무시', () => {
+    const { store, tools, notes } = setup(withNotes(d0, column))
+    store.set({ playing: true })
+    tools.onPointerDown(right(X0, yOf(0)))
+    tools.onPointerMove(right(X0, yOf(960)))
+    tools.onPointerUp(right(X0, yOf(960)))
+    expect(notes()).toEqual(column)
+  })
+})
+
 describe('지우기 도구', () => {
   it('드래그로 지나간 노트를 숨기고 놓을 때 한 번에 삭제', () => {
     const start = [tap(0, 'Note_1'), tap(480, 'Note_1'), tap(240, 'Note_2')]
@@ -255,6 +328,56 @@ describe('선택 도구', () => {
     tools.onPointerDown(left(X1, yOf(480), true))
     tools.onPointerUp(left(X1, yOf(480), true))
     expect(selection(store)).toEqual(['Note_2:480', 'Note_3:960'])
+  })
+
+  describe('끄는 중 휠로 스크롤', () => {
+    // 휠은 재생선(view.playheadMs)을 옮긴다. 1000ms 스크롤 = 960 tick = 480px
+    const scrolled = (doc: ProjectDoc) => {
+      const v = { ...view }
+      const store = new EditorStore({ dir: 'C:/p', audioPath: 'C:/p/audio.ogg' }, doc)
+      store.set({ tool: 'select', snap: 4 })
+      const tools = createToolController(store, () => ({ tm, view: v, layout }))
+      return { store, tools, scroll: (ms: number) => (v.playheadMs += ms) }
+    }
+    const notes = [tap(480, 'Note_1'), tap(1440, 'Note_1')]
+
+    it('시작점은 화면이 아니라 시간에 고정된다', () => {
+      const { store, tools, scroll } = scrolled(withNotes(d0, notes))
+      tools.onPointerDown(left(X1, yOf(240)))
+      tools.onPointerMove(left(X0, yOf(720)))
+      expect(selection(store)).toEqual(['Note_1:480'])
+      scroll(1000)
+      tools.onPointerMove(left(X0, yOf(720))) // 같은 화면 위치 = 이제 tick 1680
+      expect(selection(store)).toEqual(['Note_1:1440', 'Note_1:480'])
+    })
+
+    it('포인터를 움직이지 않아도 refresh로 선택이 늘어난다', () => {
+      const { store, tools, scroll } = scrolled(withNotes(d0, notes))
+      tools.onPointerDown(left(X1, yOf(240)))
+      tools.onPointerMove(left(X0, yOf(720)))
+      scroll(1000)
+      tools.refresh()
+      expect(selection(store)).toEqual(['Note_1:1440', 'Note_1:480'])
+      const rect = tools.overlay().selectRect
+      expect(rect && [rect.tick0, rect.tick1]).toEqual([240, 1680])
+    })
+
+    it('그리기 드래그도 스크롤하면 롱노트가 늘어난다', () => {
+      const { store, tools, scroll } = scrolled(d0)
+      store.set({ tool: 'draw' })
+      tools.onPointerDown(left(X0, yOf(0)))
+      tools.onPointerMove(left(X0, yOf(480)))
+      scroll(1000)
+      tools.refresh()
+      expect(tools.overlay().preview).toEqual([{ tick: 0, track: 'Note_1', type: 'hold', endTick: 1440 }])
+    })
+
+    it('드래그 중이 아니면 refresh는 아무것도 하지 않는다', () => {
+      const { store, tools } = scrolled(withNotes(d0, notes))
+      store.set({ selection: new Set(['Note_1:480']) })
+      tools.refresh()
+      expect(selection(store)).toEqual(['Note_1:480'])
+    })
   })
 
   it('Escape(cancel)로 사각 선택을 취소하면 원래 선택으로', () => {

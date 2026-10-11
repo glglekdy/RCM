@@ -73,17 +73,24 @@
   border: 0;
 }
 
+/* 변속 지점 하나: 위치·삭제 줄 + 배율·방식 줄 */
+.speedPoint {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.speedPoint + .speedPoint {
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
 .speedRow {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 4px;
   height: 32px;
-}
-
-.speedPosition {
-  flex: none;
-  min-width: 36px;
-  white-space: nowrap;
 }
 
 .speedValue {

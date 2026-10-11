@@ -1,5 +1,5 @@
 import { Trash2 } from 'lucide-react'
-import { snapTick, type SpeedEase, type TimingMap } from '@rcm/core'
+import { snapTick, TimingMap, type SpeedEase } from '@rcm/core'
 import { Button, Card, IconButton, NumberField, SegmentedControl, useToast } from '../../ui'
 import {
   addSpeedPoint,
@@ -48,13 +48,14 @@ export function SpeedCard({ tm }: { tm: TimingMap }) {
   const addAtPlayhead = () => {
     if (isLocked()) return
     const { playheadMs, snap, doc, activeChart } = store.getState()
-    const tick = Math.round(snapTick(tm, Math.max(0, tm.msToTick(playheadMs)), snap))
+    const map = new TimingMap(doc.song.timing, doc.song.offsetMs)
+    const tick = Math.round(snapTick(map, Math.max(0, map.msToTick(playheadMs)), snap))
     const target = getChart(doc, activeChart)
     if (target.speeds?.some((p) => p.tick === tick)) {
       toast('이미 이 위치에 속도 변경이 있어요')
       return
     }
-    const speed = defaultSpeedAt(target, tm, tick)
+    const speed = defaultSpeedAt(target, map, tick)
     store.apply('속도 추가', addSpeedPoint(doc, activeChart, tick, speed), activeChart)
   }
 
@@ -67,36 +68,40 @@ export function SpeedCard({ tm }: { tm: TimingMap }) {
           speeds.map((point) => {
             const { measure, beat } = measureBeatAt(tm, point.tick)
             return (
-              <div key={point.tick} className={styles.speedRow}>
-                <span className={`${styles.position} ${styles.speedPosition}`}>
-                  {measure}:{beat}
-                </span>
-                <div className={styles.speedValue}>
-                  <NumberField
-                    value={point.speed}
-                    min={0}
-                    max={20}
-                    step={0.1}
-                    suffix="×"
-                    onCommit={(speed) =>
-                      edit('속도 수정', point.tick, (doc, i) => updateSpeedPoint(doc, file, i, { speed }))
-                    }
+              <div key={point.tick} className={styles.speedPoint}>
+                <div className={styles.speedRow}>
+                  <span className={styles.position}>
+                    {measure}마디 {beat}박
+                  </span>
+                  <IconButton
+                    icon={Trash2}
+                    label="삭제"
+                    onClick={() => edit('속도 삭제', point.tick, (doc, i) => removeSpeedPoint(doc, file, i))}
                   />
                 </div>
-                <div className={styles.speedEase}>
-                  <SegmentedControl
-                    options={EASE_OPTIONS}
-                    value={point.ease ?? 'instant'}
-                    onChange={(ease) =>
-                      edit('속도 수정', point.tick, (doc, i) => updateSpeedPoint(doc, file, i, { ease }))
-                    }
-                  />
+                <div className={styles.speedRow}>
+                  <div className={styles.speedValue}>
+                    <NumberField
+                      value={point.speed}
+                      min={0}
+                      max={20}
+                      step={0.1}
+                      suffix="×"
+                      onCommit={(speed) =>
+                        edit('속도 수정', point.tick, (doc, i) => updateSpeedPoint(doc, file, i, { speed }))
+                      }
+                    />
+                  </div>
+                  <div className={styles.speedEase}>
+                    <SegmentedControl
+                      options={EASE_OPTIONS}
+                      value={point.ease ?? 'instant'}
+                      onChange={(ease) =>
+                        edit('속도 수정', point.tick, (doc, i) => updateSpeedPoint(doc, file, i, { ease }))
+                      }
+                    />
+                  </div>
                 </div>
-                <IconButton
-                  icon={Trash2}
-                  label="삭제"
-                  onClick={() => edit('속도 삭제', point.tick, (doc, i) => removeSpeedPoint(doc, file, i))}
-                />
               </div>
             )
           })

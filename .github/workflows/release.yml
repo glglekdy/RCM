@@ -1,0 +1,45 @@
+name: release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # npm 11은 설치 스크립트를 막으므로 Electron 실행 파일을 직접 내려받는다
+      - run: node node_modules/electron/install.js
+
+      - name: 태그와 앱 버전 일치 확인
+        run: node scripts/check-tag.mjs "$env:GITHUB_REF_NAME"
+
+      - run: npm test
+
+      - run: npm run typecheck
+
+      - name: Secret 확인
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if ([string]::IsNullOrEmpty($env:RELEASE_TOKEN)) {
+            Write-Output "::error::RELEASE_TOKEN Secret이 없어요"
+            exit 1
+          }
+
+      - name: 빌드하고 RCM 저장소에 릴리스 올리기
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: npm -w @rcm/editor run dist:publish

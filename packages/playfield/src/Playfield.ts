@@ -1,11 +1,12 @@
 import { DEFAULT_NOTE_COLOR, ScrollMap, type Chart, type TimingMap } from '@rcm/core';
 import { HOLD_RELEASE_TOLERANCE, type JudgeEvent, type Judgement } from './judge';
 import { keyLabel, trackForCode, trackForKey } from './keymap';
+import { DEFAULT_LAYOUT } from './layout';
 import { PlayState } from './playState';
 import {
   clampSpeed,
   firstAtOrAbove,
-  JUDGE_LINE_FROM_BOTTOM,
+  judgeLineY,
   JUDGEMENT_SHOW_MS,
   trackColumns,
   notePositions,
@@ -207,11 +208,11 @@ export class Playfield {
     ctx.fillRect(0, 0, width, height);
     if (width === 0 || height === 0) return;
 
-    const cols = trackColumns(width, this.opts.chart.tracks);
+    const cols = trackColumns(width, this.lanes, DEFAULT_LAYOUT.laneWidth);
     const last = cols[cols.length - 1];
     const left = cols[0].x;
     const fieldWidth = last.x + last.width - left;
-    const judgeY = height - JUDGE_LINE_FROM_BOTTOM;
+    const judgeY = judgeLineY(height, DEFAULT_LAYOUT);
     const centerX = left + fieldWidth / 2;
 
     ctx.fillStyle = colors.lane;

@@ -1,11 +1,11 @@
 /** 플레이 화면 배치와 시간↔좌표 계산 (그리기와 분리한 순수 함수). */
 
-import type { Track, TrackWidth } from '@rcm/core';
+import type { PlayfieldLayout } from './layout';
 
-export const TRACK_BASE_WIDTH = 64;
-export const TRACK_WIDTH_FACTOR: Record<TrackWidth, number> = { narrow: 0.67, normal: 1, wide: 1.67 };
-/** 판정선은 화면 아래에서 이만큼(px) 위 */
-export const JUDGE_LINE_FROM_BOTTOM = 120;
+/** 노트 머리와 레인 경계 사이 여백 */
+export const NOTE_INSET = 3;
+/** 키 표시(D F J K)를 그리는 판정선 아래 거리 */
+export const KEY_LABEL_OFFSET = 48;
 /** 마지막 판정 문구를 보여 주는 시간(ms) */
 export const JUDGEMENT_SHOW_MS = 400;
 /** 유저 배속 (DJMAX RESPECT V와 같은 범위·단위) */
@@ -31,19 +31,34 @@ export function pxPerMsForSpeed(speed: number, judgeY: number): number {
   return (Math.max(judgeY, 1) * speed) / DJMAX_TRAVEL_MS_AT_1X;
 }
 
-export function trackPixelWidth(w?: TrackWidth): number {
-  return Math.round(TRACK_BASE_WIDTH * TRACK_WIDTH_FACTOR[w ?? 'normal']);
-}
-
-/** 트랙별 열의 x와 폭. 전체 폭 합계를 가운데 정렬한다. */
-export function trackColumns(canvasWidth: number, tracks: readonly Track[]): { x: number; width: number }[] {
-  const widths = tracks.map(t => trackPixelWidth(t.width));
-  let x = Math.floor((canvasWidth - widths.reduce((a, b) => a + b, 0)) / 2);
-  return widths.map(width => {
-    const col = { x, width };
-    x += width;
+/** 레인별 열의 x와 폭. 모든 레인 같은 너비(트랙의 width 힌트는 보지 않는다), 합계를 가운데 정렬. */
+export function trackColumns(canvasWidth: number, laneCount: number, laneWidth: number): { x: number; width: number }[] {
+  let x = Math.floor((canvasWidth - laneCount * laneWidth) / 2);
+  return Array.from({ length: laneCount }, () => {
+    const col = { x, width: laneWidth };
+    x += laneWidth;
     return col;
   });
+}
+
+/** 판정선 중심의 y. */
+export function judgeLineY(height: number, layout: PlayfieldLayout): number {
+  return height - layout.judgeLineFromBottom;
+}
+
+/** 롱노트 몸통 너비 (레인 가운데 정렬). */
+export function holdBodyWidth(laneWidth: number): number {
+  return Math.round(laneWidth * 0.69);
+}
+
+/** 노트 머리가 중심에서 위아래로 차지하는 길이. 화면 밖 여유 계산에 쓴다. */
+export function noteHalfExtent(layout: PlayfieldLayout): number {
+  return layout.noteShape === 'circle' ? (layout.laneWidth - NOTE_INSET * 2) / 2 : layout.noteHeight / 2;
+}
+
+/** 판정선 아래에 키 표시를 그릴 자리가 있는지. */
+export function keyLabelsVisible(layout: PlayfieldLayout): boolean {
+  return layout.judgeLineFromBottom >= KEY_LABEL_OFFSET;
 }
 
 /** 스크롤 위치 notePos의 노트가 지금(nowPos) 있는 y. 판정선(judgeY) 위가 미래. 변속이 없으면 위치는 ms와 같다. */

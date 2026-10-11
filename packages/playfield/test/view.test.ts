@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { ScrollMap, TimingMap } from '@rcm/core';
 import {
   clampSpeed,
+  DEFAULT_LAYOUT,
   DEFAULT_SPEED,
+  holdBodyWidth,
+  judgeLineY,
+  keyLabelsVisible,
+  noteHalfExtent,
   DJMAX_TRAVEL_MS_AT_1X,
   MAX_SPEED,
   MIN_SPEED,
@@ -36,11 +41,37 @@ describe('playfield view', () => {
     expect(clampSpeed(4.04)).toBe(4);
     expect(clampSpeed(NaN)).toBe(DEFAULT_SPEED);
   });
-  it('트랙 열: 폭 합계 가운데 정렬', () => {
-    const cols = trackColumns(400, [{ id: 'S', width: 'wide' }, { id: 'N' }, { id: 'T', width: 'narrow' }]);
-    expect(cols.map(c => c.width)).toEqual([107, 64, 43]);
-    expect(cols[0].x).toBe(Math.floor((400 - 214) / 2));
-    expect(cols[1].x).toBe(cols[0].x + 107);
+  it('트랙 열: 모두 같은 너비, 가운데 정렬', () => {
+    const cols = trackColumns(400, 3, 64);
+    expect(cols.map(c => c.width)).toEqual([64, 64, 64]);
+    expect(cols[0].x).toBe(104);
+    expect(cols[1].x).toBe(168);
+  });
+  it('holdBodyWidth: 레인 너비의 0.69', () => {
+    expect([64, 30, 200].map(holdBodyWidth)).toEqual([44, 21, 138]);
+  });
+  it('noteHalfExtent: 바는 두께 절반, 동그라미는 반지름', () => {
+    expect(noteHalfExtent(DEFAULT_LAYOUT)).toBe(7);
+    expect(noteHalfExtent({ ...DEFAULT_LAYOUT, noteShape: 'circle' })).toBe(29);
+  });
+  it('최소 레인에서도 양수 크기', () => {
+    expect(noteHalfExtent({ ...DEFAULT_LAYOUT, laneWidth: 30, noteShape: 'circle' })).toBe(12);
+    expect(holdBodyWidth(30)).toBeGreaterThan(0);
+  });
+  it('keyLabelsVisible', () => {
+    expect([120, 48, 47, 0].map(v => keyLabelsVisible({ ...DEFAULT_LAYOUT, judgeLineFromBottom: v }))).toEqual([
+      true,
+      true,
+      false,
+      false,
+    ]);
+  });
+  it('판정선을 옮겨도 낙하 시간 유지', () => {
+    for (const judgeLineFromBottom of [0, 400]) {
+      const judgeY = judgeLineY(800, { ...DEFAULT_LAYOUT, judgeLineFromBottom });
+      expect(judgeY).toBe(800 - judgeLineFromBottom);
+      expect(judgeY / pxPerMsForSpeed(4, judgeY)).toBeCloseTo(673.214, 2);
+    }
   });
   it('노트 y: 판정선에서 남은 스크롤 위치 × px/ms 만큼 위', () => {
     expect(noteY(1000, 800, 500, 0.5)).toBe(400);

@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { ScrollMap, TimingMap } from '@rcm/core';
 import {
   clampSpeed,
+  DEFAULT_SPEED,
+  DJMAX_TRAVEL_MS_AT_1X,
+  MAX_SPEED,
+  MIN_SPEED,
+  SPEED_STEP,
   firstAtOrAbove,
   notePositions,
   noteY,
@@ -11,14 +16,25 @@ import {
 } from '../src';
 
 describe('playfield view', () => {
-  it('속도 → px/ms = speed × 0.1', () => {
-    expect(pxPerMsForSpeed(5)).toBeCloseTo(0.5);
-    expect(pxPerMsForSpeed(1)).toBeCloseTo(0.1);
+  it('낙하 시간: 판정선 높이와 상관없이 디맥과 같게 2692.857 / 배속 ms', () => {
+    for (const judgeY of [500, 960]) {
+      expect(judgeY / pxPerMsForSpeed(1, judgeY)).toBeCloseTo(2692.857, 2);
+      expect(judgeY / pxPerMsForSpeed(4, judgeY)).toBeCloseTo(673.214, 2);
+    }
+    expect(DJMAX_TRAVEL_MS_AT_1X).toBeCloseTo((754 / 280) * 1000, 6);
   });
-  it('속도는 1~10', () => {
+  it('판정선이 화면 위에 걸려도 px/ms는 양수', () => {
+    expect(pxPerMsForSpeed(4, 0)).toBeGreaterThan(0);
+    expect(pxPerMsForSpeed(4, -50)).toBeGreaterThan(0);
+  });
+  it('배속은 1.0~9.0, 0.1 단위로 반올림', () => {
+    expect([MIN_SPEED, MAX_SPEED, DEFAULT_SPEED, SPEED_STEP]).toEqual([1, 9, 4, 0.1]);
     expect(clampSpeed(0.5)).toBe(1);
-    expect(clampSpeed(10.5)).toBe(10);
+    expect(clampSpeed(9.5)).toBe(9);
     expect(clampSpeed(5.5)).toBe(5.5);
+    expect(clampSpeed(0.1 + 0.2 + 4)).toBe(4.3);
+    expect(clampSpeed(4.04)).toBe(4);
+    expect(clampSpeed(NaN)).toBe(DEFAULT_SPEED);
   });
   it('트랙 열: 폭 합계 가운데 정렬', () => {
     const cols = trackColumns(400, [{ id: 'S', width: 'wide' }, { id: 'N' }, { id: 'T', width: 'narrow' }]);

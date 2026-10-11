@@ -8,16 +8,27 @@ export const TRACK_WIDTH_FACTOR: Record<TrackWidth, number> = { narrow: 0.67, no
 export const JUDGE_LINE_FROM_BOTTOM = 120;
 /** 마지막 판정 문구를 보여 주는 시간(ms) */
 export const JUDGEMENT_SHOW_MS = 400;
+/** 유저 배속 (DJMAX RESPECT V와 같은 범위·단위) */
 export const MIN_SPEED = 1;
-export const MAX_SPEED = 10;
-export const DEFAULT_SPEED = 5;
+export const MAX_SPEED = 9;
+export const DEFAULT_SPEED = 4;
+export const SPEED_STEP = 0.1;
+/**
+ * 배속 1.0에서 노트가 화면 위에서 판정선까지 내려오는 시간(ms). 배속 X면 이 값 ÷ X.
+ * DJMAX RESPECT V를 FHD에서 잰 값: 노트 출력~판정선 754px, 1.0배속 120BPM 마디 간격 560px(= 280px/s).
+ */
+export const DJMAX_TRAVEL_MS_AT_1X = (754 / 280) * 1000;
 
+/** 범위 안으로 자르고 0.1 단위로 반올림한다. 숫자가 아니면 기본 배속. */
 export function clampSpeed(speed: number): number {
-  return Math.min(MAX_SPEED, Math.max(MIN_SPEED, speed));
+  if (!Number.isFinite(speed)) return DEFAULT_SPEED;
+  return Math.min(MAX_SPEED, Math.max(MIN_SPEED, Math.round(speed * 10) / 10));
 }
 
-export function pxPerMsForSpeed(speed: number): number {
-  return speed * 0.1;
+/** 판정선이 화면 위에서 judgeY(px) 아래일 때, 노트가 위 끝에서 판정선까지 고정 시간에 오도록 하는 px/ms. */
+export function pxPerMsForSpeed(speed: number, judgeY: number): number {
+  // 창이 판정선 여백보다 낮아도 0으로 나누지 않게 최소 1px
+  return (Math.max(judgeY, 1) * speed) / DJMAX_TRAVEL_MS_AT_1X;
 }
 
 export function trackPixelWidth(w?: TrackWidth): number {

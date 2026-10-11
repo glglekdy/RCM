@@ -259,7 +259,7 @@ export class Playfield {
     height: number,
   ): void {
     const { ctx } = this;
-    const pxPerMs = pxPerMsForSpeed(this.speed);
+    const pxPerMs = pxPerMsForSpeed(this.speed, judgeY);
     const pad = NOTE_HEIGHT / pxPerMs;
     const nowPos = this.scroll.positionAt(now);
     const { fromPos, toPos } = visibleScrollRange(nowPos, height, judgeY, pxPerMs);

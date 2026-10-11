@@ -1,6 +1,6 @@
 import { DEFAULT_NOTE_COLOR } from './constants';
 import { compareNotes } from './tracks';
-import type { Chart, EditorData, Note, Song, Track } from './types';
+import type { Chart, EditorData, Note, Song, SpeedPoint, Track } from './types';
 
 const dump = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
 
@@ -37,6 +37,10 @@ function trackOut(t: Track) {
   return out;
 }
 
+function speedOut(p: SpeedPoint) {
+  return p.ease === 'linear' ? { tick: p.tick, speed: p.speed, ease: p.ease } : { tick: p.tick, speed: p.speed };
+}
+
 export function serializeChart(chart: Chart): string {
   const notes = [...chart.notes].sort(compareNotes(chart.tracks));
   return dump({
@@ -44,6 +48,7 @@ export function serializeChart(chart: Chart): string {
     name: chart.name,
     level: chart.level,
     tracks: chart.tracks.map(trackOut),
+    ...(chart.speeds && chart.speeds.length > 0 ? { speeds: chart.speeds.map(speedOut) } : {}),
     notes: notes.map(noteOut),
   });
 }

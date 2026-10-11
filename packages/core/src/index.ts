@@ -1,6 +1,7 @@
 export * from './constants';
 export * from './types';
 export * from './timing';
+export * from './scroll';
 export * from './snap';
 export * from './tracks';
 export * from './tapTempo';

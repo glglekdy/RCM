@@ -110,3 +110,29 @@ describe('notesOverlap', () => {
     expect(notesOverlap({ tick: 0, track: 'Note_1', type: 'hold', endTick: 480 }, { tick: 480, track: 'Note_2', type: 'tap' })).toBe(false);
   });
 });
+
+describe('speeds', () => {
+  it.each([
+    [{ speeds: {} }, 'speeds'],
+    [{ speeds: [{ tick: -1, speed: 1 }] }, 'speeds[0].tick'],
+    [{ speeds: [{ tick: 1.5, speed: 1 }] }, 'speeds[0].tick'],
+    [{ speeds: [{ tick: 480, speed: 1 }, { tick: 480, speed: 2 }] }, 'speeds[1].tick'],
+    [{ speeds: [{ tick: 960, speed: 1 }, { tick: 480, speed: 2 }] }, 'speeds[1].tick'],
+    [{ speeds: [{ tick: 0, speed: -0.1 }] }, 'speeds[0].speed'],
+    [{ speeds: [{ tick: 0, speed: 20.5 }] }, 'speeds[0].speed'],
+    [{ speeds: [{ tick: 0, speed: '2' }] }, 'speeds[0].speed'],
+    [{ speeds: [{ tick: 0, speed: 1, ease: 'bounce' }] }, 'speeds[0].ease'],
+  ])('잘못된 speeds %#', (patch, needle) => {
+    const errors = errorsOf(parseChart(chartText([], patch), 'hard.chart.json'));
+    expect(errors.join('\n')).toContain('hard.chart.json');
+    expect(errors.join('\n')).toContain(needle);
+  });
+  it('정상 speeds (0과 20 경계 포함)', () => {
+    const r = parseChart(chartText([], { speeds: [{ tick: 0, speed: 0 }, { tick: 480, speed: 20, ease: 'linear' }] }), 'n.chart.json');
+    expect(r.ok && r.value.speeds).toEqual([{ tick: 0, speed: 0 }, { tick: 480, speed: 20, ease: 'linear' }]);
+  });
+  it('빈 speeds는 필드를 두지 않는다', () => {
+    const r = parseChart(chartText([], { speeds: [] }), 'n.chart.json');
+    expect(r.ok && 'speeds' in r.value).toBe(false);
+  });
+});

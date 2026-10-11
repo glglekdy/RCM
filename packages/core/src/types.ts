@@ -26,11 +26,20 @@ export type Note =
   | { tick: number; track: string; type: 'tap' }
   | { tick: number; track: string; type: 'hold'; endTick: number };
 
+export type SpeedEase = 'instant' | 'linear';
+
+export interface SpeedPoint {
+  tick: number;
+  speed: number;
+  ease?: SpeedEase;
+}
+
 export interface Chart {
   formatVersion: 1;
   name: string;
   level: number;
   tracks: Track[];
+  speeds?: SpeedPoint[];
   notes: Note[];
 }
 

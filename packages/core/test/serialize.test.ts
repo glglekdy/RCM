@@ -56,3 +56,20 @@ describe('serialize', () => {
     expect(r.ok && r.value).toEqual(data);
   });
 });
+
+describe('serialize speeds', () => {
+  it('speeds가 없거나 비면 필드 생략', () => {
+    const base = { formatVersion: 1, name: 'N', level: 1, tracks: basicTracks(4), notes: [] } as Chart;
+    expect(serializeChart(base)).not.toContain('speeds');
+    expect(serializeChart({ ...base, speeds: [] })).not.toContain('speeds');
+  });
+  it('instant 생략, 필드 순서, 왕복', () => {
+    const chart = { formatVersion: 1, name: 'N', level: 1, tracks: basicTracks(4), notes: [],
+      speeds: [{ tick: 0, speed: 2, ease: 'instant' }, { tick: 480, speed: 1, ease: 'linear' }] } as Chart;
+    const text = serializeChart(chart);
+    expect(JSON.parse(text).speeds).toEqual([{ tick: 0, speed: 2 }, { tick: 480, speed: 1, ease: 'linear' }]);
+    expect(Object.keys(JSON.parse(text))).toEqual(['formatVersion', 'name', 'level', 'tracks', 'speeds', 'notes']);
+    const back = parseChart(text, 'n.chart.json');
+    expect(back.ok && back.value.speeds).toEqual([{ tick: 0, speed: 2 }, { tick: 480, speed: 1, ease: 'linear' }]);
+  });
+});

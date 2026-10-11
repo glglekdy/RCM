@@ -8,6 +8,8 @@ export const TRACK_ID_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
 export const DEFAULT_NOTE_COLOR = '#f2f2f2';
 export const TRACK_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 export const TRACK_WIDTHS: readonly TrackWidth[] = ['narrow', 'normal', 'wide'];
+export const MIN_SCROLL_SPEED = 0;
+export const MAX_SCROLL_SPEED = 20;
 
 export type SnapDivision = 4 | 8 | 12 | 16 | 24 | 32;
 

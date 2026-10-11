@@ -1,6 +1,6 @@
-import { FORMAT_VERSION } from './constants';
+import { FORMAT_VERSION, MAX_SCROLL_SPEED, MIN_SCROLL_SPEED } from './constants';
 import { trackErrors } from './tracks';
-import type { Chart, EditorData, Marker, Note, Song, TimingPoint, Track } from './types';
+import type { Chart, EditorData, Marker, Note, Song, SpeedEase, SpeedPoint, TimingPoint, Track } from './types';
 
 export type ParseResult<T> = { ok: true; value: T } | { ok: false; errors: string[] };
 
@@ -122,6 +122,39 @@ export function validateChart(root: Obj, file: string): ParseResult<Chart> {
   }
   const trackIds = new Set(tracks.map((t) => t.id));
 
+  const speeds: SpeedPoint[] = [];
+  if (root.speeds !== undefined) {
+    if (!Array.isArray(root.speeds)) {
+      c.add('speeds', '배열이어야 함');
+    } else {
+      let prevTick = -1;
+      root.speeds.forEach((raw, i) => {
+        const p = `speeds[${i}]`;
+        if (!isObj(raw)) {
+          c.add(p, '객체여야 함');
+          return;
+        }
+        const before = c.errors.length;
+        if (!isInt(raw.tick) || raw.tick < 0) {
+          c.add(`${p}.tick`, '0 이상의 정수여야 함');
+        } else {
+          if (raw.tick <= prevTick) c.add(`${p}.tick`, `앞 항목(${prevTick})보다 커야 함`);
+          prevTick = raw.tick;
+        }
+        if (!isNum(raw.speed) || raw.speed < MIN_SCROLL_SPEED || raw.speed > MAX_SCROLL_SPEED) {
+          c.add(`${p}.speed`, `${MIN_SCROLL_SPEED}~${MAX_SCROLL_SPEED} 사이여야 함`);
+        }
+        if (raw.ease !== undefined && raw.ease !== 'instant' && raw.ease !== 'linear') {
+          c.add(`${p}.ease`, '"instant" 또는 "linear"여야 함');
+        }
+        if (c.errors.length > before) return;
+        const point: SpeedPoint = { tick: raw.tick as number, speed: raw.speed as number };
+        if (raw.ease !== undefined) point.ease = raw.ease as SpeedEase;
+        speeds.push(point);
+      });
+    }
+  }
+
   const notes: Note[] = [];
   const noteIndex: number[] = [];
   if (!Array.isArray(root.notes)) {
@@ -174,7 +207,9 @@ export function validateChart(root: Obj, file: string): ParseResult<Chart> {
   }
 
   if (c.errors.length > 0) return { ok: false, errors: c.errors };
-  return { ok: true, value: { formatVersion: FORMAT_VERSION, name, level, tracks, notes } };
+  const value: Chart = { formatVersion: FORMAT_VERSION, name, level, tracks, notes };
+  if (speeds.length > 0) value.speeds = speeds;
+  return { ok: true, value };
 }
 
 export function validateEditorData(root: Obj, file: string): ParseResult<EditorData> {

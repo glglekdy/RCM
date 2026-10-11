@@ -160,6 +160,18 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   const panelOpen = useEditor((s) => s.panelOpen)
   const [creating, setCreating] = useState(false)
 
+  // 디스코드 활동: 이 화면은 프로젝트를 열 때마다 새로 만들어지므로 처음 그린 시각 = 연 시각
+  const [since] = useState(() => Date.now())
+  useEffect(() => {
+    window.rcm.setPresence({
+      title: song.title,
+      artist: song.artist,
+      chart: chart.name,
+      level: chart.level,
+      since
+    })
+  }, [song.title, song.artist, chart.name, chart.level, since])
+
   const tm = useMemo(() => new TimingMap(song.timing, song.offsetMs), [song.timing, song.offsetMs])
   const tmRef = useRef(tm)
   tmRef.current = tm

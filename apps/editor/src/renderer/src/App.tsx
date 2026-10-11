@@ -21,6 +21,11 @@ export function App() {
     })
   }, [])
 
+  // 홈 화면에서는 디스코드에 곡 정보 없이 RCM만 보인다
+  useEffect(() => {
+    if (state.screen === 'home') window.rcm.setPresence(null)
+  }, [state.screen])
+
   const openProject = useCallback((files: ProjectFiles) => {
     setState({ screen: 'editor', files, id: nextId.current++ })
   }, [])

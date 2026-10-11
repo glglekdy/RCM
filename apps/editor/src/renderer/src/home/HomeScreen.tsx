@@ -1,9 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BookOpen, Bot, FolderOpen, House, Plus, Search, SlidersHorizontal, type LucideIcon } from 'lucide-react'
+import {
+  BookOpen,
+  Bot,
+  FolderOpen,
+  House,
+  Plus,
+  Search,
+  Settings,
+  SlidersHorizontal,
+  type LucideIcon
+} from 'lucide-react'
 import type { ProjectFiles, RecentProject } from '../../../shared/api'
 import { AiGuidePage } from '../guide/AiGuidePage'
 import { UserGuidePage } from '../guide/UserGuidePage'
 import { PresetsPage } from '../presets/PresetsPage'
+import { SettingsPage } from '../settings/SettingsPage'
 import { UpdatePanel } from '../update/UpdatePanel'
 import { Button, TextField, useDialogs } from '../ui'
 import { nextGreeting } from './greeting'
@@ -11,13 +22,14 @@ import { NewProjectDialog } from './NewProjectDialog'
 import { RecentTable } from './RecentTable'
 import styles from './HomeScreen.module.css'
 
-type Page = 'home' | 'presets' | 'userGuide' | 'aiGuide'
+type Page = 'home' | 'presets' | 'userGuide' | 'aiGuide' | 'settings'
 
 const NAV: { page: Page; icon: LucideIcon; label: string }[] = [
   { page: 'home', icon: House, label: '홈' },
   { page: 'presets', icon: SlidersHorizontal, label: '트랙 프리셋' },
   { page: 'userGuide', icon: BookOpen, label: '유저 가이드' },
-  { page: 'aiGuide', icon: Bot, label: 'AI 가이드' }
+  { page: 'aiGuide', icon: Bot, label: 'AI 가이드' },
+  { page: 'settings', icon: Settings, label: '설정' }
 ]
 
 interface HomeScreenProps {
@@ -115,6 +127,8 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
           <UserGuidePage />
         ) : page === 'aiGuide' ? (
           <AiGuidePage />
+        ) : page === 'settings' ? (
+          <SettingsPage />
         ) : (
           <>
             <Greeting />

@@ -6,6 +6,7 @@ import { UserGuidePage } from '../guide/UserGuidePage'
 import { PresetsPage } from '../presets/PresetsPage'
 import { UpdatePanel } from '../update/UpdatePanel'
 import { Button, TextField, useDialogs } from '../ui'
+import { nextGreeting } from './greeting'
 import { NewProjectDialog } from './NewProjectDialog'
 import { RecentTable } from './RecentTable'
 import styles from './HomeScreen.module.css'
@@ -116,7 +117,7 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
           <AiGuidePage />
         ) : (
           <>
-            <h1 className={styles.welcome}>RCM 채보 에디터</h1>
+            <Greeting />
             {recent !== null && recent.length === 0 ? (
               <div className={styles.empty}>
                 <p>새 프로젝트를 만들어 보세요</p>
@@ -163,4 +164,10 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
       />
     </div>
   )
+}
+
+/** 홈 페이지가 보일 때마다 새로 마운트되어 문구를 다시 고른다. */
+function Greeting() {
+  const [text] = useState(nextGreeting)
+  return <h1 className={styles.welcome}>{text}</h1>
 }

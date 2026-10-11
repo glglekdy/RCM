@@ -7,7 +7,7 @@ import styles from './UpdatePanel.module.css'
 export function UpdatePanel() {
   const state = useUpdateState()
   const [version, setVersion] = useState('')
-  const [packaged, setPackaged] = useState(true)
+  const [packaged, setPackaged] = useState<boolean | null>(null)
 
   useEffect(() => {
     window.rcm
@@ -27,7 +27,7 @@ export function UpdatePanel() {
     <div className={styles.panel}>
       <div className={styles.version}>
         {version && `v${version}`}
-        {!packaged && ' (개발 모드 · 업데이트 꺼짐)'}
+        {packaged === false && ' (개발 모드 · 업데이트 꺼짐)'}
       </div>
       <Button
         disabled={!packaged || busy}

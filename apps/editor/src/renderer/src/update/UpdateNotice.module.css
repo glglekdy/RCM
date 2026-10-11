@@ -1,9 +1,9 @@
-/* 토스트(아래에서 24px)보다 위에 둔다 */
+/* 토스트(아래에서 24px, z 2000)보다 위쪽에 두되, 모달(1000)·테스트 플레이(500) 아래에 둔다 */
 .notice {
   position: fixed;
   left: 50%;
   bottom: 64px;
-  z-index: 1900;
+  z-index: 400;
   display: flex;
   align-items: center;
   gap: 12px;

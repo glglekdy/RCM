@@ -34,7 +34,9 @@ describe('업데이트 캐시 정리', () => {
     tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-pending-'))
     await expect(cleanPendingInstallers(path.join(tmp, 'none'), null, '0.1.0')).resolves.toBeUndefined()
     for (const name of [
+      'RCM-Setup-0.1.1.exe',
       'RCM-Setup-0.1.2.exe',
+      'RCM-Setup-0.1.3.exe',
       'update-info.json',
       'temp-RCM-Setup-0.1.0.exe',
       'RCM-Setup-0.1.0.exe.blockmap',
@@ -45,14 +47,16 @@ describe('업데이트 캐시 정리', () => {
     await fs.mkdir(path.join(tmp, 'RCM-Setup-0.1.0.exe'))
     const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      await cleanPendingInstallers(tmp, null, '0.1.1')
+      await cleanPendingInstallers(tmp, null, '0.1.2')
+      expect(errorLog).toHaveBeenCalledTimes(1)
     } finally {
       errorLog.mockRestore()
     }
+    // 0.1.1·0.1.2 설치 파일은 지워지고, 폴더·새 버전·다른 이름은 남는다
     expect((await fs.readdir(tmp)).sort()).toEqual([
       'RCM-Setup-0.1.0.exe',
       'RCM-Setup-0.1.0.exe.blockmap',
-      'RCM-Setup-0.1.2.exe',
+      'RCM-Setup-0.1.3.exe',
       'temp-RCM-Setup-0.1.0.exe',
       'update-info.json',
     ])

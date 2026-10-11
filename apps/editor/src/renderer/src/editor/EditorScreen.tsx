@@ -361,6 +361,9 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
         try {
           if (await confirmLeave()) window.rcm.forceClose()
           else window.rcm.closeCancelled()
+        } catch (err) {
+          window.rcm.closeCancelled()
+          throw err
         } finally {
           closing.current = false
         }

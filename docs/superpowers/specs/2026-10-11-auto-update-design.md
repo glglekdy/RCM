@@ -32,7 +32,7 @@
 - 러너: `windows-latest`, Node 24
 - 단계: checkout → `npm ci` → `node node_modules/electron/install.js` → 태그 버전과 `apps/editor/package.json` 버전 일치 확인(다르면 실패) → `npm test` → `npm run typecheck` → `npm run dist` → `RCM`에 Release 생성 및 파일 업로드
 - 업로드 파일: `RCM-Setup-X.Y.Z.exe`, `.exe.blockmap`, `latest.yml`
-- 업로드 방법: electron-builder `--publish always`와 `publish` 설정(`provider: github, owner: glglekdy, repo: RCM, releaseType: release`) 사용, 토큰은 `GH_TOKEN` 환경변수 = Secret `RELEASES_TOKEN`
+- 업로드 방법: electron-builder `--publish always`와 `publish` 설정(`provider: github, owner: glglekdy, repo: RCM, releaseType: release`) 사용, 토큰은 `GH_TOKEN` 환경변수 = Secret `RELEASE_TOKEN`
 - Release 이름 `vX.Y.Z`, 초안이 아닌 정식 릴리스
 - 로컬 `npm run dist`는 지금처럼 업로드하지 않는다 (`--publish never`)
 
@@ -82,7 +82,7 @@ type UpdateState =
 ## 4. 일회성 준비 (사용자 작업, README에 단계별로)
 1. 지금의 비공개 `glglekdy/RCM`을 **공개**로 바꿔 릴리스 저장소로 쓰고, 비공개 개발 저장소 `glglekdy/RCM-Dev`를 새로 만든다. 로컬 `origin`을 `RCM-Dev`로 바꾼다
 2. GitHub → Settings → Developer settings → Fine-grained token: 저장소 `RCM`만, 권한 `Contents: Read and write` → 생성
-3. `RCM-Dev` 저장소 → Settings → Secrets and variables → Actions → `RELEASES_TOKEN`으로 등록
+3. `RCM-Dev` 저장소 → Settings → Secrets and variables → Actions → `RELEASE_TOKEN`으로 등록
 4. main을 `RCM-Dev`에 push
 5. 첫 배포: `npm run release -- 0.1.0` → `git push --follow-tags` → Actions 성공 확인 → 공개 `RCM` 저장소의 Release v0.1.0 설치
 6. 업데이트 확인: `npm run release -- 0.1.1` → push → 설치된 0.1.0 앱을 켜서 알림 확인

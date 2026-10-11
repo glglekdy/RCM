@@ -14,7 +14,7 @@
 
 - 앱 이름 `productName: RCM`, 설치 프로그램 설명 `RCM - Rhythm Chaebo Maker`, `appId: com.rcm.chart-editor` 유지
 - 설치 파일 이름 `RCM-Setup-${version}.${ext}` (공백 없음)
-- 배포 저장소: `provider: github`, `owner: glglekdy`, `repo: RCM`, `releaseType: release`. 토큰은 환경변수 `GH_TOKEN` (= Actions Secret `RELEASES_TOKEN`). 로컬 `npm run dist`는 `--publish never`
+- 배포 저장소: `provider: github`, `owner: glglekdy`, `repo: RCM`, `releaseType: release`. 토큰은 환경변수 `GH_TOKEN` (= Actions Secret `RELEASE_TOKEN`). 로컬 `npm run dist`는 `--publish never`
 - 태그 형식 `vX.Y.Z`. 버전 인자 `X.Y.Z` (숫자 세 개, 선행 0 없음)
 - updater: `autoDownload = true`, `autoInstallOnAppQuit = true`, `allowDowngrade = false`, `allowPrerelease = false`. 시작 5초 뒤 한 번 + 버튼으로만 확인. `app.isPackaged`가 false면 꺼짐
 - UI 문구(한국어 그대로): `업데이트 확인`, `확인 중…`, `최신 버전이에요`, `<버전> 받는 중 <n>%`, `<버전> 준비됨`, `확인하지 못했어요`, 알림 `새 버전 <버전> 준비됨` + `지금 재시작`, 개발 모드 `(개발 모드 · 업데이트 꺼짐)`
@@ -245,10 +245,10 @@ it.each([
       runs-on: windows-latest
       steps: checkout(전체 이력 불필요) → setup-node(node-version 24, cache npm) → npm ci → node node_modules/electron/install.js
              → node scripts/check-tag.mjs (태그는 GITHUB_REF_NAME) → npm test → npm run typecheck
-             → npm -w @rcm/editor run dist:publish  (env GH_TOKEN: ${{ secrets.RELEASES_TOKEN }})
+             → npm -w @rcm/editor run dist:publish  (env GH_TOKEN: ${{ secrets.RELEASE_TOKEN }})
   ```
   - 액션 버전은 고정 메이저 태그(`actions/checkout@v4`, `actions/setup-node@v4`)
-  - Secret이 비어 있으면 publish 단계 전에 `RELEASES_TOKEN Secret이 없어요` 메시지로 실패하는 단계를 둔다
+  - Secret이 비어 있으면 publish 단계 전에 `RELEASE_TOKEN Secret이 없어요` 메시지로 실패하는 단계를 둔다
 - README: "배포" 절 — 업데이트 스펙 4장의 1~6을 단계별로(토큰 권한: 저장소 `RCM`만, `Contents: Read and write`), 평소 배포 방법(`npm run release -- X.Y.Z` → `git push --follow-tags`), 실패했을 때 확인할 곳(Actions 탭 로그), 업데이트 파일이 저장되는 위치와 정리 규칙 한 줄
 
 - [ ] **Step 1: 워크플로와 README 작성**

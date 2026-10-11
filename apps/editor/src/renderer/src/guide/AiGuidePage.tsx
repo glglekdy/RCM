@@ -6,7 +6,8 @@ import styles from './GuidePage.module.css'
 const GUIDE_FILE_NAME = 'CHART_FORMAT_GUIDE.md'
 
 const EXAMPLE_PROMPT = `첨부한 ${GUIDE_FILE_NAME}는 RCM 채보 에디터가 만든 채보 파일 포맷과 타이밍 계산, 판정 규칙을 정리한 문서야.
-이 문서를 먼저 끝까지 읽고, 그 규칙대로 곡 폴더(song.json, *.chart.json, 음악 파일)를 읽어서 노트가 떨어지는 리듬게임을 만들어 줘.`
+이 문서를 먼저 끝까지 읽고, 그 규칙대로 곡 폴더(song.json, *.chart.json, 음악 파일)를 읽어서 리듬게임을 만들어 줘.
+코드를 쓰기 전에 문서 7장의 질문으로 어떤 게임 플레이 스타일과 판정 방식을 쓸지 나에게 먼저 물어보고, 정리해서 확인받은 뒤 구현해 줘.`
 
 /** 시작 화면의 `AI 가이드` 페이지: 게임 구현용 채보 포맷 문서를 AI에게 넘기는 방법. */
 export function AiGuidePage() {
@@ -39,6 +40,11 @@ export function AiGuidePage() {
           이 에디터로 만든 채보를 게임에서 쓰려면, AI(Claude, ChatGPT, Cursor 등)에게 아래 가이드 문서를 함께 주세요.
           파일 구조, tick → ms 시간 계산 공식, 판정 규칙, 트랙 이름 해석 방법이 모두 들어 있어서 AI가 이 문서만 보고
           채보를 읽는 게임을 만들 수 있어요.
+        </p>
+        <p className={styles.lead}>
+          게임 플레이 스타일(화면 방향, 롱노트 처리 등)과 판정 방식(판정 범위, 헛누름 벌점, 점수 등)은 게임마다
+          달라요. 가이드에 따라 AI가 코드를 쓰기 전에 이걸 먼저 물어보고, 정한 내용을 정리해서 확인받은 뒤 만들어요.
+          잘 모르겠으면 &ldquo;기본으로&rdquo;라고 답하면 에디터 테스트 플레이와 같은 규칙으로 만들어요.
         </p>
 
         <section className={styles.section}>

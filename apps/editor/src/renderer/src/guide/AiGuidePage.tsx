@@ -5,9 +5,22 @@ import styles from './GuidePage.module.css'
 
 const GUIDE_FILE_NAME = 'CHART_FORMAT_GUIDE.md'
 
-const EXAMPLE_PROMPT = `첨부한 ${GUIDE_FILE_NAME}는 RCM 채보 에디터가 만든 채보 파일 포맷과 타이밍 계산, 판정 규칙을 정리한 문서야.
+const GUIDE_INTRO = `첨부한 ${GUIDE_FILE_NAME}는 RCM 채보 에디터가 만든 채보 파일 포맷과 타이밍 계산, 판정 규칙을 정리한 문서야.`
+
+const EXAMPLE_PROMPTS = [
+  {
+    label: '새 게임 만들기',
+    text: `${GUIDE_INTRO}
 이 문서를 먼저 끝까지 읽고, 그 규칙대로 곡 폴더(song.json, *.chart.json, 음악 파일)를 읽어서 리듬게임을 만들어 줘.
 코드를 쓰기 전에 문서 7장의 질문으로 어떤 게임 플레이 스타일과 판정 방식을 쓸지 나에게 먼저 물어보고, 정리해서 확인받은 뒤 구현해 줘.`
+  },
+  {
+    label: '이미 만든 게임에 연결하기',
+    text: `${GUIDE_INTRO}
+이 문서를 먼저 끝까지 읽어 줘. 지금 게임은 게임 플레이와 판정이 이미 짜여 있으니 그 부분은 바꾸지 말고, 채보만 RCM 포맷으로 읽을 수 있게 바꿔 줘.
+문서 7.6절대로 기존 코드를 먼저 조사해서 알려 주고, 트랙 대응표와 연결 방식을 나에게 확인받은 뒤 구현해 줘.`
+  }
+]
 
 /** 시작 화면의 `AI 가이드` 페이지: 게임 구현용 채보 포맷 문서를 AI에게 넘기는 방법. */
 export function AiGuidePage() {
@@ -46,6 +59,10 @@ export function AiGuidePage() {
           달라요. 가이드에 따라 AI가 코드를 쓰기 전에 이걸 먼저 물어보고, 정한 내용을 정리해서 확인받은 뒤 만들어요.
           잘 모르겠으면 &ldquo;기본으로&rdquo;라고 답하면 에디터 테스트 플레이와 같은 규칙으로 만들어요.
         </p>
+        <p className={styles.lead}>
+          게임 플레이와 판정이 이미 짜여 있는 게임이라면, 그 부분은 그대로 두고 채보만 RCM 포맷으로 읽게 바꿔
+          달라고 하면 돼요. 이렇게 하면 채보만 RCM으로 짜서 기존 게임에 쓸 수 있어요.
+        </p>
 
         <section className={styles.section}>
           <h2>
@@ -69,14 +86,19 @@ export function AiGuidePage() {
           <ol className={styles.steps}>
             <li>위에서 가이드 파일을 다운로드하거나 내용을 복사해요.</li>
             <li>AI 채팅에 파일을 첨부하거나, 복사한 내용을 프롬프트에 붙여넣어요.</li>
-            <li>만들고 싶은 게임을 설명하면서 가이드를 따르라고 요청해요. 예를 들면:</li>
+            <li>상황에 맞는 예시 프롬프트로 가이드를 따르라고 요청해요.</li>
           </ol>
-          <pre className={styles.prompt}>{EXAMPLE_PROMPT}</pre>
-          <div className={styles.actions}>
-            <Button variant="ghost" onClick={() => void copy(EXAMPLE_PROMPT, '예시 프롬프트를 복사했어요')}>
-              <Copy size={16} /> 예시 프롬프트 복사
-            </Button>
-          </div>
+          {EXAMPLE_PROMPTS.map(({ label, text }) => (
+            <div key={label} className={styles.example}>
+              <p className={styles.muted}>{label}</p>
+              <pre className={styles.prompt}>{text}</pre>
+              <div className={styles.actions}>
+                <Button variant="ghost" onClick={() => void copy(text, '예시 프롬프트를 복사했어요')}>
+                  <Copy size={16} /> 예시 프롬프트 복사
+                </Button>
+              </div>
+            </div>
+          ))}
         </section>
 
         <section className={styles.section}>

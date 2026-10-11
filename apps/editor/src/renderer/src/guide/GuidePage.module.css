@@ -160,3 +160,11 @@
   white-space: pre-wrap;
   user-select: text;
 }
+
+.example {
+  margin-top: 12px;
+}
+
+.example + .example {
+  margin-top: 20px;
+}

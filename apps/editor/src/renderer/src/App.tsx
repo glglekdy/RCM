@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ProjectFiles } from '../../shared/api'
 import { EditorScreen } from './editor/EditorScreen'
 import { HomeScreen } from './home/HomeScreen'
+import { loadPlaytestSpeed } from './editor/playtest/speedStore'
 import { loadPresets } from './presets/presetStore'
 import { DialogProvider, TitleBar, ToastProvider } from './ui'
 import { UpdateNotice } from './update/UpdateNotice'
@@ -18,6 +19,9 @@ export function App() {
     startUpdateStore()
     loadPresets().catch(() => {
       // 설정을 못 읽으면 기본 프리셋으로 계속한다
+    })
+    loadPlaytestSpeed().catch(() => {
+      // 설정을 못 읽으면 기본 배속으로 계속한다
     })
   }, [])
 

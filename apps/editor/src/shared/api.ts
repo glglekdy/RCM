@@ -76,6 +76,10 @@ export interface RcmApi {
   getDiscordPresence(): Promise<boolean>
   /** 설정에 저장하고 바로 반영한다. */
   setDiscordPresence(enabled: boolean): Promise<void>
+  /** 테스트 플레이에서 마지막으로 쓴 배속. 저장된 값이 없으면 null. */
+  getPlaytestSpeed(): Promise<number | null>
+  /** 범위(1.0~9.0) 밖이면 reject. */
+  setPlaytestSpeed(speed: number): Promise<void>
 }
 
 declare global {

@@ -3,18 +3,17 @@ import type { TimingMap } from '@rcm/core'
 import {
   clampSpeed,
   DEFAULT_PLAYFIELD_COLORS,
-  DEFAULT_SPEED,
   Playfield,
+  SPEED_STEP,
   type Judgement
 } from '@rcm/playfield'
 import { resolveKeymap } from '../../../../shared/presets'
 import { getPresets } from '../../presets/presetStore'
 import { getChart } from '../state/doc'
 import { useEditor } from '../state/useStore'
+import { getPlaytestSpeed, setPlaytestSpeed } from './speedStore'
 import styles from './PlaytestOverlay.module.css'
 
-/** ↑/↓ 한 번에 바뀌는 노트 속도 */
-const SPEED_STEP = 0.5
 /** 판정 개수를 화면에 옮기는 간격(ms) */
 const STATS_INTERVAL_MS = 100
 
@@ -43,7 +42,10 @@ export function PlaytestOverlay({ fromMs, tm, getTimeMs, onExit }: PlaytestOverl
   const chart = useEditor((s) => getChart(s.doc, s.activeChart))
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const playfieldRef = useRef<Playfield | null>(null)
-  const [speed, setSpeed] = useState(DEFAULT_SPEED)
+  // 지난 테스트 플레이의 배속으로 시작한다
+  const [speed, setSpeed] = useState(getPlaytestSpeed)
+  const speedRef = useRef(speed)
+  speedRef.current = speed
   const [stats, setStats] = useState<Stats>({
     counts: { perfect: 0, great: 0, good: 0, miss: 0 },
     maxCombo: 0
@@ -53,7 +55,7 @@ export function PlaytestOverlay({ fromMs, tm, getTimeMs, onExit }: PlaytestOverl
     const canvas = canvasRef.current
     if (!canvas) return
     const { keys: keymap } = resolveKeymap(chart.tracks, getPresets())
-    const pf = new Playfield(canvas, { chart, tm, getTimeMs, fromMs, speed: DEFAULT_SPEED, keymap })
+    const pf = new Playfield(canvas, { chart, tm, getTimeMs, fromMs, speed: speedRef.current, keymap })
     playfieldRef.current = pf
     pf.start()
     const timer = setInterval(() => {
@@ -80,7 +82,9 @@ export function PlaytestOverlay({ fromMs, tm, getTimeMs, onExit }: PlaytestOverl
       if (e.code !== 'ArrowUp' && e.code !== 'ArrowDown') return
       e.preventDefault()
       const step = e.code === 'ArrowUp' ? SPEED_STEP : -SPEED_STEP
-      setSpeed((s) => clampSpeed(s + step))
+      const next = clampSpeed(speedRef.current + step)
+      setSpeed(next)
+      setPlaytestSpeed(next)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)

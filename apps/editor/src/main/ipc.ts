@@ -18,6 +18,7 @@ import {
   touchRecent,
   updateSettings,
   validateLastPresetId,
+  validatePlaytestSpeed,
   validatePresets
 } from './project/settings'
 
@@ -127,6 +128,18 @@ export function registerProjectIpc(): void {
     const id = validateLastPresetId(raw)
     return updateSettings(settingsFile(), (settings) => {
       settings.lastPresetId = id
+    })
+  })
+
+  ipcMain.handle(
+    'rcm:get-playtest-speed',
+    async () => (await loadSettings(settingsFile())).playtestSpeed ?? null
+  )
+
+  ipcMain.handle('rcm:set-playtest-speed', async (_e, raw: unknown) => {
+    const speed = validatePlaytestSpeed(raw)
+    return updateSettings(settingsFile(), (settings) => {
+      settings.playtestSpeed = speed
     })
   })
 

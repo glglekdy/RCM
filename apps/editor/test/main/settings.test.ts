@@ -10,6 +10,7 @@ import {
   touchRecent,
   updateSettings,
   validateLastPresetId,
+  validatePlaytestSpeed,
   validatePresets
 } from '../../src/main/project/settings'
 
@@ -44,6 +45,30 @@ describe('settings', () => {
     await saveSettings(file, { recent: [], presets, lastPresetId: 'p1' })
     const loaded = await loadSettings(file)
     expect(presetsOf(loaded)).toEqual({ presets, lastPresetId: 'p1' })
+  })
+
+  it('playtestSpeed: 1~9 사이 숫자만 읽음', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
+    const file = path.join(tmp, 'settings.json')
+    for (const [raw, expected] of [
+      [4.5, 4.5],
+      [1, 1],
+      [9, 9],
+      [0.5, undefined],
+      [9.1, undefined],
+      ['4', undefined],
+      [null, undefined]
+    ] as const) {
+      await fs.writeFile(file, JSON.stringify({ recent: [], playtestSpeed: raw }))
+      expect((await loadSettings(file)).playtestSpeed, String(raw)).toBe(expected)
+    }
+  })
+
+  it('playtestSpeed 저장 입력 검사', () => {
+    expect(validatePlaytestSpeed(4.3)).toBe(4.3)
+    for (const bad of [0, 10, NaN, '4', undefined]) {
+      expect(() => validatePlaytestSpeed(bad), String(bad)).toThrow('배속 값이 올바르지 않아요')
+    }
   })
 
   it('discordPresence: boolean만 읽고, 고쳐 저장해도 다른 설정은 남음', async () => {

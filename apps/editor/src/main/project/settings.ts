@@ -1,4 +1,5 @@
 import { promises as fs } from 'node:fs'
+import { MAX_SPEED, MIN_SPEED } from '@rcm/playfield'
 import { MAX_PRESET_ID_LENGTH, sanitizePresets, type TrackPreset } from '../../shared/presets'
 import { writeFileAtomic } from './atomicWrite'
 
@@ -15,6 +16,8 @@ export interface Settings {
   lastPresetId?: string
   /** 디스코드 활동 표시. 없으면 켜짐으로 본다 */
   discordPresence?: boolean
+  /** 테스트 플레이에서 마지막으로 쓴 배속 (MIN_SPEED~MAX_SPEED) */
+  playtestSpeed?: number
 }
 
 const MAX_RECENT = 20
@@ -26,6 +29,16 @@ export function touchRecent(list: RecentEntry[], dir: string, now: number): Rece
 /** 설정 파일 내용이 깨짐 (JSON이 아니거나 형식이 틀림). 읽기 오류와 구별한다. */
 class SettingsFormatError extends Error {}
 
+function isPlaytestSpeed(raw: unknown): raw is number {
+  return typeof raw === 'number' && Number.isFinite(raw) && raw >= MIN_SPEED && raw <= MAX_SPEED
+}
+
+/** renderer가 보낸 배속 검사. 범위 밖이거나 숫자가 아니면 throw. */
+export function validatePlaytestSpeed(raw: unknown): number {
+  if (!isPlaytestSpeed(raw)) throw new Error('배속 값이 올바르지 않아요')
+  return raw
+}
+
 function parseSettings(raw: unknown): Settings {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     throw new SettingsFormatError('설정 파일 형식이 올바르지 않아요')
@@ -36,6 +49,7 @@ function parseSettings(raw: unknown): Settings {
     presets?: unknown
     lastPresetId?: unknown
     discordPresence?: unknown
+    playtestSpeed?: unknown
   }
   const recent = Array.isArray(obj.recent)
     ? obj.recent.filter(
@@ -52,6 +66,7 @@ function parseSettings(raw: unknown): Settings {
   if (obj.presets !== undefined) settings.presets = sanitizePresets(obj.presets)
   if (typeof obj.lastPresetId === 'string') settings.lastPresetId = obj.lastPresetId
   if (typeof obj.discordPresence === 'boolean') settings.discordPresence = obj.discordPresence
+  if (isPlaytestSpeed(obj.playtestSpeed)) settings.playtestSpeed = obj.playtestSpeed
   return settings
 }
 

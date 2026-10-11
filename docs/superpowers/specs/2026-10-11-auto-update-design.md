@@ -7,13 +7,13 @@
 ## 0. 목표
 
 ### 사용자가 정한 것
-- 소스 저장소 `glglekdy/RCM`은 **비공개 유지**. 설치 파일은 **공개 저장소 `glglekdy/RCM-releases`의 Releases**로 배포
+- 소스는 **비공개 개발 저장소 `glglekdy/RCM-Dev`**. 설치 파일은 **공개 릴리스 저장소 `glglekdy/RCM`의 Releases**로 배포
 - **버전 태그(`vX.Y.Z`)를 push할 때만** 빌드·배포
 - 앱은 **자동 다운로드 + 재시작 알림**. 재시작하지 않으면 종료할 때 설치
 - **중복 다운로드·용량 낭비 방지**
 
 ### 성공 기준
-- `npm run release -- 0.1.1` → `git push --follow-tags` 만으로 `RCM-releases`에 Release v0.1.1이 생긴다
+- `npm run release -- 0.1.1` → `git push --follow-tags` 만으로 `RCM`에 Release v0.1.1이 생긴다
 - 0.1.0이 설치된 PC에서 앱을 켜면 0.1.1을 받아 알림을 띄우고, 재시작하면 0.1.1이 된다
 - 받아 둔 설치 파일은 최대 한 개이고, 설치 후에는 지워진다
 
@@ -27,12 +27,12 @@
 - 커밋 `chore: release vX.Y.Z` + 주석 태그 `vX.Y.Z` 생성. **push는 하지 않는다** (마지막에 `git push --follow-tags` 안내 출력)
 - 버전 판단 로직(형식 검사, 크기 비교)은 순수 함수로 분리해 테스트한다
 
-### 1.2 GitHub Actions (`.github/workflows/release.yml`, `RCM` 저장소)
+### 1.2 GitHub Actions (`.github/workflows/release.yml`, `RCM-Dev` 저장소)
 - 트리거: `push` 태그 `v*.*.*`
 - 러너: `windows-latest`, Node 24
-- 단계: checkout → `npm ci` → `node node_modules/electron/install.js` → 태그 버전과 `apps/editor/package.json` 버전 일치 확인(다르면 실패) → `npm test` → `npm run typecheck` → `npm run dist` → `RCM-releases`에 Release 생성 및 파일 업로드
+- 단계: checkout → `npm ci` → `node node_modules/electron/install.js` → 태그 버전과 `apps/editor/package.json` 버전 일치 확인(다르면 실패) → `npm test` → `npm run typecheck` → `npm run dist` → `RCM`에 Release 생성 및 파일 업로드
 - 업로드 파일: `RCM-Setup-X.Y.Z.exe`, `.exe.blockmap`, `latest.yml`
-- 업로드 방법: electron-builder `--publish always`와 `publish` 설정(`provider: github, owner: glglekdy, repo: RCM-releases, releaseType: release`) 사용, 토큰은 `GH_TOKEN` 환경변수 = Secret `RELEASES_TOKEN`
+- 업로드 방법: electron-builder `--publish always`와 `publish` 설정(`provider: github, owner: glglekdy, repo: RCM, releaseType: release`) 사용, 토큰은 `GH_TOKEN` 환경변수 = Secret `RELEASES_TOKEN`
 - Release 이름 `vX.Y.Z`, 초안이 아닌 정식 릴리스
 - 로컬 `npm run dist`는 지금처럼 업로드하지 않는다 (`--publish never`)
 
@@ -80,11 +80,11 @@ type UpdateState =
 - 차등 다운로드: `.blockmap`을 함께 배포해 바뀐 부분만 받는다 (`differentialPackage` 기본값 유지)
 
 ## 4. 일회성 준비 (사용자 작업, README에 단계별로)
-1. 공개 저장소 `glglekdy/RCM-releases` 생성 (빈 저장소, README 하나)
-2. GitHub → Settings → Developer settings → Fine-grained token: 저장소 `RCM-releases`만, 권한 `Contents: Read and write` → 생성
-3. `RCM` 저장소 → Settings → Secrets and variables → Actions → `RELEASES_TOKEN`으로 등록
-4. main을 GitHub에 push
-5. 첫 배포: `npm run release -- 0.1.0` → `git push --follow-tags` → Actions 성공 확인 → `RCM-releases` Release v0.1.0 설치
+1. 지금의 비공개 `glglekdy/RCM`을 **공개**로 바꿔 릴리스 저장소로 쓰고, 비공개 개발 저장소 `glglekdy/RCM-Dev`를 새로 만든다. 로컬 `origin`을 `RCM-Dev`로 바꾼다
+2. GitHub → Settings → Developer settings → Fine-grained token: 저장소 `RCM`만, 권한 `Contents: Read and write` → 생성
+3. `RCM-Dev` 저장소 → Settings → Secrets and variables → Actions → `RELEASES_TOKEN`으로 등록
+4. main을 `RCM-Dev`에 push
+5. 첫 배포: `npm run release -- 0.1.0` → `git push --follow-tags` → Actions 성공 확인 → 공개 `RCM` 저장소의 Release v0.1.0 설치
 6. 업데이트 확인: `npm run release -- 0.1.1` → push → 설치된 0.1.0 앱을 켜서 알림 확인
 
 ## 5. 테스트

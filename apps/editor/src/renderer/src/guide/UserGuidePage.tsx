@@ -7,7 +7,8 @@ import {
   Music,
   Rows3,
   Rocket,
-  Save
+  Save,
+  TriangleAlert
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import styles from './GuidePage.module.css'
@@ -48,6 +49,20 @@ export function UserGuidePage() {
   return (
     <div className={styles.page}>
       <div className={styles.content}>
+        <div className={styles.disclaimer} role="alert">
+          <h2>
+            <TriangleAlert size={16} /> 저작권 및 법적 책임 안내
+          </h2>
+          <p>
+            RCM 채보 에디터는 <b>채보를 제작하는 도구</b>입니다. 에디터에서 불러오거나 사용하는 음악 · 이미지 등 모든
+            콘텐츠의 저작권 확인 및 이용 허락은 <b>전적으로 사용자 본인의 책임</b>입니다.
+          </p>
+          <p>
+            저작권이 있는 콘텐츠의 사용 및 이를 이용해 제작한 채보의 배포로 발생하는 모든 저작권 관련 문제에 대해
+            개발자는 <b>법적 책임을 일절 지지 않습니다.</b>
+          </p>
+        </div>
+
         <h1 className={styles.title}>유저 가이드</h1>
         <p className={styles.lead}>
           RCM 채보 에디터는 세로 레인형 리듬게임의 채보를 만드는 도구예요. 음악을 불러와 박자를 맞추고, 노트를 찍고,

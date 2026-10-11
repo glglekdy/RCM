@@ -22,6 +22,37 @@
   font-weight: 600;
 }
 
+.disclaimer {
+  padding: 14px 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.disclaimer h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--danger);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.disclaimer p {
+  margin: 0 0 6px;
+}
+
+.disclaimer p:last-child {
+  margin-bottom: 0;
+}
+
+.disclaimer b {
+  color: var(--danger);
+}
+
 .lead {
   margin: 0 0 12px;
   color: var(--text-muted);

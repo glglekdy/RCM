@@ -61,3 +61,46 @@
   gap: 4px;
   padding: 2px 0;
 }
+
+/* 노트 속도 카드 */
+.speedList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.speedRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+}
+
+.speedPosition {
+  flex: none;
+  min-width: 36px;
+  white-space: nowrap;
+}
+
+.speedValue {
+  flex: 1;
+  min-width: 0;
+}
+
+.speedValue > label {
+  width: 100%;
+}
+
+.speedEase {
+  flex: none;
+}
+
+/* 막힌 동안 (재생·녹음·테스트 플레이 중) */
+.speedList:disabled .speedValue,
+.speedList:disabled .speedEase {
+  opacity: 0.4;
+}

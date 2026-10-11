@@ -3,6 +3,7 @@ import {
   type Chart,
   type Marker,
   type Note,
+  type ScrollMap,
   type SnapDivision,
   type TimingMap,
   type TimingPoint
@@ -10,9 +11,11 @@ import {
 import { peakInRange, type WaveformPeaks } from '../audio/waveform'
 import { NOTE_HEIGHT, type SelectRect } from './hitTest'
 import {
+  SPEED_GRAPH_WIDTH,
   TRACK_NAME_HEIGHT,
   laneSpan,
   msToY,
+  speedLabel,
   yToMs,
   type TimelineColumn,
   type TimelineLayout,
@@ -23,6 +26,8 @@ export interface DrawParams {
   view: TimelineView
   layout: TimelineLayout
   tm: TimingMap
+  /** chart.speeds·tm으로 만든 스크롤 맵 (속도 그래프 띠) */
+  scroll: ScrollMap
   chart: Chart
   snap: SnapDivision
   selection: ReadonlySet<string>
@@ -51,6 +56,12 @@ const COLORS = {
   snap: '#262626',
   bpm: '#f59e0b',
   bpmChip: 'rgba(245, 158, 11, 0.16)',
+  speed: '#34d399',
+  speedChip: 'rgba(52, 211, 153, 0.16)',
+  /** 속도 그래프 띠: 바탕 --bg-card, 막대 --accent-soft, ×1 선 --border */
+  speedGraphBg: '#232323',
+  speedGraphBar: 'rgba(139, 92, 246, 0.18)',
+  speedGraphOne: '#2e2e2e',
   marker: '#22d3ee',
   wavePast: '#555555',
   waveFuture: '#3a3a3a',
@@ -75,6 +86,8 @@ const HOLD_BODY_ALPHA = 0.6
 const PREVIEW_ALPHA = 0.5
 const SELECTED_BORDER = 2
 const CHIP_HEIGHT = 20
+/** 속도 그래프 띠가 꽉 차는 배율 (그 이상은 잘린다) */
+const SPEED_GRAPH_MAX = 4
 /** 녹음 중 트랙 키 이름 칩: 아래 가장자리에서 띄운 거리와 크기 */
 const KEY_CHIP_BOTTOM = 8
 const KEY_CHIP_HEIGHT = 20
@@ -134,6 +147,8 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
     }
   }
 
+  drawSpeedGraph(ctx, p)
+
   // BPM 변경 지점: 주황 선 + 라벨 칩
   ctx.font = FONT
   ctx.textBaseline = 'middle'
@@ -146,15 +161,22 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
     ctx.moveTo(left, y)
     ctx.lineTo(right + 4, y)
     ctx.stroke()
+    drawChip(ctx, layout.labelX, y, `${formatBpm(point.bpm)} BPM`, COLORS.bpmChip, COLORS.bpm)
+  }
 
-    const text = `${formatBpm(point.bpm)} BPM`
-    const w = Math.ceil(ctx.measureText(text).width) + 16
-    ctx.fillStyle = COLORS.bpmChip
+  // 변속 지점: 초록 선 + 라벨 칩. 같은 tick에 BPM 칩이 있으면 그 아래에 놓는다
+  const bpmTicks = new Set(p.timing.map((t) => t.tick))
+  for (const point of p.chart.speeds ?? []) {
+    const y = Math.round(msToY(view, tm.tickToMs(point.tick)))
+    if (y < -CHIP_HEIGHT || y > h + CHIP_HEIGHT * 2 + 2) continue
+    ctx.strokeStyle = COLORS.speed
+    ctx.lineWidth = 1
     ctx.beginPath()
-    ctx.roundRect(layout.labelX, y - CHIP_HEIGHT / 2, w, CHIP_HEIGHT, 6)
-    ctx.fill()
-    ctx.fillStyle = COLORS.bpm
-    ctx.fillText(text, layout.labelX + 8, y + 0.5)
+    ctx.moveTo(left, crisp(y))
+    ctx.lineTo(right, crisp(y))
+    ctx.stroke()
+    const chipY = bpmTicks.has(point.tick) ? y + CHIP_HEIGHT + 2 : y
+    drawChip(ctx, layout.labelX, chipY, speedLabel(point), COLORS.speedChip, COLORS.speed)
   }
 
   // 가이드 마커: 청록 점선 (트랙 + 파형 영역)
@@ -212,6 +234,46 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
   ctx.beginPath()
   ctx.moveTo(layout.waveX, py)
   ctx.lineTo(right, py)
+  ctx.stroke()
+}
+
+/** x에서 시작해 세로 가운데가 y인 라벨 칩. */
+function drawChip(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  text: string,
+  background: string,
+  color: string
+): void {
+  const w = Math.ceil(ctx.measureText(text).width) + 16
+  ctx.fillStyle = background
+  ctx.beginPath()
+  ctx.roundRect(x, y - CHIP_HEIGHT / 2, w, CHIP_HEIGHT, 6)
+  ctx.fill()
+  ctx.fillStyle = color
+  ctx.fillText(text, x + 8, y + 0.5)
+}
+
+/** 트랙 오른쪽 속도 그래프 띠: 화면 1px 행마다 그 시각의 속도를 왼쪽부터 채운 막대 (×4에서 꽉 참). */
+function drawSpeedGraph(ctx: CanvasRenderingContext2D, p: DrawParams): void {
+  const { view, layout, scroll } = p
+  const x = layout.speedX
+  ctx.fillStyle = COLORS.speedGraphBg
+  ctx.fillRect(x, 0, SPEED_GRAPH_WIDTH, view.height)
+  ctx.fillStyle = COLORS.speedGraphBar
+  for (let y = 0; y < view.height; y++) {
+    const speed = scroll.speedAt(yToMs(view, y + 0.5))
+    const w = (Math.min(speed, SPEED_GRAPH_MAX) / SPEED_GRAPH_MAX) * SPEED_GRAPH_WIDTH
+    if (w > 0) ctx.fillRect(x, y, w, 1)
+  }
+  // ×1 위치
+  const oneX = crisp(x + SPEED_GRAPH_WIDTH / SPEED_GRAPH_MAX)
+  ctx.strokeStyle = COLORS.speedGraphOne
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(oneX, 0)
+  ctx.lineTo(oneX, view.height)
   ctx.stroke()
 }
 

@@ -9,6 +9,7 @@ import {
   laneSpan,
   layoutTimeline,
   msToY,
+  speedLabel,
   stepPlayheadMs,
   xToLane,
   yToMs
@@ -24,7 +25,7 @@ describe('timeline view', () => {
     expect(l.tracksX).toBe(404)
     expect(l.totalWidth).toBe(192)
     expect(l.waveX).toBe(332)
-    expect(l.labelX).toBe(404 + 192 + 8)
+    expect(l.labelX).toBe(404 + 192 + 8 + 28)
     expect(l.columns[0]).toEqual({ id: 'Note_1', x: 404, width: 48, color: '#f2f2f2' })
     expect(xToLane(l, 404)).toBe(0)
     expect(xToLane(l, 595)).toBe(3)
@@ -42,7 +43,19 @@ describe('timeline view', () => {
     expect(xToLane(l, 548)).toBe(2)
     expect(xToLane(l, 580)).toBeNull()
     expect(l.waveX).toBe(420 - 8 - 64)
-    expect(l.labelX).toBe(420 + 160 + 8)
+    expect(l.labelX).toBe(420 + 160 + 8 + 28)
+  })
+  it('속도 그래프 띠와 라벨 위치', () => {
+    const l = layoutTimeline(1000, [{ id: 'Side_L', width: 'wide' }, { id: 'Note_1' }, { id: 'T', width: 'narrow' }])
+    expect(l.speedX).toBe(420 + 160 + 8)
+    expect(l.labelX).toBe(420 + 160 + 8 + 20 + 8)
+  })
+  it('변속 칩 문구', () => {
+    expect(speedLabel({ tick: 0, speed: 2 })).toBe('×2.0')
+    expect(speedLabel({ tick: 0, speed: 3, ease: 'linear' })).toBe('→×3.0')
+    expect(speedLabel({ tick: 0, speed: 0 })).toBe('×0 정지')
+    expect(speedLabel({ tick: 0, speed: 0, ease: 'linear' })).toBe('×0 정지')
+    expect(speedLabel({ tick: 0, speed: 1.25 })).toBe('×1.25')
   })
   it('트랙 폭과 색', () => {
     expect(TRACK_PX).toEqual({ narrow: 32, normal: 48, wide: 80 })

@@ -1,7 +1,9 @@
 import {
   DEFAULT_NOTE_COLOR,
+  formatSpeed,
   stepTick,
   type SnapDivision,
+  type SpeedPoint,
   type TimingMap,
   type Track,
   type TrackWidth
@@ -28,6 +30,8 @@ export function yToMs(v: TimelineView, y: number): number {
 /** 에디터 타임라인의 트랙 폭(px). */
 export const TRACK_PX: Readonly<Record<TrackWidth, number>> = { narrow: 32, normal: 48, wide: 80 }
 export const WAVE_WIDTH = 64
+/** 트랙 오른쪽 속도 그래프 띠의 폭(px). */
+export const SPEED_GRAPH_WIDTH = 20
 const GAP = 8
 
 /** 트랙 하나가 차지하는 세로 열. 위치는 `tracks` 배열 순서와 같다. */
@@ -44,6 +48,8 @@ export interface TimelineLayout {
   columns: TimelineColumn[]
   waveX: number
   waveWidth: number
+  /** 속도 그래프 띠의 왼쪽 x (폭 SPEED_GRAPH_WIDTH) */
+  speedX: number
   labelX: number
 }
 
@@ -57,14 +63,22 @@ export function layoutTimeline(width: number, tracks: readonly Track[]): Timelin
     x += widths[i]
     return col
   })
+  const speedX = tracksX + totalWidth + GAP
   return {
     tracksX,
     totalWidth,
     columns,
     waveX: tracksX - GAP - WAVE_WIDTH,
     waveWidth: WAVE_WIDTH,
-    labelX: tracksX + totalWidth + GAP
+    speedX,
+    labelX: speedX + SPEED_GRAPH_WIDTH + GAP
   }
+}
+
+/** 변속 칩 문구: 즉시 `×2.0`, 서서히 `→×3.0`, 0이면 (ease와 무관하게) `×0 정지`. */
+export function speedLabel(point: SpeedPoint): string {
+  if (point.speed === 0) return '×0 정지'
+  return `${point.ease === 'linear' ? '→' : ''}×${formatSpeed(point.speed)}`
 }
 
 /** x가 놓인 열의 위치(트랙 위치). 트랙 밖이면 null. */

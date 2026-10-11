@@ -11,6 +11,7 @@ import {
 import { removeMarker, renameMarker } from '../commands/markers'
 import { applyTapFromHere, applyTapWhole } from '../commands/tap'
 import { useEditor, useStore } from '../state/useStore'
+import { SpeedCard } from './SpeedCard'
 import styles from './Panel.module.css'
 
 /** m:ss.mmm */
@@ -168,6 +169,7 @@ export function TimingPanel() {
       <Card>
         <Button onClick={addAtPlayhead}>현재 위치에 추가</Button>
       </Card>
+      <SpeedCard tm={tm} />
     </>
   )
 }

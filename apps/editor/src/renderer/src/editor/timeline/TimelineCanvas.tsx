@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import type { TimingMap, Track } from '@rcm/core'
+import { ScrollMap, type SpeedPoint, type TimingMap, type Track } from '@rcm/core'
 import { keyLabel } from '@rcm/playfield'
 import type { WaveformPeaks } from '../audio/waveform'
 import type { Recorder } from '../input/recorder'
@@ -28,6 +28,12 @@ function trackKeyLabels(tracks: readonly Track[], keymap: ReadonlyMap<string, st
 
 const ZOOM_STEP = 1.1
 
+interface ScrollCache {
+  speeds: readonly SpeedPoint[] | undefined
+  tm: TimingMap
+  scroll: ScrollMap
+}
+
 export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: TimelineCanvasProps) {
   const store = useStore()
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -36,6 +42,8 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
   const propsRef = useRef({ tm, durationMs, peaks, recordingRef })
   propsRef.current = { tm, durationMs, peaks, recordingRef }
   const drawRef = useRef<() => void>(() => {})
+  // 스크롤 맵은 채보의 speeds나 tm이 바뀔 때만 새로 만든다 (재생 중에는 매 프레임 그린다)
+  const scrollRef = useRef<ScrollCache | null>(null)
   const tool = useEditor((s) => s.tool)
 
   // 그리기·지우기·선택 도구. 좌표계는 입력이 올 때의 화면 크기·상태로 계산한다
@@ -61,6 +69,11 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
       const s = store.getState()
       const chart = getChart(s.doc, s.activeChart)
       const { tm, durationMs, peaks, recordingRef } = propsRef.current
+      let cache = scrollRef.current
+      if (!cache || cache.speeds !== chart.speeds || cache.tm !== tm) {
+        cache = { speeds: chart.speeds, tm, scroll: new ScrollMap(chart.speeds, tm) }
+        scrollRef.current = cache
+      }
       const recording = s.mode === 'recording' ? recordingRef?.current : null
       const dpr = window.devicePixelRatio || 1
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -70,6 +83,7 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
         view: { playheadMs: s.playheadMs, pxPerMs: s.pxPerMs, height },
         layout: layoutTimeline(width, chart.tracks),
         tm,
+        scroll: cache.scroll,
         chart,
         snap: s.snap,
         selection: s.selection,

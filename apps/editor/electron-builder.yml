@@ -1,13 +1,19 @@
 appId: com.rcm.chart-editor
-productName: RCM Chart Editor
+productName: RCM
+artifactName: RCM-Setup-${version}.${ext}
 directories:
   output: dist
 files:
   - out/**
 win:
   target: nsis
-  # 코드 서명 없이 빌드한다
-  signAndEditExecutable: false
+  # 코드 서명만 건너뛴다 (아이콘·버전 정보는 exe에 기록)
+  signExecutable: false
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+publish:
+  provider: github
+  owner: glglekdy
+  repo: RCM
+  releaseType: release

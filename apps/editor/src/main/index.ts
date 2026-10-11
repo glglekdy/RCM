@@ -3,6 +3,7 @@ import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, ipcMain, Menu, session } from 'electron'
 import { registerProjectIpc } from './ipc'
 import { isAllowedNavigation } from './navigation'
+import { quitOrInstall, startUpdater } from './update/updater'
 
 // CSP is a response header (not a meta tag) so it governs every script,
 // including the inline preamble Vite/plugin-react injects at the top of <head> in dev.
@@ -108,12 +109,14 @@ app.whenReady().then(() => {
     win.close()
   })
   registerProjectIpc()
+  startUpdater(() => BrowserWindow.getAllWindows())
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
+// 업데이트 설치를 요청해 창을 닫은 경우면 설치하고, 아니면 기존처럼 종료한다.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+  if (process.platform !== 'darwin') quitOrInstall()
 })

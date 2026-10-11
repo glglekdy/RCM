@@ -1,5 +1,8 @@
 import type { Track } from '@rcm/core'
+import type { UpdateState } from '../main/update/updateState'
 import type { TrackPreset } from './presets'
+
+export type { UpdateState }
 
 export interface CreateProjectOptions {
   parentDir: string
@@ -54,6 +57,14 @@ export interface RcmApi {
   toggleMaximize(): void
   close(): void
   isMaximized(): Promise<boolean>
+  getAppVersion(): Promise<string>
+  isPackaged(): Promise<boolean>
+  getUpdateState(): Promise<UpdateState>
+  /** 확인 중·받는 중·준비됨이면 새로 확인하지 않고 현재 상태를 돌려준다. */
+  checkForUpdates(): Promise<UpdateState>
+  /** 저장 안 한 변경 확인(닫기 가드)을 거쳐 창을 닫고, 받아 둔 업데이트를 설치한 뒤 다시 실행한다. */
+  installUpdate(): void
+  onUpdateState(cb: (s: UpdateState) => void): () => void
 }
 
 declare global {

@@ -10,7 +10,11 @@ import { PlayState } from '@rcm/playfield'
  * 사용자에게는 저장소도 비공개 패키지(@rcm/*)도 없으므로, 문서는 그것을 가리키지 않고
  * 문서 안의 참고 구현이 실제 구현과 같게 동작해야 한다.
  */
-const guide = readFileSync(resolve(__dirname, '../../../../docs/CHART_FORMAT_GUIDE.md'), 'utf8')
+// Windows CI는 core.autocrlf로 CRLF 체크아웃을 하므로 줄바꿈을 맞춘 뒤 코드 블록을 찾는다
+const guide = readFileSync(resolve(__dirname, '../../../../docs/CHART_FORMAT_GUIDE.md'), 'utf8').replace(
+  /\r\n/g,
+  '\n'
+)
 
 /** 문서의 ```ts 블록 중 `export`가 있는 것(참고 구현)만 이어 붙인다. 사용 예 블록은 뺀다. */
 function referenceSource(): string {

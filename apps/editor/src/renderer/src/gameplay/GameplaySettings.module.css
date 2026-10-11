@@ -1,0 +1,42 @@
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 40px;
+}
+
+.disabled .label,
+.disabled .control {
+  opacity: 0.5;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.label {
+  white-space: nowrap;
+}
+
+.desc {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 280px;
+  flex: none;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+}

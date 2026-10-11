@@ -1,0 +1,11 @@
+.slider {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: default;
+}
+
+.slider:disabled {
+  opacity: 0.4;
+}

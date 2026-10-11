@@ -3,7 +3,7 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  max-width: 640px;
+  overflow-y: auto;
 }
 
 .title {
@@ -27,6 +27,34 @@
 }
 
 .desc {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* 왼쪽 설정 카드, 오른쪽 미리보기. 폭이 모자라면(약 760px 미만) 미리보기가 아래로 내려간다 */
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 436px;
+  min-width: 0;
+  max-width: 640px;
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: none;
+}
+
+.previewTitle {
   color: var(--text-muted);
   font-size: 12px;
 }

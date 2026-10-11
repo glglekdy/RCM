@@ -4,9 +4,9 @@
 
 > **AI 에이전트에게: 코드를 쓰기 전에 반드시 7장을 따른다.** 새 게임을 만들 때는 원하는 게임 플레이 스타일과 판정 방식을 사용자에게 먼저 묻고, 답을 정리해 확인받은 뒤 구현한다. 게임 플레이와 판정이 이미 짜여 있는 게임이라면 그 부분은 그대로 두고 **채보만 RCM 포맷으로 읽게** 바꾼다 (7.6절). 4장의 규칙은 새 게임에서 사용자가 "기본으로"를 골랐을 때 쓰는 기본값이다.
 
-- 저장소: 이 문서가 있는 모노레포 (`packages/core`, `packages/playfield`, `apps/editor`)
-- 정본(코드가 진실이다): 타입 `packages/core/src/types.ts`, 타이밍 `packages/core/src/timing.ts`, 검증 `packages/core/src/validate.ts`, 판정 `packages/playfield/src/judge.ts`·`playState.ts`
-- 설계 문서: `docs/superpowers/specs/2026-10-09-chart-editor-design.md`, `docs/superpowers/specs/2026-10-10-named-tracks-design.md`, `docs/superpowers/specs/2026-10-11-scroll-speed-design.md`
+- 사용자는 RCM 채보 에디터 앱의 `AI 가이드` 메뉴에서 이 문서를 받아 너에게 넘겼다. 사용자에게는 에디터 앱과 에디터가 만든 곡 폴더만 있다. 에디터 소스 코드, 설계 문서, 설치해서 쓸 라이브러리(npm 패키지 등)는 **없다.** 그런 것을 찾거나 설치하려 하지 말 것.
+- 필요한 것은 이 문서에 모두 들어 있다. 파일 포맷과 검증 규칙(2장), 시간 계산 공식(3장), 판정 규칙(4.5절)이다. 코드 예시는 에디터와 똑같이 동작하는 **TypeScript 참고 구현**이다. 그대로 복사해 쓰거나 다른 언어로 옮긴다.
+- 에디터의 `테스트 플레이`(F5)가 이 문서의 기본 규칙으로 동작한다. 게임 결과가 맞는지 사용자가 에디터에서 비교해 볼 수 있다.
 
 ---
 
@@ -18,7 +18,7 @@
 4. 노트는 레인 번호가 아니라 **트랙 이름 문자열**(`"Note_1"`, `"Side_L"` 등)을 가리킨다. 트랙 이름을 게임 규칙에 어떻게 대응시킬지는 **게임이 정한다**.
 5. 노트 종류는 `tap`과 `hold`(롱노트, `endTick` 있음) 두 가지뿐이다.
 6. 채보에 선택 필드 `speeds`(변속)가 있으면 노트를 ms 차이가 아니라 **스크롤 위치** 차이로 그린다 (3.6절). 판정은 변속과 무관하게 ms 기준이다.
-7. TypeScript/JavaScript라면 `@rcm/core`(파싱·검증·타이밍)와 `@rcm/playfield`(판정·플레이 화면)를 그대로 가져다 쓰는 것이 가장 안전하다. 다른 언어라면 3장 공식과 4.5절 판정 규칙을 그대로 옮기면 된다.
+7. 외부 라이브러리 없이 구현한다. TypeScript/JavaScript라면 3.5절(`TimingMap`), 3.6절(`ScrollMap`), 4.5절(`PlayState`)의 참고 구현을 그대로 복사해 쓴다. 다른 언어라면 이 코드를 그대로 옮긴다.
 8. 게임 플레이 방식(화면 방향, 롱노트 처리 등)과 판정 방식(판정 범위, 헛누름 벌점 등)은 **게임이 정한다.** 새 게임이면 코드를 쓰기 전에 7장 질문으로 사용자에게 먼저 묻는다. 이미 만든 게임이면 플레이·판정은 그대로 두고 채보 읽는 부분만 바꾼다 (7.6절).
 
 ---
@@ -181,17 +181,77 @@ msToTick(ms):
 
 `offsetMs = 100`, `timing = [{tick:0, bpm:120}]` 이면 `tickToMs(0) = 100`, `tickToMs(480) = 600`, `tickToMs(-480) = -400`.
 
-### 3.5 TypeScript에서는 그냥 이걸 쓴다
+### 3.5 참고 구현: 타입과 `TimingMap` (TypeScript)
+
+에디터와 같은 계산이다. 그대로 복사해 쓰거나 다른 언어로 옮긴다.
 
 ```ts
-import { parseSong, parseChart, TimingMap } from '@rcm/core';
+export const TICKS_PER_BEAT = 480;
 
-const song = parseSong(songJsonText);                 // { ok: true, value } | { ok: false, errors: string[] }
-const chart = parseChart(chartJsonText, 'hard.chart.json');
-if (!song.ok || !chart.ok) throw new Error([...(song.ok ? [] : song.errors), ...(chart.ok ? [] : chart.errors)].join('\n'));
+export interface TimingPoint { tick: number; bpm: number; beatsPerMeasure?: number }
+export interface Song {
+  formatVersion: 1; title: string; artist: string; audio: string;
+  offsetMs: number; previewStartMs: number; timing: TimingPoint[];
+}
+export interface Track { id: string; color?: string; width?: 'narrow' | 'normal' | 'wide' }
+export type Note =
+  | { tick: number; track: string; type: 'tap' }
+  | { tick: number; track: string; type: 'hold'; endTick: number };
+export interface SpeedPoint { tick: number; speed: number; ease?: 'instant' | 'linear' }
+export interface Chart {
+  formatVersion: 1; name: string; level: number;
+  tracks: Track[]; speeds?: SpeedPoint[]; notes: Note[];
+}
 
-const tm = new TimingMap(song.value.timing, song.value.offsetMs);
-const notes = chart.value.notes.map(n => ({
+interface Segment { startTick: number; startMs: number; bpm: number }
+
+export class TimingMap {
+  private readonly segments: Segment[] = [];
+
+  constructor(timing: TimingPoint[], offsetMs: number) {
+    const points = [...timing].sort((a, b) => a.tick - b.tick);
+    let ms = offsetMs;
+    points.forEach((p, i) => {
+      if (i > 0) {
+        const prev = this.segments[i - 1];
+        ms = prev.startMs + ((p.tick - prev.startTick) * 60000) / (prev.bpm * TICKS_PER_BEAT);
+      }
+      this.segments.push({ startTick: p.tick, startMs: ms, bpm: p.bpm });
+    });
+  }
+
+  /** key 값이 x 이하인 마지막 구간 (없으면 0번 구간) */
+  private find(x: number, key: 'startTick' | 'startMs'): Segment {
+    const s = this.segments;
+    let lo = 0, hi = s.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (s[mid][key] <= x) lo = mid; else hi = mid - 1;
+    }
+    return s[lo];
+  }
+
+  tickToMs(tick: number): number {
+    const s = this.find(tick, 'startTick');
+    return s.startMs + ((tick - s.startTick) * 60000) / (s.bpm * TICKS_PER_BEAT);
+  }
+
+  /** 실수 tick을 돌려준다 */
+  msToTick(ms: number): number {
+    const s = this.find(ms, 'startMs');
+    return s.startTick + ((ms - s.startMs) * s.bpm * TICKS_PER_BEAT) / 60000;
+  }
+}
+```
+
+사용 예:
+
+```ts
+const song = JSON.parse(songJsonText) as Song;     // 읽은 뒤 2장 규칙으로 검증한다
+const chart = JSON.parse(chartJsonText) as Chart;
+
+const tm = new TimingMap(song.timing, song.offsetMs);
+const notes = chart.notes.map(n => ({
   track: n.track,
   type: n.type,
   startMs: tm.tickToMs(n.tick),
@@ -199,7 +259,7 @@ const notes = chart.value.notes.map(n => ({
 }));
 ```
 
-`parseSong`/`parseChart`는 2장의 모든 규칙을 검사하고, 오류는 `"hard.chart.json › notes[3].track: ..."` 형식의 한국어 메시지 배열로 돌려준다.
+**검증은 직접 한다.** `JSON.parse`는 형식만 확인하므로, 읽은 뒤 2장의 표와 규칙(필드 타입, `formatVersion`, tick 정수·오름차순, 트랙 id 형식·중복, 노트의 `track`이 `tracks`에 있는지, 같은 트랙 노트 겹침, 예전 포맷 거부)을 모두 검사한다. 오류는 한 번에 모아서 `"hard.chart.json › notes[3].track: 없는 트랙"`처럼 파일·위치·이유를 함께 보여 주면 사용자가 에디터에서 고치기 쉽다.
 
 ### 3.6 변속(스크롤 속도)
 
@@ -238,12 +298,80 @@ const notes = chart.value.notes.map(n => ({
 | `[{tick:960, speed:0}, {tick:1440, speed:1}]` (정지 후 ×1) | 1200 | 1000 | 1000ms에 멈춤 |
 | 위와 같음 | 1700 | 1200 | 1500ms에서 다시 흐름: 1000 + 200 |
 
-**TypeScript에서는 `ScrollMap`을 쓴다.**
+**참고 구현: `ScrollMap` (TypeScript).** 위 공식을 그대로 옮긴 것이다 (3.5절의 `TimingMap`, `SpeedPoint` 사용).
 
 ```ts
-import { ScrollMap } from '@rcm/core';
+interface Knot {
+  ms: number;
+  speed: number;
+  pos: number;          // 이 지점에서의 누적 스크롤 위치 S
+  linearNext: boolean;  // 다음 지점까지 서서히 바뀌면 true
+  length: number;       // 다음 지점까지 길이(ms), 마지막이면 Infinity
+  nextSpeed: number;
+}
 
-const scroll = new ScrollMap(chart.value.speeds, tm);   // speeds가 undefined면 항상 ×1 (S(t) = t − tickToMs(0))
+export class ScrollMap {
+  private readonly base: number;
+  private readonly knots: Knot[] = [];
+
+  constructor(speeds: readonly SpeedPoint[] | undefined, tm: TimingMap) {
+    this.base = tm.tickToMs(0);
+    const pts = (speeds ?? []).map(p => ({
+      ms: tm.tickToMs(p.tick),
+      speed: p.speed,
+      linear: p.ease === 'linear' && p.tick > 0,
+    }));
+    // 첫 지점이 서서히면 이전 지점은 (tick 0, ×1)
+    if (pts.length > 0 && pts[0].linear) pts.unshift({ ms: this.base, speed: 1, linear: false });
+
+    let pos = pts.length > 0 ? pts[0].ms - this.base : 0;
+    pts.forEach((p, i) => {
+      const next = pts[i + 1];
+      const length = next ? next.ms - p.ms : Infinity;
+      this.knots.push({
+        ms: p.ms, speed: p.speed, pos,
+        linearNext: !!next && next.linear,
+        length,
+        nextSpeed: next ? next.speed : p.speed,
+      });
+      if (next) pos += p.speed * length + (next.linear ? ((next.speed - p.speed) * length) / 2 : 0);
+    });
+  }
+
+  private knotAt(ms: number): Knot | undefined {
+    const ks = this.knots;
+    if (ks.length === 0 || ms < ks[0].ms) return undefined;
+    let lo = 0, hi = ks.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (ks[mid].ms <= ms) lo = mid; else hi = mid - 1;
+    }
+    return ks[lo];
+  }
+
+  /** 그 시각의 배율 v(t) */
+  speedAt(ms: number): number {
+    const k = this.knotAt(ms);
+    if (!k) return 1;
+    if (!k.linearNext) return k.speed;
+    return k.speed + ((k.nextSpeed - k.speed) * (ms - k.ms)) / k.length;
+  }
+
+  /** 스크롤 위치 S(t) */
+  positionAt(ms: number): number {
+    const k = this.knotAt(ms);
+    if (!k) return ms - this.base;
+    const d = ms - k.ms;
+    const pos = k.pos + k.speed * d;
+    return k.linearNext ? pos + ((k.nextSpeed - k.speed) * d * d) / (2 * k.length) : pos;
+  }
+}
+```
+
+사용 예:
+
+```ts
+const scroll = new ScrollMap(chart.speeds, tm);   // speeds가 undefined면 항상 ×1 (S(t) = t − tickToMs(0))
 scroll.speedAt(1500);       // 그 시각의 배율 v(t)
 scroll.positionAt(1500);    // 스크롤 위치 S(t)
 
@@ -326,20 +454,146 @@ const endPos = notes.map(n => (n.endMs === undefined ? undefined : scroll.positi
 4. **콤보**: MISS면 0으로, 그 외에는 +1. 최대 콤보를 따로 기록한다.
 5. 키 반복(keydown repeat) 이벤트는 무시한다. Ctrl/Alt/Meta와 함께 누른 키는 게임 입력으로 보지 않는다 (Shift는 사이드 트랙 키로 쓰일 수 있으므로 허용).
 
-TypeScript라면 `@rcm/playfield`의 `PlayState`가 이 규칙을 그대로 구현한다:
+**참고 구현: `PlayState` (TypeScript).** 에디터 테스트 플레이와 같은 판정 코드다 (3.5절의 `Chart`, `TimingMap` 사용). 사용자가 7장에서 다른 판정 방식을 고르면 이 코드를 고쳐서 쓴다.
 
 ```ts
-import { PlayState, JUDGE_WINDOWS } from '@rcm/playfield';
+export const JUDGE_WINDOWS = { perfect: 40, great: 80, good: 120 } as const;
+export const HOLD_RELEASE_TOLERANCE = 120;
 
-const state = new PlayState(chart.value, tm, /* fromMs */ 0);  // fromMs 이전 노트는 제외
-// lane = tracks 배열에서의 위치 (trackIndex(chart.tracks, id))
-state.press(lane, nowMs);    // → JudgeEvent[]  { lane, judgement, part: 'head'|'tail', ms }
-state.release(lane, nowMs);
-state.update(nowMs);         // 매 프레임: 놓친 노트 MISS, 끝까지 누른 롱노트 성공 처리
-state.combo; state.maxCombo; state.counts; // { perfect, great, good, miss }
+export type Judgement = 'perfect' | 'great' | 'good' | 'miss';
+export interface JudgeEvent { lane: number; judgement: Judgement; part: 'head' | 'tail'; ms: number }
+
+/** 입력 시각 − 노트 시각(ms)을 판정으로 바꾼다. 창 밖이면 null (치지 않은 것으로 본다) */
+export function judgeDelta(deltaMs: number): Judgement | null {
+  const d = Math.abs(deltaMs);
+  if (d <= JUDGE_WINDOWS.perfect) return 'perfect';
+  if (d <= JUDGE_WINDOWS.great) return 'great';
+  if (d <= JUDGE_WINDOWS.good) return 'good';
+  return null;
+}
+
+export interface PlayNote { lane: number; startMs: number; endMs?: number; headJudged: boolean; tailJudged: boolean }
+
+export class PlayState {
+  combo = 0;
+  maxCombo = 0;
+  readonly counts: Record<Judgement, number> = { perfect: 0, great: 0, good: 0, miss: 0 };
+
+  private readonly playNotes: PlayNote[] = [];
+  private readonly laneNotes: number[][] = [];  // 레인별 노트 인덱스 (시작 시각 순)
+  private readonly cursor: number[] = [];       // 레인별 판정 안 된 가장 이른 머리의 위치
+  private readonly holding: number[] = [];      // 레인별 누르는 중인 롱노트 인덱스 (없으면 -1)
+
+  /** lane = tracks 배열에서의 위치. fromMs 이전 노트는 빼고 시작한다 */
+  constructor(chart: Chart, tm: TimingMap, fromMs: number) {
+    for (const n of chart.notes) {
+      const lane = chart.tracks.findIndex(t => t.id === n.track);
+      if (lane < 0) continue;
+      const startMs = tm.tickToMs(n.tick);
+      if (startMs < fromMs) continue;
+      this.playNotes.push({
+        lane, startMs,
+        endMs: n.type === 'hold' ? tm.tickToMs(n.endTick) : undefined,
+        headJudged: false, tailJudged: false,
+      });
+    }
+    this.playNotes.sort((a, b) => a.startMs - b.startMs);
+    this.playNotes.forEach((n, i) => (this.laneNotes[n.lane] ??= []).push(i));
+  }
+
+  /** 시작 시각 순 노트 목록 (그리기용) */
+  get notes(): readonly Readonly<PlayNote>[] { return this.playNotes; }
+
+  /** 키를 누름 */
+  press(lane: number, ms: number): JudgeEvent[] {
+    if ((this.holding[lane] ?? -1) >= 0) return [];
+    const list = this.laneNotes[lane];
+    if (!list) return [];
+    for (let c = this.advance(lane); c < list.length; c++) {
+      const idx = list[c];
+      const n = this.playNotes[idx];
+      if (n.headJudged) continue;
+      if (n.startMs - ms > JUDGE_WINDOWS.good) break;
+      const j = judgeDelta(ms - n.startMs);
+      if (j === null) continue;
+      n.headJudged = true;
+      if (n.endMs === undefined) n.tailJudged = true;
+      else this.holding[lane] = idx;
+      this.advance(lane);
+      return [this.record(lane, j, 'head', ms)];
+    }
+    return [];
+  }
+
+  /** 키를 뗌 */
+  release(lane: number, ms: number): JudgeEvent[] {
+    const idx = this.holding[lane] ?? -1;
+    if (idx < 0) return [];
+    const n = this.playNotes[idx];
+    this.holding[lane] = -1;
+    n.tailJudged = true;
+    const j: Judgement = ms < n.endMs! - HOLD_RELEASE_TOLERANCE ? 'miss' : 'perfect';
+    return [this.record(lane, j, 'tail', ms)];
+  }
+
+  /** 매 프레임: 놓친 노트는 MISS, 끝까지 누른 롱노트는 꼬리 PERFECT */
+  update(ms: number): JudgeEvent[] {
+    const pending: { idx: number; part: 0 | 1; lane: number; judgement: Judgement }[] = [];
+    for (let lane = 0; lane < this.laneNotes.length; lane++) {
+      const list = this.laneNotes[lane];
+      if (!list) continue;
+      const h = this.holding[lane] ?? -1;
+      if (h >= 0 && ms >= this.playNotes[h].endMs!) {
+        this.holding[lane] = -1;
+        this.playNotes[h].tailJudged = true;
+        pending.push({ idx: h, part: 1, lane, judgement: 'perfect' });
+      }
+      for (let c = this.advance(lane); c < list.length; c++) {
+        const n = this.playNotes[list[c]];
+        if (n.headJudged) continue;
+        if (ms <= n.startMs + JUDGE_WINDOWS.good) break;
+        n.headJudged = true;
+        pending.push({ idx: list[c], part: 0, lane, judgement: 'miss' });
+        if (n.endMs !== undefined) {
+          n.tailJudged = true;
+          pending.push({ idx: list[c], part: 1, lane, judgement: 'miss' });
+        }
+      }
+      this.advance(lane);
+    }
+    pending.sort((a, b) => a.idx - b.idx || a.part - b.part);
+    return pending.map(p => this.record(p.lane, p.judgement, p.part === 0 ? 'head' : 'tail', ms));
+  }
+
+  private advance(lane: number): number {
+    const list = this.laneNotes[lane];
+    let c = this.cursor[lane] ?? 0;
+    while (c < list.length && this.playNotes[list[c]].headJudged) c++;
+    this.cursor[lane] = c;
+    return c;
+  }
+
+  private record(lane: number, judgement: Judgement, part: 'head' | 'tail', ms: number): JudgeEvent {
+    this.counts[judgement]++;
+    if (judgement === 'miss') this.combo = 0;
+    else this.maxCombo = Math.max(this.maxCombo, ++this.combo);
+    return { lane, judgement, part, ms };
+  }
+}
 ```
 
-`@rcm/playfield`의 `Playfield` 클래스는 Canvas에 노트·판정선·키 라벨·판정 문구·콤보를 그리는 완성된 플레이 화면이다 (옵션: `chart`, `tm`, `getTimeMs`, `fromMs`, `speed`, `keymap: Map<trackId, KeyboardEvent.code | null>`). 웹 게임이라면 이걸로 시작해서 바꿔 나가는 것이 빠르다.
+사용 예:
+
+```ts
+const state = new PlayState(chart, tm, /* fromMs */ 0);
+// 키 입력 → lane(트랙 위치)으로 바꾼 뒤, 그 순간의 곡 위치(ms, 4.3절)와 함께 넘긴다
+state.press(lane, nowMs);    // → JudgeEvent[]  { lane, judgement, part: 'head'|'tail', ms }
+state.release(lane, nowMs);
+state.update(nowMs);         // 매 프레임 호출
+state.combo; state.maxCombo; state.counts;   // { perfect, great, good, miss }
+```
+
+화면(노트·판정선·키 라벨·판정 문구·콤보)은 게임이 직접 그린다. 노트 위치는 4.4절 공식을 따른다.
 
 ### 4.6 점수 (포맷이 정하지 않음 — 제안)
 
@@ -350,7 +604,7 @@ state.combo; state.maxCombo; state.counts; // { perfect, great, good, miss }
 ## 5. 구현 체크리스트
 
 - [ ] `formatVersion !== 1`이거나 예전 포맷(`lanes`/`lane`)이면 읽기 거부
-- [ ] 2장의 검증 규칙 적용 (또는 `@rcm/core`의 `parseSong`/`parseChart` 사용)
+- [ ] 2장의 검증 규칙을 모두 적용
 - [ ] tick → ms 변환에 `offsetMs`와 **모든** BPM 변경 지점 반영 (3.4 검산값으로 테스트)
 - [ ] 노트 시각은 정수 반올림하지 말고 실수 ms로 유지
 - [ ] `speeds`가 있으면 노트 y를 스크롤 위치(3.6절 `S`)로 계산, 3.6 검산값으로 테스트 (`speeds`가 없으면 ms 차이와 같음)
@@ -395,14 +649,14 @@ state.combo; state.maxCombo; state.counts; // { perfect, great, good, miss }
 1. **묻기**: 7.3과 7.4의 질문을 한 번에 보낸다. 질문마다 번호와 보기를 붙이고, 기본값에 `(기본)`을 표시한다. 사용자가 "기본으로" 또는 "알아서"라고 하면 `(기본)`을 고른다. 기본값은 에디터 테스트 플레이와 같은 규칙이다.
 2. **정리하기**: 답을 7.5 형식의 "게임 규칙 요약"으로 정리해 보여 주고 "이대로 만들까요?"라고 확인받는다. 확인받기 전에는 게임 플레이·판정 코드를 쓰지 않는다. 답과 상관없는 부분(파일 읽기·검증, tick → ms 계산)은 먼저 해도 된다.
 3. **기록하기**: 확정한 규칙을 게임 프로젝트의 `docs/GAME_RULES.md`에 저장하고, 이후 작업은 이 파일을 따른다. 규칙을 바꿀 때는 사용자에게 묻고 이 파일부터 고친다.
-4. **구현하기**: 기본과 다른 판정 범위나 롱노트 규칙을 고르면 `@rcm/playfield`의 `PlayState`를 그대로 쓸 수 없다. 그 부분은 직접 구현하고, 고른 판정 범위의 경계값(예: 40ms와 41ms)으로 테스트를 만든다.
+4. **구현하기**: 기본과 다른 판정 범위나 롱노트 규칙을 고르면 4.5절의 `PlayState`를 그대로 쓸 수 없다. 그 부분은 고쳐서 구현하고, 고른 판정 범위의 경계값(예: 40ms와 41ms)으로 테스트를 만든다.
 5. `docs/GAME_RULES.md`가 이미 있으면 다시 묻지 않고 그 파일을 따른다. 빠진 항목만 묻는다.
 
 ### 7.3 게임 플레이 스타일 질문
 
 | # | 질문 | 보기 |
 |---|---|---|
-| 1 | 플랫폼: 어디서 돌아가는 게임인가? | **웹 브라우저 + TypeScript (기본)**, `@rcm/core`·`@rcm/playfield` 사용 / 다른 엔진·언어 (Unity, Godot 등), 3장 공식과 판정 규칙을 옮긴다 |
+| 1 | 플랫폼: 어디서 돌아가는 게임인가? | **웹 브라우저 + TypeScript (기본)**, 3.5·3.6·4.5절 참고 구현을 그대로 사용 / 다른 엔진·언어 (Unity, Godot 등), 참고 구현을 그 언어로 옮긴다 |
 | 2 | 화면 방향: 노트가 어떻게 움직이나? | **위에서 아래로 떨어지고 판정선은 아래 (기본)** / 아래에서 위로 / 오른쪽에서 왼쪽 (가로) / 직접 설명 |
 | 3 | 레인 배치: 트랙을 어떻게 놓나? | **`tracks` 배열 순서대로 왼쪽부터, 모두 같은 너비 (기본)** / 사이드 트랙(`Side_L`·`Side_R`)은 양 끝에 넓게 / 직접 지정 |
 | 4 | 입력: 무엇으로 치나? | **키보드 (기본, 4.2절 키 배치)** / 터치 (레인 영역을 터치) / 게임패드 / 여러 개 함께 |
@@ -432,7 +686,7 @@ state.combo; state.maxCombo; state.counts; // { perfect, great, good, miss }
 # 게임 규칙
 
 ## 게임 플레이
-- 플랫폼: 웹 브라우저 + TypeScript (@rcm/core, @rcm/playfield)
+- 플랫폼: 웹 브라우저 + TypeScript (가이드의 참고 구현 사용)
 - 화면: 위에서 아래로 떨어지고 판정선은 아래
 - 레인: tracks 순서대로, 같은 너비
 - 입력: 키보드 (4K D F J K)
@@ -475,7 +729,7 @@ state.combo; state.maxCombo; state.counts; // { perfect, great, good, miss }
 
 3. **확인받기**: 답과 트랙 대응표를 정리해 "이대로 연결할까요?"라고 확인받는다.
 4. **변환기 만들기**: RCM 곡 폴더(`song.json` + `*.chart.json`)를 읽어 기존 게임의 노트 데이터로 바꾸는 함수(어댑터)를 하나 만든다.
-   - 2장 검증을 먼저 한다 (TypeScript라면 `@rcm/core`의 `parseSong`·`parseChart`).
+   - 2장 검증을 먼저 한다.
    - 시각은 3장 공식으로 ms로 바꾼 뒤(`offsetMs`와 모든 BPM 변경 포함) 기존 게임의 단위로 바꾼다. 기존 게임이 박자 단위라면 BPM 변경이 있는 곡에서 어긋나지 않는지 특히 확인한다.
    - 게임 플레이·판정 코드는 이 어댑터가 만든 데이터를 기존 채보와 똑같이 받는다.
 5. **판정 차이 알리기**: 판정은 기존 게임 것을 그대로 쓰므로, 에디터의 테스트 플레이(40/80/120ms, 4.5절)와 결과가 다를 수 있다고 사용자에게 알린다.

@@ -4,7 +4,7 @@
 
 - 저장소: 이 문서가 있는 모노레포 (`packages/core`, `packages/playfield`, `apps/editor`)
 - 정본(코드가 진실이다): 타입 `packages/core/src/types.ts`, 타이밍 `packages/core/src/timing.ts`, 검증 `packages/core/src/validate.ts`, 판정 `packages/playfield/src/judge.ts`·`playState.ts`
-- 설계 문서: `docs/superpowers/specs/2026-10-09-chart-editor-design.md`, `docs/superpowers/specs/2026-10-10-named-tracks-design.md`
+- 설계 문서: `docs/superpowers/specs/2026-10-09-chart-editor-design.md`, `docs/superpowers/specs/2026-10-10-named-tracks-design.md`, `docs/superpowers/specs/2026-10-11-scroll-speed-design.md`
 
 ---
 
@@ -15,7 +15,8 @@
 3. tick → ms 변환은 `song.json`의 `offsetMs`와 `timing`(BPM 변경 목록)으로 한다 (3장 공식).
 4. 노트는 레인 번호가 아니라 **트랙 이름 문자열**(`"Note_1"`, `"Side_L"` 등)을 가리킨다. 트랙 이름을 게임 규칙에 어떻게 대응시킬지는 **게임이 정한다**.
 5. 노트 종류는 `tap`과 `hold`(롱노트, `endTick` 있음) 두 가지뿐이다.
-6. TypeScript/JavaScript라면 `@rcm/core`(파싱·검증·타이밍)와 `@rcm/playfield`(판정·플레이 화면)를 그대로 가져다 쓰는 것이 가장 안전하다. 다른 언어라면 3장 공식과 5장 판정 규칙을 그대로 옮기면 된다.
+6. 채보에 선택 필드 `speeds`(변속)가 있으면 노트를 ms 차이가 아니라 **스크롤 위치** 차이로 그린다 (3.6절). 판정은 변속과 무관하게 ms 기준이다.
+7. TypeScript/JavaScript라면 `@rcm/core`(파싱·검증·타이밍)와 `@rcm/playfield`(판정·플레이 화면)를 그대로 가져다 쓰는 것이 가장 안전하다. 다른 언어라면 3장 공식과 5장 판정 규칙을 그대로 옮기면 된다.
 
 ---
 
@@ -76,6 +77,10 @@
     { "id": "Note_4" }, { "id": "Note_5" }, { "id": "Note_6" },
     { "id": "Side_R", "color": "#f59e0b", "width": "wide" }
   ],
+  "speeds": [                    // (선택) 노트 속도 변경. 없거나 비면 항상 ×1
+    { "tick": 3840, "speed": 2 },
+    { "tick": 7680, "speed": 3, "ease": "linear" }
+  ],
   "notes": [                     // tick 오름차순, 같은 tick이면 tracks 배열 순서
     { "tick": 1920, "track": "Note_1", "type": "tap" },
     { "tick": 2400, "track": "Side_L", "type": "hold", "endTick": 3360 }
@@ -102,6 +107,18 @@
 | `track` | `tracks[].id` 중 하나 |
 | `type` | `"tap"` 또는 `"hold"` |
 | `endTick` | `hold`만. `endTick > tick` 정수. 롱노트 끝 위치 |
+
+**변속 (`speeds[]`, 선택)**
+
+| 필드 | 필수 | 규칙 |
+|---|---|---|
+| `speeds` | 선택 | 배열. 없거나 비어 있으면 변속 없음(항상 ×1). 필드 순서는 `formatVersion, name, level, tracks, speeds, notes` |
+| `speeds[].tick` | 필수 | 0 이상 정수. 배열 안에서 엄격히 증가 (같은 tick 두 개 금지) |
+| `speeds[].speed` | 필수 | 유한한 수, `0 ≤ speed ≤ 20`. 0은 정지 |
+| `speeds[].ease` | 선택 | `"instant"` \| `"linear"`. 생략 = `"instant"` |
+
+- 변속은 **채보(난이도)마다** 따로 있다. 곡 전체 설정(`song.json`)이 아니다.
+- 의미와 계산은 3.6절.
 
 **겹침 금지**: 같은 트랙 안에서 두 노트의 구간 `[tick, endTick ?? tick]`(양 끝 포함)이 겹치지 않는다. 그래서 `"<track>:<tick>"`은 채보 안에서 노트를 유일하게 식별하는 키로 쓸 수 있다.
 
@@ -181,6 +198,59 @@ const notes = chart.value.notes.map(n => ({
 
 `parseSong`/`parseChart`는 2장의 모든 규칙을 검사하고, 오류는 `"hard.chart.json › notes[3].track: ..."` 형식의 한국어 메시지 배열로 돌려준다.
 
+### 3.6 변속(스크롤 속도)
+
+`speeds`는 **노트가 내려오는 속도 배율**을 바꾼다. BPM과는 무관하다 (BPM이 바뀌어도 스크롤 속도는 ms 기준으로 일정하고, 변속 지점만 배율을 바꾼다). 실제 속도 = 유저 개인 노트 속도 설정 × 채보 속도 배율.
+
+**① 시각별 속도 v(t).** 변속 지점의 tick을 3.2의 `tickToMs`로 ms로 바꾼 뒤 (`t_i`, `v_i`, `ease_i`):
+
+- `t < t_0` (첫 지점 전): `v = 1`
+- `t_i ≤ t < t_{i+1}`:
+  - 다음 지점의 `ease_{i+1} = instant`: `v = v_i`
+  - 다음 지점의 `ease_{i+1} = linear`: `v = v_i + (v_{i+1} − v_i) · (t − t_i) / (t_{i+1} − t_i)` (`linear`는 "**이전 지점에서 이 지점까지** 서서히 바뀐다"는 뜻)
+- `t ≥ t_last`: `v = v_last` (마지막 속도 유지)
+- 첫 지점이 `linear`면 "이전 지점"은 `(tickToMs(0), 1)`로 본다. 첫 지점 tick이 0이고 `linear`면 즉시와 같다.
+
+**② 스크롤 위치 S(t).** `S(t) = ∫ v(τ) dτ` (ms 단위, 속도를 시간에 대해 적분한 값). 기준은 `S(tickToMs(0)) = 0`. 첫 지점 전은 `v = 1`이므로 tick 0 이전도 `S(t) = t − tickToMs(0)`.
+
+구간 시작마다 누적값 `S_i`를 미리 계산해 두고, 시각은 이진 탐색으로 구간을 찾는다 (`d = t − t_i`, `D = t_{i+1} − t_i`).
+
+```
+즉시 구간:   S(t) = S_i + v_i · d
+서서히 구간: S(t) = S_i + v_i · d + (v_{i+1} − v_i) · d² / (2 · D)
+마지막 지점 뒤: S(t) = S_last + v_last · d
+```
+
+`v ≥ 0`이므로 S는 줄어들지 않는다 (노트가 거꾸로 움직이지 않는다). `v = 0`인 구간은 S가 일정해서 노트가 멈춘다.
+
+**③ 화면 위치.** 노트 y는 4.4절처럼 `S`의 차이로 계산한다. **판정은 변속과 상관없이 ms 기준 그대로**다.
+
+**검산값** (`offsetMs = 0`, `timing = [{tick:0, bpm:120}]`, 1박 = 500ms):
+
+| `speeds` | t (ms) | S(t) | 이유 |
+|---|---|---|---|
+| `[{tick:960, speed:2}]` (즉시 ×2) | 1500 | 2000 | 0~1000ms는 ×1 → 1000, 이후 500ms를 ×2 → +1000 |
+| `[{tick:960, speed:1}, {tick:1920, speed:3, ease:"linear"}]` (×1에서 ×3으로 서서히) | 1500 | 1750 | 1000 + 500 + (3−1)·500²/(2·1000) |
+| 위와 같음 | 2000 | 3000 | 1000 + 1000 + (3−1)·1000/2 |
+| `[{tick:960, speed:0}, {tick:1440, speed:1}]` (정지 후 ×1) | 1200 | 1000 | 1000ms에 멈춤 |
+| 위와 같음 | 1700 | 1200 | 1500ms에서 다시 흐름: 1000 + 200 |
+
+**TypeScript에서는 `ScrollMap`을 쓴다.**
+
+```ts
+import { ScrollMap } from '@rcm/core';
+
+const scroll = new ScrollMap(chart.value.speeds, tm);   // speeds가 undefined면 항상 ×1 (S(t) = t − tickToMs(0))
+scroll.speedAt(1500);       // 그 시각의 배율 v(t)
+scroll.positionAt(1500);    // 스크롤 위치 S(t)
+
+// 노트마다 한 번만 미리 계산해 둔다
+const startPos = notes.map(n => scroll.positionAt(n.startMs));
+const endPos = notes.map(n => (n.endMs === undefined ? undefined : scroll.positionAt(n.endMs)));
+```
+
+> 주의: 부동소수점 오차로 `positionAt`이 구간 경계에서 1e-13쯤 줄어들 수 있다. 위치 배열에 이진 탐색을 쓸 때는 앞에서부터 누적 최댓값을 취해 오름차순으로 만든다.
+
 ---
 
 ## 4. 게임 구현 방법 (권장 구조)
@@ -218,13 +288,16 @@ const notes = chart.value.notes.map(n => ({
 
 ### 4.4 노트 그리기 (세로 스크롤)
 
-- 판정선 위치 `judgeY`, 스크롤 속도 `pxPerMs`(예: `속도 × 0.1`)일 때
+- 판정선 위치 `judgeY`, 유저 스크롤 속도 `pxPerMs`(예: `속도 × 0.1`)일 때, 노트 y는 시각이 아니라 **스크롤 위치**(3.6절의 `S`)의 차이로 계산한다.
   ```
-  noteY = judgeY - (note.startMs - nowMs) * pxPerMs     // 미래 노트는 판정선 위쪽
+  nowPos = S(nowMs)
+  noteY  = judgeY - (S(note.startMs) - nowPos) * pxPerMs     // 미래 노트는 판정선 위쪽
   ```
-- 롱노트는 머리(`startMs`)부터 끝(`endMs`)까지 몸통을 그린다.
-- 화면에 보이는 시간 범위만 그린다: `nowMs - (화면 아래 여백)/pxPerMs` ~ `nowMs + judgeY/pxPerMs`. 노트가 정렬돼 있으므로 이진 탐색으로 시작 위치를 찾는다.
-- 변속(스크롤 속도 변화) 이벤트는 포맷에 없다. BPM이 바뀌어도 스크롤 속도는 ms 기준으로 일정하다.
+  변속(`speeds`)이 없으면 `S(t) = t − tickToMs(0)`이라 `S(a) − S(b) = a − b`가 되어 예전 공식(`judgeY - (note.startMs - nowMs) * pxPerMs`)과 같다.
+- 롱노트는 머리(`S(startMs)`)부터 끝(`S(endMs)`)까지 몸통을 그린다. 정지(×0) 구간이 끼면 그 구간은 몸통 길이가 0이다.
+- 노트마다 `S(startMs)`, `S(endMs)`를 미리 계산해 둔다 (매 프레임 계산하지 않는다). 매 프레임 `nowPos`만 새로 구한다.
+- 화면에 보이는 **스크롤 위치 범위**만 그린다: `nowPos - (화면 아래 여백)/pxPerMs` ~ `nowPos + judgeY/pxPerMs`. S는 줄어들지 않고 노트는 `startMs` 순이므로 `S(startMs)` 배열도 오름차순이다. 이진 탐색으로 시작 위치를 찾되, 정지 구간처럼 같은 값이 이어질 수 있으니 "≥ 값인 **첫** 인덱스"를 찾는다. 롱노트 머리가 화면 아래로 지나가도 몸통이 보일 수 있으므로 시작 값을 가장 긴 롱노트의 `S` 길이만큼 더 당긴다.
+- BPM이 바뀌어도 스크롤 속도는 변하지 않는다. 속도를 바꾸는 것은 `speeds`뿐이다.
 
 ### 4.5 판정 (에디터 테스트 플레이와 같은 규칙)
 
@@ -274,6 +347,7 @@ state.combo; state.maxCombo; state.counts; // { perfect, great, good, miss }
 - [ ] 2장의 검증 규칙 적용 (또는 `@rcm/core`의 `parseSong`/`parseChart` 사용)
 - [ ] tick → ms 변환에 `offsetMs`와 **모든** BPM 변경 지점 반영 (3.4 검산값으로 테스트)
 - [ ] 노트 시각은 정수 반올림하지 말고 실수 ms로 유지
+- [ ] `speeds`가 있으면 노트 y를 스크롤 위치(3.6절 `S`)로 계산, 3.6 검산값으로 테스트 (`speeds`가 없으면 ms 차이와 같음)
 - [ ] 오디오 시계 하나만 사용, 프레임마다 현재 위치를 한 번 읽음
 - [ ] 판정은 트랙별, 창 40/80/120ms, 롱노트는 머리·꼬리 2판정
 - [ ] 모르는 트랙 이름 처리 방침 정하기 (거부 또는 무시)
@@ -289,4 +363,5 @@ state.combo; state.maxCombo; state.counts; // { perfect, great, good, miss }
 | 노트 위치를 레인 번호(`lane`)로 기대 | 파싱 실패 | 노트는 `track` 문자열, 위치는 `tracks` 배열에서 찾음 |
 | 프레임 시간으로 곡 위치 누적 | 몇 분 뒤 싱크가 밀림 | 오디오 시계에서 매번 계산 |
 | 롱노트를 판정 1개로 계산 | 총 판정 수·콤보가 에디터와 다름 | 머리·꼬리 2개 |
+| 변속 구간에서 노트 y를 ms 차이로 계산 | 변속·정지 구간에서 노트가 화면 위치에 맞지 않고 어긋남 | 3.6절의 스크롤 위치 `S`의 차이로 계산 (판정은 ms 그대로) |
 | 120ms 밖의 누름에 MISS를 줌 | 헛누름에 콤보가 끊김 | 창 밖 입력은 무시, MISS는 시간이 지나서만 |

@@ -1,16 +1,16 @@
-import { DEFAULT_NOTE_COLOR, type Chart, type TimingMap } from '@rcm/core';
+import { DEFAULT_NOTE_COLOR, ScrollMap, type Chart, type TimingMap } from '@rcm/core';
 import { HOLD_RELEASE_TOLERANCE, type JudgeEvent, type Judgement } from './judge';
 import { keyLabel, trackForCode, trackForKey } from './keymap';
 import { PlayState } from './playState';
 import {
   clampSpeed,
-  firstAtOrAfter,
+  firstAtOrAbove,
   JUDGE_LINE_FROM_BOTTOM,
   JUDGEMENT_SHOW_MS,
   trackColumns,
   noteY,
   pxPerMsForSpeed,
-  visibleRange,
+  visibleScrollRange,
 } from './view';
 
 export interface PlayfieldColors {
@@ -87,8 +87,12 @@ export class Playfield {
   private readonly lanes: number;
   private readonly labels: string[];
   private readonly noteColors: string[];
-  /** 가장 긴 롱노트 길이(ms). 머리가 화면 아래로 지나간 롱노트도 그리기 위해 탐색 시작을 이만큼 당긴다. */
-  private readonly maxHoldMs: number;
+  private readonly scroll: ScrollMap;
+  /** state.notes 순서대로 머리·꼬리의 스크롤 위치. 둘 다 줄어들지 않게 보정해 이진 탐색에 쓴다. 꼬리 없는 노트는 머리와 같다. */
+  private readonly startPos: number[] = [];
+  private readonly endPos: number[] = [];
+  /** 가장 긴 롱노트 길이(스크롤 위치 단위). 머리가 화면 아래로 지나간 롱노트도 그리기 위해 탐색 시작을 이만큼 당긴다. */
+  private readonly maxHoldSpanPos: number;
   private readonly pressed: boolean[];
   private speed: number;
   private last: { judgement: Judgement; ms: number } | null = null;
@@ -110,10 +114,19 @@ export class Playfield {
     });
     this.noteColors = opts.chart.tracks.map(t => t.color ?? DEFAULT_NOTE_COLOR);
     this.state = new PlayState(opts.chart, opts.tm, opts.fromMs);
-    this.maxHoldMs = this.state.notes.reduce(
-      (max, n) => (n.endMs === undefined ? max : Math.max(max, n.endMs - n.startMs)),
-      0,
-    );
+    this.scroll = new ScrollMap(opts.chart.speeds, opts.tm);
+    let maxSpan = 0;
+    let prevStart = -Infinity;
+    for (const n of this.state.notes) {
+      // positionAt은 구간 경계에서 1e-13쯤 줄어들 수 있어 누적 최댓값으로 오름차순을 보장한다
+      const start = Math.max(prevStart, this.scroll.positionAt(n.startMs));
+      const end = n.endMs === undefined ? start : Math.max(start, this.scroll.positionAt(n.endMs));
+      this.startPos.push(start);
+      this.endPos.push(end);
+      maxSpan = Math.max(maxSpan, end - start);
+      prevStart = start;
+    }
+    this.maxHoldSpanPos = maxSpan;
     this.pressed = Array.from({ length: this.lanes }, () => false);
     this.speed = clampSpeed(opts.speed);
   }
@@ -245,7 +258,7 @@ export class Playfield {
     }
   }
 
-  /** 화면에 보이는 시간 범위의 노트만 그린다. 판정된 노트는 감추고, 누르는 중인 롱노트는 머리를 판정선에 붙인다. */
+  /** 화면에 보이는 스크롤 위치 범위의 노트만 그린다. 판정된 노트는 감추고, 누르는 중인 롱노트는 머리를 판정선에 붙인다. */
   private drawNotes(
     now: number,
     cols: readonly { x: number; width: number }[],
@@ -255,30 +268,31 @@ export class Playfield {
     const { ctx } = this;
     const pxPerMs = pxPerMsForSpeed(this.speed);
     const pad = NOTE_HEIGHT / pxPerMs;
-    const { fromMs, toMs } = visibleRange(now, height, judgeY, pxPerMs);
+    const nowPos = this.scroll.positionAt(now);
+    const { fromPos, toPos } = visibleScrollRange(nowPos, height, judgeY, pxPerMs);
     const notes = this.state.notes;
-    const y = (ms: number) => noteY(ms, now, judgeY, pxPerMs);
-    for (let i = firstAtOrAfter(notes, fromMs - pad - this.maxHoldMs); i < notes.length; i++) {
+    const y = (pos: number) => noteY(pos, nowPos, judgeY, pxPerMs);
+    for (let i = firstAtOrAbove(this.startPos, fromPos - pad - this.maxHoldSpanPos); i < notes.length; i++) {
       const n = notes[i];
-      if (n.startMs > toMs + pad) break;
-      if ((n.endMs ?? n.startMs) < fromMs - pad) continue;
+      if (this.startPos[i] > toPos + pad) break;
+      if (this.endPos[i] < fromPos - pad) continue;
       const { x, width: w } = cols[n.lane];
       ctx.fillStyle = this.noteColors[n.lane];
       if (n.endMs === undefined) {
-        if (!n.headJudged) this.drawHead(x, w, y(n.startMs));
+        if (!n.headJudged) this.drawHead(x, w, y(this.startPos[i]));
         continue;
       }
       const held = this.state.heldNote(n.lane) === i;
-      let headMs = n.startMs;
+      let headPos = this.startPos[i];
       let alpha = 1;
-      if (held) headMs = Math.max(n.startMs, now);
+      if (held) headPos = Math.max(headPos, nowPos);
       else if (n.headJudged) {
         // 끝났거나 성공으로 뗀 롱노트는 감추고, 놓쳤거나 일찍 뗀 롱노트는 끝이 다가올 때까지 흐리게
         if (now >= n.endMs - HOLD_RELEASE_TOLERANCE) continue;
         alpha = MISSED_HOLD_ALPHA;
       }
-      const top = y(n.endMs);
-      const bottom = y(headMs);
+      const top = y(this.endPos[i]);
+      const bottom = y(headPos);
       ctx.globalAlpha = alpha * HOLD_BODY_ALPHA;
       ctx.fillRect(x + HOLD_BODY_INSET, top, w - HOLD_BODY_INSET * 2, bottom - top);
       ctx.globalAlpha = alpha;

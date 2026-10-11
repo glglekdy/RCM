@@ -35,28 +35,28 @@ export function trackColumns(canvasWidth: number, tracks: readonly Track[]): { x
   });
 }
 
-/** 시각 noteMs의 노트가 지금(nowMs) 있는 y. 판정선(judgeY) 위가 미래. */
-export function noteY(noteMs: number, nowMs: number, judgeY: number, pxPerMs: number): number {
-  return judgeY - (noteMs - nowMs) * pxPerMs;
+/** 스크롤 위치 notePos의 노트가 지금(nowPos) 있는 y. 판정선(judgeY) 위가 미래. 변속이 없으면 위치는 ms와 같다. */
+export function noteY(notePos: number, nowPos: number, judgeY: number, pxPerMs: number): number {
+  return judgeY - (notePos - nowPos) * pxPerMs;
 }
 
-/** 높이 height인 화면의 위 끝(toMs)과 아래 끝(fromMs)에 해당하는 시각. */
-export function visibleRange(
-  nowMs: number,
+/** 높이 height인 화면의 위 끝(toPos)과 아래 끝(fromPos)에 해당하는 스크롤 위치. */
+export function visibleScrollRange(
+  nowPos: number,
   height: number,
   judgeY: number,
   pxPerMs: number,
-): { fromMs: number; toMs: number } {
-  return { fromMs: nowMs - (height - judgeY) / pxPerMs, toMs: nowMs + judgeY / pxPerMs };
+): { fromPos: number; toPos: number } {
+  return { fromPos: nowPos - (height - judgeY) / pxPerMs, toPos: nowPos + judgeY / pxPerMs };
 }
 
-/** startMs 오름차순 목록에서 startMs ≥ ms인 첫 인덱스 (없으면 길이). */
-export function firstAtOrAfter(items: readonly { startMs: number }[], ms: number): number {
+/** 오름차순 배열에서 value 이상인 첫 인덱스 (없으면 길이). 같은 값이 이어지면 그중 첫 것. */
+export function firstAtOrAbove(sorted: readonly number[], value: number): number {
   let lo = 0;
-  let hi = items.length;
+  let hi = sorted.length;
   while (lo < hi) {
     const mid = (lo + hi) >>> 1;
-    if (items[mid].startMs < ms) lo = mid + 1;
+    if (sorted[mid] < value) lo = mid + 1;
     else hi = mid;
   }
   return lo;

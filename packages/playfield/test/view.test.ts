@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampSpeed, firstAtOrAfter, noteY, pxPerMsForSpeed, trackColumns, visibleRange } from '../src';
+import { clampSpeed, firstAtOrAbove, noteY, pxPerMsForSpeed, trackColumns, visibleScrollRange } from '../src';
 
 describe('playfield view', () => {
   it('속도 → px/ms = speed × 0.1', () => {
@@ -22,16 +22,13 @@ describe('playfield view', () => {
     expect(noteY(800, 800, 500, 0.5)).toBe(500);
     expect(noteY(700, 800, 500, 0.5)).toBe(550);
   });
-  it('화면에 보이는 시간 범위', () => {
-    // 높이 620, 판정선 y=500 → 위로 500px(1000ms), 아래로 120px(240ms)
-    expect(visibleRange(1000, 620, 500, 0.5)).toEqual({ fromMs: 760, toMs: 2000 });
+  it('스크롤 위치 단위의 화면 범위', () => {
+    expect(visibleScrollRange(1000, 800, 680, 0.5)).toEqual({ fromPos: 760, toPos: 2360 });
   });
-  it('startMs가 ms 이상인 첫 인덱스 (이진 탐색)', () => {
-    const notes = [{ startMs: 0 }, { startMs: 10 }, { startMs: 10 }, { startMs: 20 }];
-    expect(firstAtOrAfter(notes, -5)).toBe(0);
-    expect(firstAtOrAfter(notes, 10)).toBe(1);
-    expect(firstAtOrAfter(notes, 11)).toBe(3);
-    expect(firstAtOrAfter(notes, 25)).toBe(4);
-    expect(firstAtOrAfter([], 0)).toBe(0);
+  it('firstAtOrAbove: 정지 구간처럼 같은 값이 이어져도 첫 것', () => {
+    expect(firstAtOrAbove([0, 500, 1000, 1000, 1000, 1500], 1000)).toBe(2);
+    expect(firstAtOrAbove([0, 500], 600)).toBe(2);
+    expect(firstAtOrAbove([0, 500], -5)).toBe(0);
+    expect(firstAtOrAbove([], 0)).toBe(0);
   });
 });

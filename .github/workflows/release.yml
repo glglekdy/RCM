@@ -42,6 +42,24 @@ jobs:
 
       - run: npm run typecheck
 
+      # electron-builder는 파일마다 동시에 릴리스를 찾다가 초안을 두 개 만들 수 있으므로,
+      # 초안을 먼저 하나만 만들어 두고 electron-builder가 그 초안에 올리게 한다 (재실행이면 있는 초안을 쓴다)
+      - name: RCM 저장소에 초안 릴리스 준비
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          $ids = @(gh api repos/glglekdy/RCM/releases --paginate --jq '.[] | select(.tag_name == env.TAG) | .id')
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          if ($ids.Count -gt 1) {
+            Write-Output "::error::RCM 저장소에 $env:TAG 릴리스가 $($ids.Count)개 있어요. 하나만 남기고 지운 뒤 다시 실행하세요"
+            exit 1
+          }
+          if ($ids.Count -eq 0) {
+            gh release create "$env:TAG" --repo glglekdy/RCM --draft --title "$env:TAG" --notes ' '
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+
       # releaseInfo.releaseName은 ${version} 매크로를 풀지 않으므로 태그 이름을 직접 넘긴다
       - name: 빌드하고 RCM 저장소에 초안 릴리스 올리기
         env:
@@ -52,20 +70,28 @@ jobs:
       - name: 초안에 업데이트 파일이 모두 있는지 확인
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          TAG: ${{ github.ref_name }}
         run: |
-          $version = $env:GITHUB_REF_NAME.Substring(1)
-          $assets = gh release view "$env:GITHUB_REF_NAME" --repo glglekdy/RCM --json assets --jq '.assets[].name'
+          $ids = @(gh api repos/glglekdy/RCM/releases --paginate --jq '.[] | select(.tag_name == env.TAG) | .id')
           if ($LASTEXITCODE -ne 0) { exit 1 }
-          foreach ($name in @('latest.yml', "RCM-Setup-$version.exe")) {
+          if ($ids.Count -ne 1) {
+            Write-Output "::error::RCM 저장소의 $env:TAG 릴리스가 하나가 아니에요 ($($ids.Count)개)"
+            exit 1
+          }
+          $assets = @(gh api "repos/glglekdy/RCM/releases/$($ids[0])" --jq '.assets[].name')
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $version = $env:TAG.Substring(1)
+          foreach ($name in @('latest.yml', "RCM-Setup-$version.exe", "RCM-Setup-$version.exe.blockmap")) {
             if ($assets -notcontains $name) {
               Write-Output "::error::초안 릴리스에 $name 파일이 없어요"
               exit 1
             }
           }
+          "RELEASE_ID=$($ids[0])" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: 초안을 정식 릴리스로 공개
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
-          gh release edit "$env:GITHUB_REF_NAME" --repo glglekdy/RCM --draft=false
+          gh api -X PATCH "repos/glglekdy/RCM/releases/$env:RELEASE_ID" -F draft=false --silent
           if ($LASTEXITCODE -ne 0) { exit 1 }

@@ -30,7 +30,7 @@
 ### 1.2 GitHub Actions (`.github/workflows/release.yml`, `RCM-Dev` 저장소)
 - 트리거: `push` 태그 `v*.*.*`
 - 러너: `windows-latest`, Node 24
-- 단계: checkout → `npm ci` → `node node_modules/electron/install.js` → 태그 버전과 `apps/editor/package.json` 버전 일치 확인(다르면 실패) → `npm test` → `npm run typecheck` → `npm run dist` → `RCM`에 초안(draft) Release 생성 및 파일 업로드 → 초안에 `latest.yml`과 `RCM-Setup-X.Y.Z.exe`가 있는지 확인 → 초안을 정식 릴리스로 공개
+- 단계: checkout → `npm ci` → `node node_modules/electron/install.js` → 태그 버전과 `apps/editor/package.json` 버전 일치 확인(다르면 실패) → `npm test` → `npm run typecheck` → `RCM`에 초안(draft) Release를 하나 먼저 만듦(재실행이면 있는 초안 사용, 같은 태그 릴리스가 둘 이상이면 실패) → `npm run dist`로 그 초안에 파일 업로드 → 같은 태그 릴리스가 하나뿐이고 `latest.yml`·`RCM-Setup-X.Y.Z.exe`·`.blockmap`이 모두 있는지 확인 → 초안을 정식 릴리스로 공개 (electron-builder가 파일마다 동시에 초안을 만들어 v0.1.0에서 초안이 둘 생긴 일이 있어서)
 - 업로드 파일: `RCM-Setup-X.Y.Z.exe`, `.exe.blockmap`, `latest.yml`
 - 업로드 방법: electron-builder `--publish always`와 `publish` 설정(`provider: github, owner: glglekdy, repo: RCM, releaseType: draft`) 사용, 재실행 시 `EP_GH_IGNORE_TIME=true`로 같은 초안에 다시 올림, 토큰은 `GH_TOKEN` 환경변수 = Secret `RELEASE_TOKEN`
 - Release 이름 `vX.Y.Z`(`releaseInfo.releaseName`을 태그 이름으로 지정). 업로드 중에는 초안이라 사용자에게 보이지 않고, 검증을 통과한 뒤 `gh release edit --draft=false`로 공개하므로 최종 상태는 초안이 아닌 정식 릴리스

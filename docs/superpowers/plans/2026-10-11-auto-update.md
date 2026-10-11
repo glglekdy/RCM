@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 버전 태그 push로 GitHub Actions가 Windows 설치 파일을 공개 저장소 `glglekdy/RCM-releases`에 배포하고, 설치된 앱이 그걸 받아 재시작 알림으로 업데이트한다.
+**Goal:** 버전 태그 push로 GitHub Actions가 Windows 설치 파일을 공개 저장소 `glglekdy/RCM`에 배포하고, 설치된 앱이 그걸 받아 재시작 알림으로 업데이트한다.
 
 **Architecture:** 배포는 `scripts/release.mjs`(버전·태그) → `.github/workflows/release.yml`(테스트·빌드·electron-builder publish). 앱은 main 프로세스의 `update/` 모듈이 `electron-updater`를 감싸고, 상태 전환·캐시 정리 판단은 순수 함수로 둔다. renderer는 IPC로 상태를 구독해 시작 화면 패널과 하단 알림을 그린다.
 
@@ -14,7 +14,7 @@
 
 - 앱 이름 `productName: RCM`, 설치 프로그램 설명 `RCM - Rhythm Chaebo Maker`, `appId: com.rcm.chart-editor` 유지
 - 설치 파일 이름 `RCM-Setup-${version}.${ext}` (공백 없음)
-- 배포 저장소: `provider: github`, `owner: glglekdy`, `repo: RCM-releases`, `releaseType: release`. 토큰은 환경변수 `GH_TOKEN` (= Actions Secret `RELEASES_TOKEN`). 로컬 `npm run dist`는 `--publish never`
+- 배포 저장소: `provider: github`, `owner: glglekdy`, `repo: RCM`, `releaseType: release`. 토큰은 환경변수 `GH_TOKEN` (= Actions Secret `RELEASE_TOKEN`). 로컬 `npm run dist`는 `--publish never`
 - 태그 형식 `vX.Y.Z`. 버전 인자 `X.Y.Z` (숫자 세 개, 선행 0 없음)
 - updater: `autoDownload = true`, `autoInstallOnAppQuit = true`, `allowDowngrade = false`, `allowPrerelease = false`. 시작 5초 뒤 한 번 + 버튼으로만 확인. `app.isPackaged`가 false면 꺼짐
 - UI 문구(한국어 그대로): `업데이트 확인`, `확인 중…`, `최신 버전이에요`, `<버전> 받는 중 <n>%`, `<버전> 준비됨`, `확인하지 못했어요`, 알림 `새 버전 <버전> 준비됨` + `지금 재시작`, 개발 모드 `(개발 모드 · 업데이트 꺼짐)`
@@ -121,7 +121,7 @@ it('태그', () => expect(tagFor('0.1.0')).toBe('v0.1.0'))
 - `shared/api.ts` / preload: `getAppVersion(): Promise<string>`, `isPackaged(): Promise<boolean>`, `getUpdateState(): Promise<UpdateState>`, `checkForUpdates(): Promise<UpdateState>`, `installUpdate(): void`, `onUpdateState(cb: (s: UpdateState) => void): () => void`. `UpdateState` 타입은 shared에서 다시 export
 - 설치 요청 흐름 (main/index.ts + updater.ts): `installUpdate`가 오면 `installRequested = true`로 두고 모든 창에 `close()`. 기존 닫기 가드가 저장 안 한 창이면 renderer에 확인을 묻는다(취소하면 창이 남고 설치되지 않음). 모든 창이 닫혀 `window-all-closed`가 오면 `installRequested`면 `autoUpdater.quitAndInstall(true, true)`, 아니면 기존처럼 `app.quit()`. 판단은 순수 함수 `afterAllClosed(installRequested: boolean, updateReady: boolean): 'install' | 'quit'`(`updateState.ts`)로 두고 테스트
 - 빌드 설정:
-  - `electron-builder.yml`: `productName: RCM`, `artifactName: RCM-Setup-${version}.${ext}`, `publish: { provider: github, owner: glglekdy, repo: RCM-releases, releaseType: release }`, `win.signAndEditExecutable: false` → `win.signExecutable: false`
+  - `electron-builder.yml`: `productName: RCM`, `artifactName: RCM-Setup-${version}.${ext}`, `publish: { provider: github, owner: glglekdy, repo: RCM, releaseType: release }`, `win.signAndEditExecutable: false` → `win.signExecutable: false`
   - `apps/editor/package.json`: `description: "RCM - Rhythm Chaebo Maker"`, `dist`: `npm run build && electron-builder --win nsis --publish never`, 새 스크립트 `dist:publish`: `npm run build && electron-builder --win nsis --publish always`, `electron-updater`를 devDependencies에 추가
   - `electron.vite.config.ts`: main의 `externalizeDepsPlugin` exclude에 `electron-updater` 추가 (번들에 포함 — 워크스페이스 구조에서 electron-builder가 node_modules를 수집하지 못하므로)
 
@@ -189,7 +189,7 @@ it('정리 실행: 없는 폴더는 그냥 통과, 대상만 지움', async () =
 
 - [ ] **Step 2: `npx vitest run apps/editor/test/main/update` → FAIL → 구현 → PASS**
 - [ ] **Step 3: updater.ts·IPC·preload·index.ts·빌드 설정 구현. 루트 `npm test`·`npm run typecheck` 통과**
-- [ ] **Step 4: `npm run dist` 확인** — `apps/editor/dist/RCM-Setup-0.0.0.exe`와 `latest.yml`이 생기고, `apps/editor/dist/win-unpacked/resources/app-update.yml`에 `owner: glglekdy`, `repo: RCM-releases`가 있음. `out/main/index.js`에 `require("electron-updater")`가 없음(번들됨). `win-unpacked\RCM.exe`를 실행해 오류 없이 뜨는지 확인(릴리스 저장소가 아직 없으면 상태가 `확인하지 못했어요`가 되는 것이 정상) 후 종료. `npm run dev`에서는 업데이트 확인이 꺼져 있는지 확인
+- [ ] **Step 4: `npm run dist` 확인** — `apps/editor/dist/RCM-Setup-0.0.0.exe`와 `latest.yml`이 생기고, `apps/editor/dist/win-unpacked/resources/app-update.yml`에 `owner: glglekdy`, `repo: RCM`가 있음. `out/main/index.js`에 `require("electron-updater")`가 없음(번들됨). `win-unpacked\RCM.exe`를 실행해 오류 없이 뜨는지 확인(릴리스 저장소가 아직 없으면 상태가 `확인하지 못했어요`가 되는 것이 정상) 후 종료. `npm run dev`에서는 업데이트 확인이 꺼져 있는지 확인
 - [ ] **Step 5: 커밋** — `feat(editor): auto-update via electron-updater`
 
 ### Task 3: renderer — 업데이트 패널·알림
@@ -245,12 +245,12 @@ it.each([
       runs-on: windows-latest
       steps: checkout(전체 이력 불필요) → setup-node(node-version 24, cache npm) → npm ci → node node_modules/electron/install.js
              → node scripts/check-tag.mjs (태그는 GITHUB_REF_NAME) → npm test → npm run typecheck
-             → npm -w @rcm/editor run dist:publish  (env GH_TOKEN: ${{ secrets.RELEASES_TOKEN }})
+             → npm -w @rcm/editor run dist:publish  (env GH_TOKEN: ${{ secrets.RELEASE_TOKEN }})
   ```
   - 액션 버전은 고정 메이저 태그(`actions/checkout@v4`, `actions/setup-node@v4`)
-  - Secret이 비어 있으면 publish 단계 전에 `RELEASES_TOKEN Secret이 없어요` 메시지로 실패하는 단계를 둔다
-- README: "배포" 절 — 업데이트 스펙 4장의 1~6을 단계별로(토큰 권한: 저장소 `RCM-releases`만, `Contents: Read and write`), 평소 배포 방법(`npm run release -- X.Y.Z` → `git push --follow-tags`), 실패했을 때 확인할 곳(Actions 탭 로그), 업데이트 파일이 저장되는 위치와 정리 규칙 한 줄
+  - Secret이 비어 있으면 publish 단계 전에 `RELEASE_TOKEN Secret이 없어요` 메시지로 실패하는 단계를 둔다
+- README: "배포" 절 — 업데이트 스펙 4장의 1~6을 단계별로(토큰 권한: 저장소 `RCM`만, `Contents: Read and write`), 평소 배포 방법(`npm run release -- X.Y.Z` → `git push --follow-tags`), 실패했을 때 확인할 곳(Actions 탭 로그), 업데이트 파일이 저장되는 위치와 정리 규칙 한 줄
 
 - [ ] **Step 1: 워크플로와 README 작성**
 - [ ] **Step 2: 확인** — YAML 문법 확인(`node -e "require('js-yaml').load(require('fs').readFileSync('.github/workflows/release.yml','utf8'))"`, js-yaml은 electron-builder 의존성으로 이미 설치됨), `node scripts/check-tag.mjs v0.0.0` 종료 코드 0. 루트 `npm test`·`npm run typecheck` 통과
-- [ ] **Step 3: 커밋** — `ci: release workflow publishing to RCM-releases`
+- [ ] **Step 3: 커밋** — `ci: release workflow publishing to RCM`

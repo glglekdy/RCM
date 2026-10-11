@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { RcmApi } from '../shared/api'
+import type { RcmApi, UpdateState } from '../shared/api'
 
 const api: RcmApi = {
   pickAudioFile: () => ipcRenderer.invoke('rcm:pick-audio-file'),
@@ -27,10 +27,23 @@ const api: RcmApi = {
     }
   },
   forceClose: () => ipcRenderer.send('rcm:force-close'),
+  closeCancelled: () => ipcRenderer.send('rcm:close-cancelled'),
   minimize: () => ipcRenderer.send('rcm:minimize'),
   toggleMaximize: () => ipcRenderer.send('rcm:toggle-maximize'),
   close: () => ipcRenderer.send('rcm:close'),
-  isMaximized: () => ipcRenderer.invoke('rcm:is-maximized')
+  isMaximized: () => ipcRenderer.invoke('rcm:is-maximized'),
+  getAppVersion: () => ipcRenderer.invoke('rcm:get-app-version'),
+  isPackaged: () => ipcRenderer.invoke('rcm:is-packaged'),
+  getUpdateState: () => ipcRenderer.invoke('rcm:get-update-state'),
+  checkForUpdates: () => ipcRenderer.invoke('rcm:check-for-updates'),
+  installUpdate: () => ipcRenderer.send('rcm:install-update'),
+  onUpdateState: (cb) => {
+    const listener = (_e: Electron.IpcRendererEvent, s: UpdateState): void => cb(s)
+    ipcRenderer.on('rcm:update-state', listener)
+    return () => {
+      ipcRenderer.removeListener('rcm:update-state', listener)
+    }
+  }
 }
 
 contextBridge.exposeInMainWorld('rcm', api)

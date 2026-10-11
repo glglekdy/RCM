@@ -1,0 +1,71 @@
+name: release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Secret 확인
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if ([string]::IsNullOrEmpty($env:RELEASE_TOKEN)) {
+            Write-Output "::error::RELEASE_TOKEN Secret이 없어요"
+            exit 1
+          }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # npm 11은 설치 스크립트를 막으므로 Electron 실행 파일을 직접 내려받는다
+      - run: node node_modules/electron/install.js
+
+      - name: 태그와 앱 버전 일치 확인
+        run: node scripts/check-tag.mjs "$env:GITHUB_REF_NAME"
+
+      - run: npm test
+
+      - run: npm run typecheck
+
+      # releaseInfo.releaseName은 ${version} 매크로를 풀지 않으므로 태그 이름을 직접 넘긴다
+      - name: 빌드하고 RCM 저장소에 초안 릴리스 올리기
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          EP_GH_IGNORE_TIME: 'true'
+        run: npm -w @rcm/editor run dist:publish -- "-c.releaseInfo.releaseName=$env:GITHUB_REF_NAME"
+
+      - name: 초안에 업데이트 파일이 모두 있는지 확인
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          $version = $env:GITHUB_REF_NAME.Substring(1)
+          $assets = gh release view "$env:GITHUB_REF_NAME" --repo glglekdy/RCM --json assets --jq '.assets[].name'
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          foreach ($name in @('latest.yml', "RCM-Setup-$version.exe")) {
+            if ($assets -notcontains $name) {
+              Write-Output "::error::초안 릴리스에 $name 파일이 없어요"
+              exit 1
+            }
+          }
+
+      - name: 초안을 정식 릴리스로 공개
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          gh release edit "$env:GITHUB_REF_NAME" --repo glglekdy/RCM --draft=false
+          if ($LASTEXITCODE -ne 0) { exit 1 }

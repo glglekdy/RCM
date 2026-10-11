@@ -31,7 +31,39 @@ npm run typecheck
 npm run dist
 ```
 
-Windows용 NSIS 설치 파일이 `apps/editor/dist/RCM Chart Editor Setup <버전>.exe`로 만들어집니다. 코드 서명은 하지 않으므로 설치할 때 Windows SmartScreen 경고가 나올 수 있습니다. 설치 파일을 만들 때도 위의 Electron 설치 단계가 먼저 끝나 있어야 합니다.
+Windows용 NSIS 설치 파일이 `apps/editor/dist/RCM-Setup-<버전>.exe`로 만들어집니다. 로컬 `npm run dist`는 `--publish never`라서 GitHub에 올리지 않습니다. 코드 서명은 하지 않으므로 설치할 때 Windows SmartScreen 경고가 나올 수 있습니다. 설치 파일을 만들 때도 위의 Electron 설치 단계가 먼저 끝나 있어야 합니다.
+
+## 배포
+
+소스와 Actions는 비공개 저장소 `glglekdy/RCM-Dev`에 있고, 설치 파일은 공개 저장소 `glglekdy/RCM`의 Releases에 올라갑니다. 설치된 앱은 이 공개 저장소에서 새 버전을 확인합니다. 아래 1~3은 한 번만 하면 되는 준비입니다. 이미 끝났다면 하나씩 맞는지 확인만 하세요.
+
+1. 저장소: `glglekdy/RCM`은 공개, `glglekdy/RCM-Dev`는 비공개이고, 로컬 `origin`이 `RCM-Dev`를 가리킵니다 (`git remote -v`로 확인).
+2. 토큰: GitHub → Settings → Developer settings → Fine-grained tokens에서 저장소는 `RCM`만 선택하고 권한은 `Contents: Read and write`로 만듭니다.
+3. Secret: `RCM-Dev` 저장소 → Settings → Secrets and variables → Actions에 위 토큰을 `RELEASE_TOKEN`이라는 이름으로 등록합니다. 토큰 값은 저장소나 파일에 적지 않습니다.
+4. 코드 올리기: main 브랜치를 `RCM-Dev`에 push합니다.
+5. 첫 배포: `npm run release -- 0.1.0` 다음 `git push --follow-tags`. Actions가 성공하면 `RCM` 저장소의 Release `v0.1.0`에서 설치 파일을 받아 설치합니다.
+6. 업데이트 확인: `npm run release -- 0.1.1` 다음 `git push --follow-tags`. 설치해 둔 0.1.0 앱을 켜면 새 버전 알림이 뜹니다.
+
+### 평소 배포
+
+```
+npm run release -- X.Y.Z
+git push --follow-tags
+```
+
+`npm run release`는 `apps/editor`의 버전을 올리고 `chore: release vX.Y.Z` 커밋과 `vX.Y.Z` 태그를 만들 뿐 push는 하지 않습니다. 태그가 push되면 `.github/workflows/release.yml`이 Windows에서 태그와 앱 버전이 같은지 확인하고 테스트와 타입 검사를 돌린 뒤, 설치 파일(`RCM-Setup-X.Y.Z.exe`, `.blockmap`, `latest.yml`)을 `RCM` 저장소에 초안 Release로 올리고, `latest.yml`과 설치 파일이 모두 있는지 확인한 뒤 정식 릴리스로 공개합니다. 공개되기 전의 초안은 사용자에게 보이지 않습니다.
+
+### 실패했을 때
+
+`RCM-Dev` 저장소의 Actions 탭에서 `release` 실행을 열어 실패한 단계의 로그를 확인합니다. `RELEASE_TOKEN Secret이 없어요`가 보이면 위 3번의 Secret 이름과 저장소를 확인하세요.
+
+실패했다면 같은 실행에서 job을 다시 실행(Re-run)하세요. 다시 올릴 때는 같은 초안에 덮어씁니다. 공개 전에 실패한 초안은 `RCM` 저장소에서 사용자에게 보이지 않습니다. 그래도 꼬였다면 `RCM`의 해당 초안 Release를 지우고, `RCM-Dev`의 원격 태그를 먼저 지운 뒤 태그를 다시 push하세요.
+
+게시 단계에서 `401`이나 `Bad credentials`가 나오면 fine-grained 토큰이 만료된 것입니다. 새 토큰을 만들어 `RCM-Dev`의 `RELEASE_TOKEN` Secret을 바꾸세요.
+
+### 업데이트 파일 위치
+
+받아 둔 업데이트 설치 파일은 `%LOCALAPPDATA%\@rcmeditor-updater\pending`에 저장되며 항상 하나만 남깁니다. 이미 설치했거나 더 낮은 버전의 파일은 앱을 시작할 때 지웁니다.
 
 ## 프로젝트 폴더 형식
 

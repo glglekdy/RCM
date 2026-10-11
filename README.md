@@ -31,7 +31,7 @@ npm run typecheck
 npm run dist
 ```
 
-Windows용 NSIS 설치 파일이 `apps/editor/dist/RCM Chart Editor Setup <버전>.exe`로 만들어집니다. 코드 서명은 하지 않으므로 설치할 때 Windows SmartScreen 경고가 나올 수 있습니다. 설치 파일을 만들 때도 위의 Electron 설치 단계가 먼저 끝나 있어야 합니다.
+Windows용 NSIS 설치 파일이 `apps/editor/dist/RCM-Setup-<버전>.exe`로 만들어집니다. 로컬 `npm run dist`는 `--publish never`라서 GitHub에 올리지 않습니다. 코드 서명은 하지 않으므로 설치할 때 Windows SmartScreen 경고가 나올 수 있습니다. 설치 파일을 만들 때도 위의 Electron 설치 단계가 먼저 끝나 있어야 합니다.
 
 ## 배포
 

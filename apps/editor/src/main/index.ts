@@ -1,7 +1,8 @@
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, ipcMain, Menu, session } from 'electron'
-import { registerProjectIpc } from './ipc'
+import { startDiscordPresence } from './discord/register'
+import { registerProjectIpc, settingsFile } from './ipc'
 import { isAllowedNavigation } from './navigation'
 import { quitOrInstall, startUpdater } from './update/updater'
 
@@ -109,6 +110,8 @@ app.whenReady().then(() => {
     win.close()
   })
   registerProjectIpc()
+  const stopDiscord = startDiscordPresence(settingsFile())
+  app.on('will-quit', stopDiscord)
   startUpdater(() => BrowserWindow.getAllWindows())
   createWindow()
   app.on('activate', () => {

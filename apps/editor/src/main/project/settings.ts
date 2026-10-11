@@ -13,6 +13,8 @@ export interface Settings {
   /** `sanitizePresets`로 정리한 값. 파일에 프리셋이 없으면(첫 실행) 비워 둔다. */
   presets?: TrackPreset[]
   lastPresetId?: string
+  /** 디스코드 활동 표시. 없으면 켜짐으로 본다 */
+  discordPresence?: boolean
 }
 
 const MAX_RECENT = 20
@@ -33,6 +35,7 @@ function parseSettings(raw: unknown): Settings {
     defaultProjectDir?: unknown
     presets?: unknown
     lastPresetId?: unknown
+    discordPresence?: unknown
   }
   const recent = Array.isArray(obj.recent)
     ? obj.recent.filter(
@@ -48,6 +51,7 @@ function parseSettings(raw: unknown): Settings {
   // 필드가 있을 때만 채운다: 다른 설정만 고쳐 다시 저장해도 프리셋은 남고, 첫 실행 파일에는 기본 프리셋을 쓰지 않는다
   if (obj.presets !== undefined) settings.presets = sanitizePresets(obj.presets)
   if (typeof obj.lastPresetId === 'string') settings.lastPresetId = obj.lastPresetId
+  if (typeof obj.discordPresence === 'boolean') settings.discordPresence = obj.discordPresence
   return settings
 }
 

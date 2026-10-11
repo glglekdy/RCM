@@ -43,7 +43,10 @@ const api: RcmApi = {
     return () => {
       ipcRenderer.removeListener('rcm:update-state', listener)
     }
-  }
+  },
+  setPresence: (info) => ipcRenderer.send('rcm:set-presence', info),
+  getDiscordPresence: () => ipcRenderer.invoke('rcm:get-discord-presence'),
+  setDiscordPresence: (enabled) => ipcRenderer.invoke('rcm:set-discord-presence', enabled)
 }
 
 contextBridge.exposeInMainWorld('rcm', api)

@@ -46,6 +46,23 @@ describe('settings', () => {
     expect(presetsOf(loaded)).toEqual({ presets, lastPresetId: 'p1' })
   })
 
+  it('discordPresence: boolean만 읽고, 고쳐 저장해도 다른 설정은 남음', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
+    const file = path.join(tmp, 'settings.json')
+    await fs.writeFile(file, JSON.stringify({ recent: [], discordPresence: 'no' }))
+    expect((await loadSettings(file)).discordPresence).toBeUndefined()
+
+    const presets: TrackPreset[] = [{ id: 'p1', name: '내 4K', tracks: [{ id: 'Note_1', key: 'KeyD' }] }]
+    await saveSettings(file, { recent: [{ dir: 'd', lastOpened: 1 }], presets })
+    await updateSettings(file, (s) => {
+      s.discordPresence = false
+    })
+    const loaded = await loadSettings(file)
+    expect(loaded.discordPresence).toBe(false)
+    expect(loaded.recent).toEqual([{ dir: 'd', lastOpened: 1 }])
+    expect(loaded.presets).toEqual(presets)
+  })
+
   it('저장된 프리셋이 없으면 기본 프리셋, 마지막 id는 null', () => {
     expect(presetsOf({ recent: [] })).toEqual({ presets: DEFAULT_PRESETS, lastPresetId: null })
   })

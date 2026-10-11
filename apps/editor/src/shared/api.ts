@@ -1,5 +1,6 @@
 import type { Track } from '@rcm/core'
 import type { UpdateState } from '../main/update/updateState'
+import type { PresenceInfo } from './presence'
 import type { TrackPreset } from './presets'
 
 export type { UpdateState }
@@ -69,6 +70,12 @@ export interface RcmApi {
   /** 저장 안 한 변경 확인(닫기 가드)을 거쳐 창을 닫고, 받아 둔 업데이트를 설치한 뒤 다시 실행한다. */
   installUpdate(): void
   onUpdateState(cb: (s: UpdateState) => void): () => void
+  /** 디스코드 활동에 보일 편집 상태. 홈 화면이면 null. */
+  setPresence(info: PresenceInfo | null): void
+  /** 디스코드 활동 표시 설정 (없으면 켜짐). */
+  getDiscordPresence(): Promise<boolean>
+  /** 설정에 저장하고 바로 반영한다. */
+  setDiscordPresence(enabled: boolean): Promise<void>
 }
 
 declare global {

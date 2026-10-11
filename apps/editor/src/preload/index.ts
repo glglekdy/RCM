@@ -48,7 +48,9 @@ const api: RcmApi = {
   getDiscordPresence: () => ipcRenderer.invoke('rcm:get-discord-presence'),
   setDiscordPresence: (enabled) => ipcRenderer.invoke('rcm:set-discord-presence', enabled),
   getPlaytestSpeed: () => ipcRenderer.invoke('rcm:get-playtest-speed'),
-  setPlaytestSpeed: (speed) => ipcRenderer.invoke('rcm:set-playtest-speed', speed)
+  setPlaytestSpeed: (speed) => ipcRenderer.invoke('rcm:set-playtest-speed', speed),
+  getGameplayLayout: () => ipcRenderer.invoke('rcm:get-gameplay-layout'),
+  setGameplayLayout: (layout) => ipcRenderer.invoke('rcm:set-gameplay-layout', layout)
 }
 
 contextBridge.exposeInMainWorld('rcm', api)

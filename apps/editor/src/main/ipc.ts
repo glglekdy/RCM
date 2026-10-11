@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { DEFAULT_LAYOUT, sanitizeLayout } from '@rcm/playfield'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { CreateProjectOptions, RecentProject } from '../shared/api'
 import { writeFileAtomic } from './project/atomicWrite'
@@ -140,6 +141,18 @@ export function registerProjectIpc(): void {
     const speed = validatePlaytestSpeed(raw)
     return updateSettings(settingsFile(), (settings) => {
       settings.playtestSpeed = speed
+    })
+  })
+
+  ipcMain.handle('rcm:get-gameplay-layout', async () => {
+    const { gameplay } = await loadSettings(settingsFile())
+    return gameplay ?? { ...DEFAULT_LAYOUT }
+  })
+
+  ipcMain.handle('rcm:set-gameplay-layout', async (_e, raw: unknown) => {
+    const layout = sanitizeLayout(raw)
+    return updateSettings(settingsFile(), (settings) => {
+      settings.gameplay = layout
     })
   })
 

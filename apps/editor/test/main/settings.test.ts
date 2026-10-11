@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { DEFAULT_LAYOUT } from '@rcm/playfield'
 import { DEFAULT_PRESETS, type TrackPreset } from '../../src/shared/presets'
 import {
   loadSettings,
@@ -62,6 +63,20 @@ describe('settings', () => {
       await fs.writeFile(file, JSON.stringify({ recent: [], playtestSpeed: raw }))
       expect((await loadSettings(file)).playtestSpeed, String(raw)).toBe(expected)
     }
+  })
+
+  it('gameplay: 깨진 값은 정리하고 다른 설정은 유지', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
+    const file = path.join(tmp, 'settings.json')
+    await fs.writeFile(
+      file,
+      JSON.stringify({ recent: [{ dir: 'd', lastOpened: 1 }], gameplay: { laneWidth: 999, noteShape: 'x' } })
+    )
+    const loaded = await loadSettings(file)
+    expect(loaded.gameplay).toEqual({ ...DEFAULT_LAYOUT, laneWidth: 200 })
+    expect(loaded.recent).toEqual([{ dir: 'd', lastOpened: 1 }])
+    await fs.writeFile(file, JSON.stringify({ recent: [] }))
+    expect((await loadSettings(file)).gameplay).toBeUndefined()
   })
 
   it('playtestSpeed 저장 입력 검사', () => {

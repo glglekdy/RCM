@@ -1,4 +1,5 @@
 import type { Track } from '@rcm/core'
+import type { PlayfieldLayout } from '@rcm/playfield'
 import type { UpdateState } from '../main/update/updateState'
 import type { PresenceInfo } from './presence'
 import type { TrackPreset } from './presets'
@@ -80,6 +81,10 @@ export interface RcmApi {
   getPlaytestSpeed(): Promise<number | null>
   /** 범위(1.0~9.0) 밖이면 reject. */
   setPlaytestSpeed(speed: number): Promise<void>
+  /** 게임플레이 레이아웃 (저장된 값이 없으면 기본값). */
+  getGameplayLayout(): Promise<PlayfieldLayout>
+  /** 범위 밖 값은 범위로 잘라 저장한다. */
+  setGameplayLayout(layout: PlayfieldLayout): Promise<void>
 }
 
 declare global {

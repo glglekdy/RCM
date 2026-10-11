@@ -1,5 +1,5 @@
 import { promises as fs } from 'node:fs'
-import { MAX_SPEED, MIN_SPEED } from '@rcm/playfield'
+import { MAX_SPEED, MIN_SPEED, sanitizeLayout, type PlayfieldLayout } from '@rcm/playfield'
 import { MAX_PRESET_ID_LENGTH, sanitizePresets, type TrackPreset } from '../../shared/presets'
 import { writeFileAtomic } from './atomicWrite'
 
@@ -18,6 +18,8 @@ export interface Settings {
   discordPresence?: boolean
   /** 테스트 플레이에서 마지막으로 쓴 배속 (MIN_SPEED~MAX_SPEED) */
   playtestSpeed?: number
+  /** 게임플레이 레이아웃. 없으면 기본값을 쓴다 */
+  gameplay?: PlayfieldLayout
 }
 
 const MAX_RECENT = 20
@@ -50,6 +52,7 @@ function parseSettings(raw: unknown): Settings {
     lastPresetId?: unknown
     discordPresence?: unknown
     playtestSpeed?: unknown
+    gameplay?: unknown
   }
   const recent = Array.isArray(obj.recent)
     ? obj.recent.filter(
@@ -67,6 +70,7 @@ function parseSettings(raw: unknown): Settings {
   if (typeof obj.lastPresetId === 'string') settings.lastPresetId = obj.lastPresetId
   if (typeof obj.discordPresence === 'boolean') settings.discordPresence = obj.discordPresence
   if (isPlaytestSpeed(obj.playtestSpeed)) settings.playtestSpeed = obj.playtestSpeed
+  if (obj.gameplay !== undefined) settings.gameplay = sanitizeLayout(obj.gameplay)
   return settings
 }
 

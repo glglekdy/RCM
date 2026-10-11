@@ -11,6 +11,7 @@ import { resolveKeymap } from '../../../../shared/presets'
 import { getPresets } from '../../presets/presetStore'
 import { getChart } from '../state/doc'
 import { useEditor } from '../state/useStore'
+import { getLayout } from '../../gameplay/layoutStore'
 import { getPlaytestSpeed, setPlaytestSpeed } from './speedStore'
 import styles from './PlaytestOverlay.module.css'
 
@@ -55,7 +56,7 @@ export function PlaytestOverlay({ fromMs, tm, getTimeMs, onExit }: PlaytestOverl
     const canvas = canvasRef.current
     if (!canvas) return
     const { keys: keymap } = resolveKeymap(chart.tracks, getPresets())
-    const pf = new Playfield(canvas, { chart, tm, getTimeMs, fromMs, speed: speedRef.current, keymap })
+    const pf = new Playfield(canvas, { chart, tm, getTimeMs, fromMs, speed: speedRef.current, keymap, layout: getLayout() })
     playfieldRef.current = pf
     pf.start()
     const timer = setInterval(() => {

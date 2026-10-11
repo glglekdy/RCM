@@ -3,6 +3,7 @@ import type { ProjectFiles } from '../../shared/api'
 import { EditorScreen } from './editor/EditorScreen'
 import { HomeScreen } from './home/HomeScreen'
 import { loadPlaytestSpeed } from './editor/playtest/speedStore'
+import { loadLayout } from './gameplay/layoutStore'
 import { loadPresets } from './presets/presetStore'
 import { DialogProvider, TitleBar, ToastProvider } from './ui'
 import { UpdateNotice } from './update/UpdateNotice'
@@ -22,6 +23,9 @@ export function App() {
     })
     loadPlaytestSpeed().catch(() => {
       // 설정을 못 읽으면 기본 배속으로 계속한다
+    })
+    loadLayout().catch(() => {
+      // 설정을 못 읽으면 기본 레이아웃으로 계속한다
     })
   }, [])
 

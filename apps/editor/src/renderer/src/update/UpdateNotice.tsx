@@ -14,7 +14,7 @@ export function UpdateNotice() {
 
   return (
     <div className={styles.notice} role="status">
-      <span>새 버전 {version} 준비됨</span>
+      <span>새 버전 {version} 준비됨 · 설치 후 자동으로 다시 열려요</span>
       <Button variant="primary" onClick={() => window.rcm.installUpdate()}>
         지금 재시작
       </Button>

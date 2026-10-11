@@ -47,7 +47,8 @@
 
 ### 2.1 main 프로세스 (`electron-updater`)
 - `app.isPackaged`가 false(개발 모드)면 아무것도 하지 않는다
-- 설정: `autoDownload = true`, `autoInstallOnAppQuit = true`, `allowDowngrade = false`, `allowPrerelease = false`
+- 설정: `autoDownload = true`, `autoInstallOnAppQuit = false`, `allowDowngrade = false`, `allowPrerelease = false`
+  - 닫을 때 자동 설치는 끈다: 조용한 설치가 몇 초간 `RCM.exe`를 치워 두는 사이 바탕화면 바로가기를 누르면 "바로 가기 문제" 오류가 난다. 설치는 `지금 재시작`으로만 하고 설치 후 앱이 다시 열린다. 받아 둔 설치 파일은 다음 실행 때 확인하면 바로 `ready`가 된다
 - 시작 5초 뒤 한 번 확인. 이후에는 사용자가 `업데이트 확인`을 눌렀을 때만 확인
 - 상태(아래 2.2)를 renderer에 `rcm:update-state` 이벤트로 보낸다
 - IPC: `getAppVersion(): Promise<string>`, `getUpdateState(): Promise<UpdateState>`, `checkForUpdates(): Promise<UpdateState>`, `installUpdate(): void`, `onUpdateState(cb): () => void`

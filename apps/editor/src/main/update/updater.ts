@@ -75,7 +75,10 @@ export function startUpdater(getWindows: () => BrowserWindow[]): void {
   if (!app.isPackaged) return
 
   autoUpdater.autoDownload = true
-  autoUpdater.autoInstallOnAppQuit = true
+  // 앱을 그냥 닫을 때는 설치하지 않는다. 조용한 설치가 몇 초간 RCM.exe를 치워 두는 사이에
+  // 바탕화면 바로가기를 누르면 "바로 가기 문제" 오류가 난다. 설치는 '지금 재시작'으로만 하고,
+  // 그때는 설치 후 앱이 스스로 다시 열린다. 받아 둔 설치 파일은 다음 실행 때 다시 'ready'가 된다.
+  autoUpdater.autoInstallOnAppQuit = false
   autoUpdater.allowDowngrade = false
   autoUpdater.allowPrerelease = false
 

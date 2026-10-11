@@ -1,11 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FolderOpen, House, Plus, Search, SlidersHorizontal } from 'lucide-react'
+import { BookOpen, Bot, FolderOpen, House, Plus, Search, SlidersHorizontal, type LucideIcon } from 'lucide-react'
 import type { ProjectFiles, RecentProject } from '../../../shared/api'
+import { AiGuidePage } from '../guide/AiGuidePage'
+import { UserGuidePage } from '../guide/UserGuidePage'
 import { PresetsPage } from '../presets/PresetsPage'
 import { Button, TextField, useDialogs } from '../ui'
 import { NewProjectDialog } from './NewProjectDialog'
 import { RecentTable } from './RecentTable'
 import styles from './HomeScreen.module.css'
+
+type Page = 'home' | 'presets' | 'userGuide' | 'aiGuide'
+
+const NAV: { page: Page; icon: LucideIcon; label: string }[] = [
+  { page: 'home', icon: House, label: '홈' },
+  { page: 'presets', icon: SlidersHorizontal, label: '트랙 프리셋' },
+  { page: 'userGuide', icon: BookOpen, label: '유저 가이드' },
+  { page: 'aiGuide', icon: Bot, label: 'AI 가이드' }
+]
 
 interface HomeScreenProps {
   onOpened: (files: ProjectFiles) => void
@@ -16,7 +27,7 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
   const [recent, setRecent] = useState<RecentProject[] | null>(null)
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
-  const [page, setPage] = useState<'home' | 'presets'>('home')
+  const [page, setPage] = useState<Page>('home')
 
   const refresh = useCallback(async () => {
     const list = await window.rcm.getRecentProjects()
@@ -82,26 +93,25 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
           <FolderOpen size={16} /> 프로젝트 열기
         </Button>
         <div className={styles.divider} />
-        <button
-          type="button"
-          className={`${styles.navItem} ${page === 'home' ? styles.navActive : ''}`}
-          aria-current={page === 'home'}
-          onClick={() => setPage('home')}
-        >
-          <House size={16} /> 홈
-        </button>
-        <button
-          type="button"
-          className={`${styles.navItem} ${page === 'presets' ? styles.navActive : ''}`}
-          aria-current={page === 'presets'}
-          onClick={() => setPage('presets')}
-        >
-          <SlidersHorizontal size={16} /> 트랙 프리셋
-        </button>
+        {NAV.map(({ page: p, icon: Icon, label }) => (
+          <button
+            key={p}
+            type="button"
+            className={`${styles.navItem} ${page === p ? styles.navActive : ''}`}
+            aria-current={page === p}
+            onClick={() => setPage(p)}
+          >
+            <Icon size={16} /> {label}
+          </button>
+        ))}
       </aside>
       <main className={styles.main}>
         {page === 'presets' ? (
           <PresetsPage />
+        ) : page === 'userGuide' ? (
+          <UserGuidePage />
+        ) : page === 'aiGuide' ? (
+          <AiGuidePage />
         ) : (
           <>
             <h1 className={styles.welcome}>RCM 채보 에디터</h1>

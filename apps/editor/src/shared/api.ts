@@ -42,6 +42,8 @@ export interface RcmApi {
   getRecentProjects(): Promise<RecentProject[]>
   removeRecentProject(dir: string): Promise<void>
   showInExplorer(dir: string): Promise<void>
+  /** 저장 대화상자(기본 위치: 다운로드 폴더)로 텍스트 파일을 저장한다. 취소하면 null, 저장하면 그 경로. */
+  saveTextFile(defaultName: string, text: string): Promise<string | null>
   /** 저장된 트랙 프리셋 (없거나 잘못됐으면 기본 프리셋)과 마지막으로 고른 프리셋 id. */
   getPresets(): Promise<{ presets: TrackPreset[]; lastPresetId: string | null }>
   /** 프리셋 목록 전체를 저장한다. 잘못된 값이 하나라도 있으면 reject. */

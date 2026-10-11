@@ -14,6 +14,7 @@ const api: RcmApi = {
   getRecentProjects: () => ipcRenderer.invoke('rcm:get-recent-projects'),
   removeRecentProject: (dir) => ipcRenderer.invoke('rcm:remove-recent-project', dir),
   showInExplorer: (dir) => ipcRenderer.invoke('rcm:show-in-explorer', dir),
+  saveTextFile: (defaultName, text) => ipcRenderer.invoke('rcm:save-text-file', defaultName, text),
   getPresets: () => ipcRenderer.invoke('rcm:get-presets'),
   savePresets: (presets) => ipcRenderer.invoke('rcm:save-presets', presets),
   setLastPresetId: (id) => ipcRenderer.invoke('rcm:set-last-preset-id', id),

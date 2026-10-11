@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { CreateProjectOptions, RecentProject } from '../shared/api'
+import { writeFileAtomic } from './project/atomicWrite'
 import {
   assertDirectory,
   createProject,
@@ -127,6 +128,19 @@ export function registerProjectIpc(): void {
     return updateSettings(settingsFile(), (settings) => {
       settings.lastPresetId = id
     })
+  })
+
+  ipcMain.handle('rcm:save-text-file', async (e, defaultName: string, text: string) => {
+    const options: Electron.SaveDialogOptions = {
+      title: '파일 저장',
+      defaultPath: join(app.getPath('downloads'), defaultName),
+      filters: [{ name: 'Markdown', extensions: ['md'] }]
+    }
+    const win = parentOf(e)
+    const r = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
+    if (r.canceled || !r.filePath) return null
+    await writeFileAtomic(r.filePath, text)
+    return r.filePath
   })
 
   ipcMain.handle('rcm:show-in-explorer', async (_e, dir: string) => {

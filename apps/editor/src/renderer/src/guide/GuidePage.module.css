@@ -1,0 +1,162 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-right: -16px;
+  padding-right: 16px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 760px;
+  padding-bottom: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.lead {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.section {
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  line-height: 1.6;
+}
+
+.section h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.section h2 svg {
+  color: var(--accent);
+}
+
+.section p {
+  margin: 0 0 8px;
+}
+
+.section p:last-child,
+.section ul:last-child,
+.section ol:last-child {
+  margin-bottom: 0;
+}
+
+.section ul,
+.section ol {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+
+.section li + li {
+  margin-top: 4px;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.section kbd,
+.section code {
+  padding: 1px 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+
+.keys {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  align-items: center;
+}
+
+.keys dt {
+  display: flex;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.keys dd {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.steps {
+  counter-reset: step;
+  list-style: none;
+  padding-left: 0 !important;
+}
+
+.steps li {
+  position: relative;
+  padding-left: 32px;
+}
+
+.steps li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  top: 1px;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.prompt {
+  margin: 8px 0 0;
+  padding: 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+.preview {
+  max-height: 360px;
+  margin: 0;
+  overflow: auto;
+  padding: 12px;
+  background: var(--bg-app);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  user-select: text;
+}

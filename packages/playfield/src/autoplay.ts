@@ -23,7 +23,12 @@ export function autoplayStep(state: PlayState, now: number): JudgeEvent[] {
   }
   while (p.next < notes.length && notes[p.next].startMs <= now) {
     const n = notes[p.next++];
-    if (!n.headJudged) events.push(...state.press(n.lane, n.startMs));
+    if (n.headJudged) continue;
+    // A frame can skip past a long note's end and the next same-lane note together, so release the long note first
+    const held = state.heldNote(n.lane);
+    const endMs = held >= 0 ? notes[held].endMs : undefined;
+    if (endMs !== undefined && endMs <= n.startMs) events.push(...state.release(n.lane, endMs));
+    events.push(...state.press(n.lane, n.startMs));
   }
   return events;
 }

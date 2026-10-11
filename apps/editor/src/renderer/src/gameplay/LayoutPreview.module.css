@@ -43,10 +43,11 @@
   background: var(--bg-hover);
 }
 
+/* 테스트 플레이 화면(PlaytestOverlay)과 같은 영역: 타이틀바(36px)는 남겨 창을 끌고 닫을 수 있게 한다 */
 .fullscreen {
   position: fixed;
-  inset: 0;
-  z-index: 100;
+  inset: 36px 0 0 0;
+  z-index: 500;
   background: var(--bg-app);
 }
 

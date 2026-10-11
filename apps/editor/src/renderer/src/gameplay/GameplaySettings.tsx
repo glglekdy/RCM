@@ -1,11 +1,10 @@
 import { DEFAULT_LAYOUT, LAYOUT_LIMITS, layoutEquals, type NoteShape, type PlayfieldLayout } from '@rcm/playfield'
 import { Button, Card, NumberField, SegmentedControl, Slider } from '../ui'
 import { setLayout, useLayout } from './layoutStore'
+import { withLayoutValue, type LayoutNumberKey } from './layoutValue'
 import styles from './GameplaySettings.module.css'
 
-type NumericKey = keyof typeof LAYOUT_LIMITS
-
-const ROWS: { key: NumericKey; label: string; desc?: string }[] = [
+const ROWS: { key: LayoutNumberKey; label: string; desc?: string }[] = [
   { key: 'laneWidth', label: '노트 너비' },
   { key: 'noteHeight', label: '노트 두께' },
   { key: 'judgeLineThickness', label: '판정선 두께' },
@@ -21,10 +20,6 @@ const SHAPES: { value: NoteShape; label: string }[] = [
 export function GameplaySettings() {
   const layout = useLayout()
   const update = (patch: Partial<PlayfieldLayout>) => setLayout({ ...layout, ...patch })
-  const clamp = (key: NumericKey, v: number) => {
-    const { min, max } = LAYOUT_LIMITS[key]
-    return Math.min(max, Math.max(min, Math.round(v)))
-  }
 
   return (
     <Card title="게임플레이">
@@ -50,14 +45,13 @@ export function GameplaySettings() {
                 min={min}
                 max={max}
                 disabled={disabled}
-                onChange={(v) => update({ [key]: clamp(key, v) })}
+                onChange={(v) => setLayout(withLayoutValue(layout, key, v))}
               />
+              {/* min/max를 주면 범위 밖 입력을 되돌리므로 넘기지 않고 withLayoutValue가 범위로 자른다 */}
               <NumberField
                 value={layout[key]}
-                min={min}
-                max={max}
                 suffix="px"
-                onCommit={(v) => update({ [key]: clamp(key, v) })}
+                onCommit={(v) => setLayout(withLayoutValue(layout, key, v))}
               />
             </div>
           </div>

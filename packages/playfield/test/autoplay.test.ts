@@ -50,6 +50,20 @@ describe('autoplayStep', () => {
     expect(s.counts).toEqual({ perfect: 3, great: 0, good: 0, miss: 0 });
   });
 
+  it('프레임이 크게 건너뛰어도 롱노트 뒤 같은 레인 노트를 놓치지 않음', () => {
+    const s = new PlayState(
+      chart([
+        { tick: 480, track: 'Note_2', type: 'hold', endTick: 960 },
+        { tick: 1440, track: 'Note_2', type: 'tap' },
+      ]),
+      tm,
+      0,
+    );
+    autoplayStep(s, 5000);
+    s.update(5000);
+    expect(s.counts).toEqual({ perfect: 3, great: 0, good: 0, miss: 0 });
+  });
+
   it('아직 오지 않은 노트는 누르지 않음', () => {
     const s = new PlayState(chart([{ tick: 480, track: 'Note_1', type: 'tap' }]), tm, 0);
     expect(autoplayStep(s, 499)).toEqual([]);

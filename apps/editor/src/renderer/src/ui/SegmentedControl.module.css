@@ -18,8 +18,12 @@
   cursor: default;
 }
 
-.tab:hover {
+.tab:hover:not(:disabled) {
   color: var(--text);
+}
+
+.tab:disabled {
+  opacity: 0.4;
 }
 
 .selected,

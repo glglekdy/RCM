@@ -295,6 +295,7 @@ const endPos = notes.map(n => (n.endMs === undefined ? undefined : scroll.positi
   ```
   변속(`speeds`)이 없으면 `S(t) = t − tickToMs(0)`이라 `S(a) − S(b) = a − b`가 되어 예전 공식(`judgeY - (note.startMs - nowMs) * pxPerMs`)과 같다.
 - 롱노트는 머리(`S(startMs)`)부터 끝(`S(endMs)`)까지 몸통을 그린다. 정지(×0) 구간이 끼면 그 구간은 몸통 길이가 0이다.
+- 정지(×0) 구간 동안에는 그 구간의 노트가 모두 같은 스크롤 위치라 판정선에 겹쳐 쌓여 있다가 판정되거나 지나가면 사라진다 (예상된 동작).
 - 노트마다 `S(startMs)`, `S(endMs)`를 미리 계산해 둔다 (매 프레임 계산하지 않는다). 매 프레임 `nowPos`만 새로 구한다.
 - 화면에 보이는 **스크롤 위치 범위**만 그린다: `nowPos - (화면 아래 여백)/pxPerMs` ~ `nowPos + judgeY/pxPerMs`. S는 줄어들지 않고 노트는 `startMs` 순이므로 `S(startMs)` 배열도 오름차순이다. 이진 탐색으로 시작 위치를 찾되, 정지 구간처럼 같은 값이 이어질 수 있으니 "≥ 값인 **첫** 인덱스"를 찾는다. 롱노트 머리가 화면 아래로 지나가도 몸통이 보일 수 있으므로 시작 값을 가장 긴 롱노트의 `S` 길이만큼 더 당긴다.
 - BPM이 바뀌어도 스크롤 속도는 변하지 않는다. 속도를 바꾸는 것은 `speeds`뿐이다.

@@ -61,3 +61,27 @@ export function firstAtOrAbove(sorted: readonly number[], value: number): number
   }
   return lo;
 }
+
+/**
+ * 노트 머리·꼬리의 스크롤 위치. 둘 다 줄어들지 않게 보정해 이진 탐색에 쓴다. 꼬리 없는 노트는 머리와 같다.
+ * maxHoldSpanPos는 가장 긴 롱노트 길이(스크롤 위치 단위).
+ */
+export function notePositions(
+  notes: readonly { startMs: number; endMs?: number }[],
+  scroll: { positionAt(ms: number): number },
+): { startPos: number[]; endPos: number[]; maxHoldSpanPos: number } {
+  const startPos: number[] = [];
+  const endPos: number[] = [];
+  let maxHoldSpanPos = 0;
+  let prevStart = -Infinity;
+  for (const n of notes) {
+    // positionAt은 구간 경계에서 1e-13쯤 줄어들 수 있어 누적 최댓값으로 오름차순을 보장한다
+    const start = Math.max(prevStart, scroll.positionAt(n.startMs));
+    const end = n.endMs === undefined ? start : Math.max(start, scroll.positionAt(n.endMs));
+    startPos.push(start);
+    endPos.push(end);
+    maxHoldSpanPos = Math.max(maxHoldSpanPos, end - start);
+    prevStart = start;
+  }
+  return { startPos, endPos, maxHoldSpanPos };
+}

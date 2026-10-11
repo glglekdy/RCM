@@ -1,7 +1,7 @@
 import styles from './SegmentedControl.module.css'
 
 interface SegmentedControlProps<T> {
-  options: { value: T; label: string }[]
+  options: { value: T; label: string; disabled?: boolean }[]
   value: T
   onChange: (v: T) => void
 }
@@ -19,6 +19,7 @@ export function SegmentedControl<T extends string | number>({
           type="button"
           role="tab"
           aria-selected={o.value === value}
+          disabled={o.disabled}
           className={`${styles.tab} ${o.value === value ? styles.selected : ''}`}
           onClick={() => onChange(o.value)}
         >

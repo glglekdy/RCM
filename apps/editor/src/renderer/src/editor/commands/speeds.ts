@@ -20,7 +20,11 @@ function withSpeeds(doc: ProjectDoc, file: string, speeds: SpeedPoint[]): Projec
   return replaceChart(doc, file, chart)
 }
 
-/** tick 위치에 속도 지점을 정렬 위치로 넣는다. 같은 tick이 있거나 범위 밖이면 null. */
+/**
+ * tick 위치에 속도 지점을 정렬 위치로 넣는다. 같은 tick이 있거나 범위 밖이면 null.
+ * 다음 지점이 서서히(linear)면 새 지점도 linear — 구간을 나눠도 재생이 바뀌지 않게.
+ * 단 tick 0에서는 서서히가 아무 효과가 없으므로 즉시로 둔다.
+ */
 export function addSpeedPoint(
   doc: ProjectDoc,
   file: string,
@@ -30,7 +34,10 @@ export function addSpeedPoint(
   if (!Number.isInteger(tick) || tick < 0 || !validSpeed(speed)) return null
   const cur = getChart(doc, file).speeds ?? []
   if (cur.some((p) => p.tick === tick)) return null
-  return withSpeeds(doc, file, [...cur, { tick, speed }].sort((a, b) => a.tick - b.tick))
+  const nextPoint = cur.find((p) => p.tick > tick)
+  const point: SpeedPoint =
+    tick > 0 && nextPoint?.ease === 'linear' ? { tick, speed, ease: 'linear' } : { tick, speed }
+  return withSpeeds(doc, file, [...cur, point].sort((a, b) => a.tick - b.tick))
 }
 
 export function updateSpeedPoint(

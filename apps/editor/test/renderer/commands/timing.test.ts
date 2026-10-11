@@ -62,9 +62,14 @@ describe('timing commands', () => {
       { tick: 2880, bpm: 90, beatsPerMeasure: 3 } // 1.5마디 지점 → 앞 구간은 2마디로 센다
     ])
     const tm = new TimingMap(d.song.timing, 0)
-    expect(measureBeatAt(tm, 0)).toEqual({ measure: 1, beat: 1 })
-    expect(measureBeatAt(tm, 960)).toEqual({ measure: 1, beat: 3 })
-    expect(measureBeatAt(tm, 2880)).toEqual({ measure: 3, beat: 1 })
-    expect(measureBeatAt(tm, 2880 + 480 * 4)).toEqual({ measure: 4, beat: 2 })
+    expect(measureBeatAt(tm, 0)).toEqual({ measure: 1, beat: 1, offset: 0 })
+    expect(measureBeatAt(tm, 960)).toEqual({ measure: 1, beat: 3, offset: 0 })
+    expect(measureBeatAt(tm, 2880)).toEqual({ measure: 3, beat: 1, offset: 0 })
+    expect(measureBeatAt(tm, 2880 + 480 * 4)).toEqual({ measure: 4, beat: 2, offset: 0 })
+  })
+
+  it('박 사이 위치는 박 안의 tick 수 (offset)', () => {
+    const tm = new TimingMap([{ tick: 0, bpm: 120, beatsPerMeasure: 4 }], 0)
+    expect(measureBeatAt(tm, 480 * 4 + 480 + 240)).toEqual({ measure: 2, beat: 2, offset: 240 })
   })
 })

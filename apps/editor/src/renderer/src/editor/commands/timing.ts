@@ -44,8 +44,12 @@ export function removeTimingPoint(doc: ProjectDoc, index: number): ProjectDoc | 
 /**
  * tick의 "마디:박" (둘 다 1부터). 구간마다 마디가 새로 시작하므로
  * 앞 구간들의 마디 수(남는 부분은 한 마디로 센다)를 더해 간다.
+ * offset은 박 안의 tick 수 (박 위면 0).
  */
-export function measureBeatAt(tm: TimingMap, tick: number): { measure: number; beat: number } {
+export function measureBeatAt(
+  tm: TimingMap,
+  tick: number
+): { measure: number; beat: number; offset: number } {
   const seg = tm.segmentAt(tick)
   let before = 0
   for (let s = seg; s.index > 0; ) {
@@ -56,6 +60,7 @@ export function measureBeatAt(tm: TimingMap, tick: number): { measure: number; b
   const rel = Math.max(0, tick - seg.startTick)
   return {
     measure: before + Math.floor(rel / measureTicks) + 1,
-    beat: Math.floor((rel % measureTicks) / TICKS_PER_BEAT) + 1
+    beat: Math.floor((rel % measureTicks) / TICKS_PER_BEAT) + 1,
+    offset: rel % TICKS_PER_BEAT
   }
 }

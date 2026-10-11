@@ -159,21 +159,22 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
     ctx.lineWidth = 2
     ctx.beginPath()
     ctx.moveTo(left, y)
-    ctx.lineTo(right + 4, y)
+    ctx.lineTo(layout.labelX, y)
     ctx.stroke()
     drawChip(ctx, layout.labelX, y, `${formatBpm(point.bpm)} BPM`, COLORS.bpmChip, COLORS.bpm)
   }
 
   // 변속 지점: 초록 선 + 라벨 칩. 같은 tick에 BPM 칩이 있으면 그 아래에 놓는다
+  // (아래로 내려간 칩은 지점이 화면 위 밖에 있어도 보일 수 있어 위쪽 범위를 넓힌다)
   const bpmTicks = new Set(p.timing.map((t) => t.tick))
   for (const point of p.chart.speeds ?? []) {
     const y = Math.round(msToY(view, tm.tickToMs(point.tick)))
-    if (y < -CHIP_HEIGHT || y > h + CHIP_HEIGHT * 2 + 2) continue
+    if (y < -(CHIP_HEIGHT * 2 + 2) || y > h + CHIP_HEIGHT) continue
     ctx.strokeStyle = COLORS.speed
     ctx.lineWidth = 1
     ctx.beginPath()
     ctx.moveTo(left, crisp(y))
-    ctx.lineTo(right, crisp(y))
+    ctx.lineTo(layout.labelX, crisp(y))
     ctx.stroke()
     const chipY = bpmTicks.has(point.tick) ? y + CHIP_HEIGHT + 2 : y
     drawChip(ctx, layout.labelX, chipY, speedLabel(point), COLORS.speedChip, COLORS.speed)

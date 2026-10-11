@@ -52,10 +52,13 @@ describe('timeline view', () => {
   })
   it('변속 칩 문구', () => {
     expect(speedLabel({ tick: 0, speed: 2 })).toBe('×2.0')
-    expect(speedLabel({ tick: 0, speed: 3, ease: 'linear' })).toBe('→×3.0')
+    expect(speedLabel({ tick: 960, speed: 3, ease: 'linear' })).toBe('→×3.0')
     expect(speedLabel({ tick: 0, speed: 0 })).toBe('×0 정지')
-    expect(speedLabel({ tick: 0, speed: 0, ease: 'linear' })).toBe('×0 정지')
+    expect(speedLabel({ tick: 960, speed: 0, ease: 'linear' })).toBe('×0 정지')
     expect(speedLabel({ tick: 0, speed: 1.25 })).toBe('×1.25')
+  })
+  it('tick 0 지점은 서서히여도 즉시로 표시 (효과 없음)', () => {
+    expect(speedLabel({ tick: 0, speed: 3, ease: 'linear' })).toBe('×3.0')
   })
   it('트랙 폭과 색', () => {
     expect(TRACK_PX).toEqual({ narrow: 32, normal: 48, wide: 80 })

@@ -8,6 +8,7 @@ import {
   JUDGE_LINE_FROM_BOTTOM,
   JUDGEMENT_SHOW_MS,
   trackColumns,
+  notePositions,
   noteY,
   pxPerMsForSpeed,
   visibleScrollRange,
@@ -88,9 +89,9 @@ export class Playfield {
   private readonly labels: string[];
   private readonly noteColors: string[];
   private readonly scroll: ScrollMap;
-  /** state.notes 순서대로 머리·꼬리의 스크롤 위치. 둘 다 줄어들지 않게 보정해 이진 탐색에 쓴다. 꼬리 없는 노트는 머리와 같다. */
-  private readonly startPos: number[] = [];
-  private readonly endPos: number[] = [];
+  /** state.notes 순서대로 머리·꼬리의 스크롤 위치 (notePositions 참고). */
+  private readonly startPos: number[];
+  private readonly endPos: number[];
   /** 가장 긴 롱노트 길이(스크롤 위치 단위). 머리가 화면 아래로 지나간 롱노트도 그리기 위해 탐색 시작을 이만큼 당긴다. */
   private readonly maxHoldSpanPos: number;
   private readonly pressed: boolean[];
@@ -115,18 +116,10 @@ export class Playfield {
     this.noteColors = opts.chart.tracks.map(t => t.color ?? DEFAULT_NOTE_COLOR);
     this.state = new PlayState(opts.chart, opts.tm, opts.fromMs);
     this.scroll = new ScrollMap(opts.chart.speeds, opts.tm);
-    let maxSpan = 0;
-    let prevStart = -Infinity;
-    for (const n of this.state.notes) {
-      // positionAt은 구간 경계에서 1e-13쯤 줄어들 수 있어 누적 최댓값으로 오름차순을 보장한다
-      const start = Math.max(prevStart, this.scroll.positionAt(n.startMs));
-      const end = n.endMs === undefined ? start : Math.max(start, this.scroll.positionAt(n.endMs));
-      this.startPos.push(start);
-      this.endPos.push(end);
-      maxSpan = Math.max(maxSpan, end - start);
-      prevStart = start;
-    }
-    this.maxHoldSpanPos = maxSpan;
+    const pos = notePositions(this.state.notes, this.scroll);
+    this.startPos = pos.startPos;
+    this.endPos = pos.endPos;
+    this.maxHoldSpanPos = pos.maxHoldSpanPos;
     this.pressed = Array.from({ length: this.lanes }, () => false);
     this.speed = clampSpeed(opts.speed);
   }

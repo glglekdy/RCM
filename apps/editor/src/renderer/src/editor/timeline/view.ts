@@ -75,10 +75,13 @@ export function layoutTimeline(width: number, tracks: readonly Track[]): Timelin
   }
 }
 
-/** 변속 칩 문구: 즉시 `×2.0`, 서서히 `→×3.0`, 0이면 (ease와 무관하게) `×0 정지`. */
+/**
+ * 변속 칩 문구: 즉시 `×2.0`, 서서히 `→×3.0`, 0이면 (ease와 무관하게) `×0 정지`.
+ * tick 0 지점은 서서히가 효과가 없으므로 즉시로 표시한다.
+ */
 export function speedLabel(point: SpeedPoint): string {
   if (point.speed === 0) return '×0 정지'
-  return `${point.ease === 'linear' ? '→' : ''}×${formatSpeed(point.speed)}`
+  return `${point.ease === 'linear' && point.tick > 0 ? '→' : ''}×${formatSpeed(point.speed)}`
 }
 
 /** x가 놓인 열의 위치(트랙 위치). 트랙 밖이면 null. */

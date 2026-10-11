@@ -16,6 +16,8 @@ const EASE_OPTIONS: { value: SpeedEase; label: string }[] = [
   { value: 'instant', label: '즉시' },
   { value: 'linear', label: '서서히' }
 ]
+/** tick 0 지점: 서서히는 효과가 없으므로 고를 수 없고 즉시로 보인다. */
+const FIRST_EASE_OPTIONS = EASE_OPTIONS.map((o) => ({ ...o, disabled: o.value === 'linear' }))
 
 /** 활성 난이도의 노트 속도(변속) 지점 목록. */
 export function SpeedCard({ tm }: { tm: TimingMap }) {
@@ -66,12 +68,13 @@ export function SpeedCard({ tm }: { tm: TimingMap }) {
           <p className={styles.hint}>변속 없음 (×1)</p>
         ) : (
           speeds.map((point) => {
-            const { measure, beat } = measureBeatAt(tm, point.tick)
+            const { measure, beat, offset } = measureBeatAt(tm, point.tick)
+            const first = point.tick === 0
             return (
               <div key={point.tick} className={styles.speedPoint}>
                 <div className={styles.speedRow}>
                   <span className={styles.position}>
-                    {measure}마디 {beat}박
+                    {measure}마디 {beat}박{offset > 0 ? ` +${offset}` : ''}
                   </span>
                   <IconButton
                     icon={Trash2}
@@ -94,8 +97,8 @@ export function SpeedCard({ tm }: { tm: TimingMap }) {
                   </div>
                   <div className={styles.speedEase}>
                     <SegmentedControl
-                      options={EASE_OPTIONS}
-                      value={point.ease ?? 'instant'}
+                      options={first ? FIRST_EASE_OPTIONS : EASE_OPTIONS}
+                      value={first ? 'instant' : (point.ease ?? 'instant')}
                       onChange={(ease) =>
                         edit('속도 수정', point.tick, (doc, i) => updateSpeedPoint(doc, file, i, { ease }))
                       }
@@ -107,7 +110,7 @@ export function SpeedCard({ tm }: { tm: TimingMap }) {
           })
         )}
         <div className={styles.buttons}>
-          <Button onClick={addAtPlayhead}>현재 위치에 추가</Button>
+          <Button onClick={addAtPlayhead}>현재 위치에 변속 추가</Button>
         </div>
       </fieldset>
     </Card>

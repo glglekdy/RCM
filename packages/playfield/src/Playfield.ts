@@ -1,11 +1,17 @@
 import { DEFAULT_NOTE_COLOR, ScrollMap, type Chart, type TimingMap } from '@rcm/core';
 import { HOLD_RELEASE_TOLERANCE, type JudgeEvent, type Judgement } from './judge';
 import { keyLabel, trackForCode, trackForKey } from './keymap';
-import { DEFAULT_LAYOUT } from './layout';
+import { autoplayStep } from './autoplay';
+import { DEFAULT_LAYOUT, sanitizeLayout, type PlayfieldLayout } from './layout';
 import { PlayState } from './playState';
 import {
   clampSpeed,
   firstAtOrAbove,
+  holdBodyWidth,
+  KEY_LABEL_OFFSET,
+  keyLabelsVisible,
+  NOTE_INSET,
+  noteHalfExtent,
   judgeLineY,
   JUDGEMENT_SHOW_MS,
   trackColumns,
@@ -54,17 +60,20 @@ export interface PlayfieldOptions {
   getTimeMs: () => number;
   /** 이 시각 이전 노트는 판정하지 않는다 */
   fromMs: number;
-  /** 노트 속도 1~10 (기본 5) */
+  /** 배속 1.0~9.0 (DJMAX 고정 배속) */
   speed: number;
   /** 트랙 id → 키 code (없으면 null). 키 없는 트랙은 칠 수 없다. */
   keymap: ReadonlyMap<string, string | null>;
   colors?: Partial<PlayfieldColors>;
+  /** 레인·노트·판정선 크기 (없으면 DEFAULT_LAYOUT) */
+  layout?: PlayfieldLayout;
+  /** false면 키 입력을 받지 않는다 (미리보기). 기본 true */
+  input?: boolean;
+  /** true면 모든 노트를 노트 시각에 자동으로 친다 (미리보기). 기본 false */
+  autoplay?: boolean;
 }
 
-const NOTE_HEIGHT = 14;
 const NOTE_RADIUS = 3;
-const NOTE_INSET = 3;
-const HOLD_BODY_INSET = 10;
 const HOLD_BODY_ALPHA = 0.6;
 /** 놓쳤거나 일찍 뗀 롱노트의 남은 부분 */
 const MISSED_HOLD_ALPHA = 0.3;
@@ -97,6 +106,7 @@ export class Playfield {
   private readonly maxHoldSpanPos: number;
   private readonly pressed: boolean[];
   private speed: number;
+  private layout: PlayfieldLayout;
   private last: { judgement: Judgement; ms: number } | null = null;
   private raf = 0;
   private running = false;
@@ -123,15 +133,18 @@ export class Playfield {
     this.maxHoldSpanPos = pos.maxHoldSpanPos;
     this.pressed = Array.from({ length: this.lanes }, () => false);
     this.speed = clampSpeed(opts.speed);
+    this.layout = sanitizeLayout(opts.layout ?? DEFAULT_LAYOUT);
   }
 
   /** 그리기 루프와 키 입력을 시작한다. */
   start(): void {
     if (this.running) return;
     this.running = true;
-    window.addEventListener('keydown', this.onKeyDown);
-    window.addEventListener('keyup', this.onKeyUp);
-    window.addEventListener('blur', this.onBlur);
+    if (this.opts.input !== false) {
+      window.addEventListener('keydown', this.onKeyDown);
+      window.addEventListener('keyup', this.onKeyUp);
+      window.addEventListener('blur', this.onBlur);
+    }
     this.raf = requestAnimationFrame(this.frame);
   }
 
@@ -146,6 +159,11 @@ export class Playfield {
 
   setSpeed(speed: number): void {
     this.speed = clampSpeed(speed);
+  }
+
+  /** 다음 프레임부터 새 크기로 그린다. */
+  setLayout(layout: PlayfieldLayout): void {
+    this.layout = sanitizeLayout(layout);
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
@@ -187,6 +205,7 @@ export class Playfield {
   private readonly frame = (): void => {
     this.raf = requestAnimationFrame(this.frame);
     const now = this.opts.getTimeMs();
+    if (this.opts.autoplay) this.show(autoplayStep(this.state, now));
     this.show(this.state.update(now));
     this.draw(now);
   };
@@ -208,18 +227,19 @@ export class Playfield {
     ctx.fillRect(0, 0, width, height);
     if (width === 0 || height === 0) return;
 
-    const cols = trackColumns(width, this.lanes, DEFAULT_LAYOUT.laneWidth);
+    const { layout } = this;
+    const cols = trackColumns(width, this.lanes, layout.laneWidth);
     const last = cols[cols.length - 1];
     const left = cols[0].x;
     const fieldWidth = last.x + last.width - left;
-    const judgeY = judgeLineY(height, DEFAULT_LAYOUT);
+    const judgeY = judgeLineY(height, layout);
     const centerX = left + fieldWidth / 2;
 
     ctx.fillStyle = colors.lane;
     ctx.fillRect(left, 0, fieldWidth, height);
     ctx.fillStyle = colors.pressedLane;
     for (let lane = 0; lane < this.lanes; lane++) {
-      if (this.pressed[lane]) ctx.fillRect(cols[lane].x, 0, cols[lane].width, height);
+      if (this.lanePressed(lane)) ctx.fillRect(cols[lane].x, 0, cols[lane].width, height);
     }
     ctx.fillStyle = colors.laneLine;
     for (const c of cols) ctx.fillRect(c.x, 0, 1, height);
@@ -228,14 +248,18 @@ export class Playfield {
     this.drawNotes(now, cols, judgeY, height);
 
     ctx.fillStyle = colors.judgeLine;
-    ctx.fillRect(left, judgeY - 1, fieldWidth, 3);
+    const t = layout.judgeLineThickness;
+    // 픽셀 경계에 맞춘다 (기본 3px이면 예전과 같은 judgeY - 1)
+    ctx.fillRect(left, Math.round(judgeY - t / 2), fieldWidth, t);
 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `600 14px ${FONT}`;
-    for (let lane = 0; lane < this.lanes; lane++) {
-      ctx.fillStyle = this.pressed[lane] ? colors.keyLabelPressed : colors.keyLabel;
-      ctx.fillText(this.labels[lane], cols[lane].x + cols[lane].width / 2, judgeY + 48);
+    if (keyLabelsVisible(layout)) {
+      for (let lane = 0; lane < this.lanes; lane++) {
+        ctx.fillStyle = this.lanePressed(lane) ? colors.keyLabelPressed : colors.keyLabel;
+        ctx.fillText(this.labels[lane], cols[lane].x + cols[lane].width / 2, judgeY + KEY_LABEL_OFFSET);
+      }
     }
 
     if (this.state.combo > 0) {
@@ -261,7 +285,7 @@ export class Playfield {
   ): void {
     const { ctx } = this;
     const pxPerMs = pxPerMsForSpeed(this.speed, judgeY);
-    const pad = NOTE_HEIGHT / pxPerMs;
+    const pad = noteHalfExtent(this.layout) / pxPerMs;
     const nowPos = this.scroll.positionAt(now);
     const { fromPos, toPos } = visibleScrollRange(nowPos, height, judgeY, pxPerMs);
     const notes = this.state.notes;
@@ -288,23 +312,33 @@ export class Playfield {
       const top = y(this.endPos[i]);
       const bottom = y(headPos);
       ctx.globalAlpha = alpha * HOLD_BODY_ALPHA;
-      ctx.fillRect(x + HOLD_BODY_INSET, top, w - HOLD_BODY_INSET * 2, bottom - top);
+      const bw = holdBodyWidth(w);
+      ctx.fillRect(x + (w - bw) / 2, top, bw, bottom - top);
       ctx.globalAlpha = alpha;
       this.drawHead(x, w, bottom);
       ctx.globalAlpha = 1;
     }
   }
 
+  /** 키를 누르고 있거나 자동 플레이가 롱노트를 잡고 있는 레인 (키빔) */
+  private lanePressed(lane: number): boolean {
+    return this.pressed[lane] || (this.opts.autoplay === true && this.state.heldNote(lane) >= 0);
+  }
+
   private drawHead(laneX: number, laneWidth: number, y: number): void {
-    const { ctx } = this;
+    const { ctx, layout } = this;
     ctx.beginPath();
-    ctx.roundRect(
-      laneX + NOTE_INSET,
-      y - NOTE_HEIGHT / 2,
-      laneWidth - NOTE_INSET * 2,
-      NOTE_HEIGHT,
-      NOTE_RADIUS,
-    );
+    if (layout.noteShape === 'circle') {
+      ctx.arc(laneX + laneWidth / 2, y, (laneWidth - NOTE_INSET * 2) / 2, 0, Math.PI * 2);
+    } else {
+      ctx.roundRect(
+        laneX + NOTE_INSET,
+        y - layout.noteHeight / 2,
+        laneWidth - NOTE_INSET * 2,
+        layout.noteHeight,
+        NOTE_RADIUS,
+      );
+    }
     ctx.fill();
   }
 }

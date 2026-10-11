@@ -10,6 +10,7 @@ export function SongPanel() {
   const store = useStore()
   const song = useEditor((s) => s.doc.song)
   const volume = useEditor((s) => s.hitsoundVolume)
+  const musicVolume = useEditor((s) => s.musicVolume)
 
   const applyOffset = (offsetMs: number) =>
     store.apply('오프셋 변경', setOffset(store.getState().doc, offsetMs))
@@ -58,6 +59,14 @@ export function SongPanel() {
         </div>
       </Card>
       <Card title="재생">
+        <Row label="음악 볼륨">
+          <NumberField
+            value={Math.round(musicVolume * 100)}
+            min={0}
+            max={100}
+            onCommit={(v) => store.set({ musicVolume: v / 100 })}
+          />
+        </Row>
         <Row label="효과음 볼륨">
           <NumberField
             value={Math.round(volume * 100)}

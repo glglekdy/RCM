@@ -16,6 +16,7 @@ export class AudioEngine {
   private buffer: AudioBuffer | null = null
   private readonly clickBuffer: AudioBuffer
   private readonly hitGain: GainNode
+  private readonly musicGain: GainNode
   private music: AudioBufferSourceNode | null = null
   /** 예약된 효과음 소스와 시작 예정 ctx 시각 */
   private hitSources = new Map<AudioBufferSourceNode, number>()
@@ -32,6 +33,8 @@ export class AudioEngine {
     this.clickBuffer = createClickBuffer(this.ctx)
     this.hitGain = this.ctx.createGain()
     this.hitGain.connect(this.ctx.destination)
+    this.musicGain = this.ctx.createGain()
+    this.musicGain.connect(this.ctx.destination)
   }
 
   get durationMs(): number {
@@ -63,7 +66,7 @@ export class AudioEngine {
     const now = this.ctx.currentTime
     const src = this.ctx.createBufferSource()
     src.buffer = this.buffer
-    src.connect(this.ctx.destination)
+    src.connect(this.musicGain)
     src.onended = () => {
       if (this.music !== src) return
       this.music = null
@@ -117,6 +120,10 @@ export class AudioEngine {
 
   setHitVolume(v: number): void {
     this.hitGain.gain.value = Math.min(1, Math.max(0, v))
+  }
+
+  setMusicVolume(v: number): void {
+    this.musicGain.gain.value = Math.min(1, Math.max(0, v))
   }
 
   onEnded(cb: () => void): void {

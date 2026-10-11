@@ -21,6 +21,7 @@ export interface EditorState {
   panelOpen: boolean
   panelTab: 'song' | 'timing' | 'chart'
   hitsoundVolume: number
+  musicVolume: number
   taps: number[]
   clipboard: Clip | null
   /** 입력 필드에 포커스가 있다 (확정 안 된 값이 있을 수 있어 닫기 전에 확인한다) */
@@ -52,6 +53,7 @@ export class EditorStore {
       panelOpen: true,
       panelTab: 'song',
       hitsoundVolume: 0.6,
+      musicVolume: 1,
       taps: [],
       clipboard: null,
       fieldFocused: false

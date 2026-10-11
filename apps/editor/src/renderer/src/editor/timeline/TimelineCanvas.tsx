@@ -184,9 +184,15 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
     forward(tools.onPointerDown)(e)
   }
 
-  // 버튼을 누르지 않은 이동(호버)은 드래그가 아니므로 다시 그리지 않는다
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (e.buttons !== 0) forward(tools.onPointerMove)(e)
+  // 버튼을 누르지 않은 이동(호버)은 드래그가 아니므로 다시 그리지 않고, 누르면 할 일을 커서로만 보인다
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.buttons !== 0) {
+      forward(tools.onPointerMove)(e)
+      return
+    }
+    const rect = e.currentTarget.getBoundingClientRect()
+    const action = tools.hoverAction(e.clientX - rect.left, e.clientY - rect.top)
+    e.currentTarget.style.cursor = action === 'resize' ? 'ns-resize' : action === 'move' ? 'move' : ''
   }
 
   // 우클릭: 트랙 안은 노트 삭제, 트랙 밖(파형·라벨 영역)은 마커 삭제

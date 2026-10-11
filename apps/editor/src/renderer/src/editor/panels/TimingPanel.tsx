@@ -103,6 +103,9 @@ export function TimingPanel() {
             </Card>
           )
         })}
+      <Card>
+        <Button onClick={addAtPlayhead}>변경 위치 추가</Button>
+      </Card>
       <Card title="탭 BPM">
         {est ? (
           <>
@@ -165,9 +168,6 @@ export function TimingPanel() {
             </div>
           ))
         )}
-      </Card>
-      <Card>
-        <Button onClick={addAtPlayhead}>현재 위치에 추가</Button>
       </Card>
       <SpeedCard tm={tm} />
     </>

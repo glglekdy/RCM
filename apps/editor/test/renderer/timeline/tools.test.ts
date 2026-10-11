@@ -493,3 +493,75 @@ describe('트랙 이름 줄 (위 20px)', () => {
     expect(commit).not.toHaveBeenCalled()
   })
 })
+
+describe('노트 잡기 (그리기·선택 도구)', () => {
+  const hold = (tick: number, endTick: number, track = 'Note_1'): Note => ({ tick, track, type: 'hold', endTick })
+  const selection = (store: EditorStore) => [...store.getState().selection].sort()
+
+  it('롱노트 끝을 끌면 길이를 바꾸고 한 번 기록', () => {
+    for (const tool of ['draw', 'select'] as const) {
+      commit.mockClear()
+      const { store, tools, notes, labels } = setup(withNotes(d0, [hold(0, 960)]), tool)
+      expect(tools.hoverAction(X0, yOf(960) + 3)).toBe('resize')
+      tools.onPointerDown(left(X0, yOf(960) + 3))
+      tools.onPointerMove(left(X1, yOf(1900)))
+      expect(tools.overlay().preview).toEqual([hold(0, 1920)])
+      expect([...tools.overlay().hiddenKeys]).toEqual(['Note_1:0'])
+      tools.onPointerUp(left(X1, yOf(1900)))
+      expect(notes()).toEqual([hold(0, 1920)])
+      expect(labels()).toEqual(['롱노트 길이 조절'])
+      store.undo()
+      expect(notes()).toEqual([hold(0, 960)])
+    }
+  })
+
+  it('끝을 머리까지 내리면 tap, 겹치는 길이는 그대로', () => {
+    const { tools, notes } = setup(withNotes(d0, [hold(0, 960), tap(1440, 'Note_1')]))
+    tools.onPointerDown(left(X0, yOf(960)))
+    tools.onPointerMove(left(X0, yOf(1440)))
+    expect(tools.overlay().previewInvalid).toBe(true)
+    tools.onPointerUp(left(X0, yOf(1440)))
+    expect(notes()).toEqual([hold(0, 960), tap(1440, 'Note_1')])
+    expect(commit).not.toHaveBeenCalled()
+    tools.onPointerDown(left(X0, yOf(960)))
+    tools.onPointerUp(left(X0, yOf(-100)))
+    expect(notes()).toEqual([tap(0, 'Note_1'), tap(1440, 'Note_1')])
+  })
+
+  it('그리기 도구: 롱노트 머리·몸통이나 tap을 끌면 그 노트만 옮긴다', () => {
+    const { store, tools, notes, labels } = setup(withNotes(d0, [hold(0, 960), tap(480, 'Note_2')]))
+    expect(tools.hoverAction(X0, yOf(500))).toBe('move')
+    tools.onPointerDown(left(X0, yOf(500)))
+    tools.onPointerMove(left(X1, yOf(1940)))
+    expect(tools.overlay().preview).toEqual([hold(1440, 2400, 'Note_2')])
+    tools.onPointerUp(left(X1, yOf(1940)))
+    tools.onPointerDown(left(X1, yOf(480)))
+    tools.onPointerUp(left(X0, yOf(0)))
+    expect(notes()).toEqual([tap(0, 'Note_1'), hold(1440, 2400, 'Note_2')])
+    expect(labels()).toEqual(['노트 이동', '노트 이동'])
+    expect(selection(store)).toEqual([])
+  })
+
+  it('그리기 도구: 노트를 클릭만 하면 아무것도 바꾸지 않는다', () => {
+    const { tools, notes } = setup(withNotes(d0, [tap(480, 'Note_1')]))
+    tools.onPointerDown(left(X0, yOf(480)))
+    tools.onPointerUp(left(X0, yOf(480)))
+    expect(notes()).toEqual([tap(480, 'Note_1')])
+    expect(commit).not.toHaveBeenCalled()
+  })
+
+  it('그리기 도구로 옮긴 노트가 선택돼 있었으면 선택도 따라간다', () => {
+    const { store, tools } = setup(withNotes(d0, [tap(0, 'Note_1'), tap(480, 'Note_2')]))
+    store.set({ selection: new Set(['Note_1:0', 'Note_2:480']) })
+    tools.onPointerDown(left(X0, yOf(0)))
+    tools.onPointerUp(left(X0, yOf(960)))
+    expect(selection(store)).toEqual(['Note_1:960', 'Note_2:480'])
+  })
+
+  it('빈 곳·이름 줄·재생 중에는 hoverAction 없음', () => {
+    const { store, tools } = setup(withNotes(d0, [tap(0, 'Note_1')]))
+    expect(tools.hoverAction(X1, yOf(0))).toBe(null)
+    store.set({ playing: true })
+    expect(tools.hoverAction(X0, yOf(0))).toBe(null)
+  })
+})

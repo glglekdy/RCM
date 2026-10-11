@@ -58,6 +58,17 @@ export function hitTestNote(
   return best
 }
 
+/**
+ * y가 롱노트 끝(위쪽) 손잡이 위인지. 손잡이는 끝 y에서 노트 높이만큼이고,
+ * 짧은 롱노트는 머리와 끝의 가운데보다 위만 손잡이다 (아래는 머리).
+ */
+export function onHoldEnd(note: Note, tm: TimingMap, view: TimelineView, y: number): boolean {
+  if (note.type !== 'hold') return false
+  const yHead = msToY(view, tm.tickToMs(note.tick))
+  const yEnd = msToY(view, tm.tickToMs(note.endTick))
+  return y >= yEnd - NOTE_HEIGHT / 2 && y <= Math.min(yEnd + NOTE_HEIGHT / 2, (yEnd + yHead) / 2)
+}
+
 /** 사각 선택 범위: 트랙 위치와 tick 모두 양 끝 포함. */
 export interface SelectRect {
   lane0: number

@@ -108,6 +108,26 @@ export function moveNotes(
   return transform(doc, file, keys, (n, tracks) => shiftNote(n, dTick, dLane, tracks))
 }
 
+/**
+ * 롱노트 하나의 끝 tick을 바꾼다. endTick이 머리보다 위가 아니면 tap이 된다 (그리기와 같다).
+ * 겹치거나 범위 밖이면 null.
+ */
+export function resizeHold(
+  doc: ProjectDoc,
+  file: string,
+  key: string,
+  endTick: number
+): { doc: ProjectDoc; keys: Set<string> } | null {
+  return transform(doc, file, new Set([key]), (n) => resizedHold(n, endTick))
+}
+
+/** 롱노트의 끝을 endTick으로 바꾼 사본 (머리 이하면 tap). */
+export function resizedHold(note: Note, endTick: number): Note {
+  return endTick > note.tick
+    ? { tick: note.tick, track: note.track, type: 'hold', endTick }
+    : { tick: note.tick, track: note.track, type: 'tap' }
+}
+
 /** 트랙 위치 i의 노트를 위치 n−1−i의 트랙으로 옮긴다. */
 export function mirrorNotes(
   doc: ProjectDoc,

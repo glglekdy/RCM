@@ -1,12 +1,13 @@
 import { noteKey, snapTick, type Note, type TimingMap } from '@rcm/core'
 import { markerAtY, removeMarker } from '../commands/markers'
-import { addNote, moveNotes, removeNotes, shiftNote } from '../commands/notes'
+import { addNote, moveNotes, removeNotes, resizedHold, resizeHold, shiftNote } from '../commands/notes'
 import { getChart } from '../state/doc'
 import type { EditorStore } from '../state/store'
 import {
   hitTestNote,
   NOTE_HEIGHT,
   notesInRect,
+  onHoldEnd,
   pointerToCell,
   type SelectRect
 } from './hitTest'
@@ -44,6 +45,8 @@ export interface ToolController {
   onContextMenu(e: ToolPointer): void
   /** 진행 중인 드래그를 버린다 (Escape). */
   cancel(): void
+  /** 버튼을 누르지 않은 포인터가 놓인 곳에서 누르면 할 일: 롱노트 길이 조절, 노트 옮기기, 그 밖(null). */
+  hoverAction(x: number, y: number): 'resize' | 'move' | null
   /** 화면이 스크롤·확대되었을 때 진행 중인 드래그를 마지막 포인터 위치로 다시 계산한다. */
   refresh(): void
   overlay(): ToolOverlay
@@ -84,8 +87,20 @@ type MoveDrag = {
   dTick: number
   preview: Note[]
   invalid: boolean
+  /** 놓은 뒤 옮긴 노트를 선택할지 (선택 도구). 그리기 도구는 기존 선택만 따라 고친다 */
+  select: boolean
 }
-type Drag = DrawDrag | EraseDrag | RectDrag | MoveDrag
+/** 롱노트 끝(위쪽)을 끌어 길이를 바꾼다. 머리 아래로 내리면 tap이 된다 */
+type ResizeDrag = {
+  kind: 'resize'
+  file: string
+  /** 잡은 원래 롱노트 */
+  note: Note
+  endTick: number
+  preview: Note[]
+  invalid: boolean
+}
+type Drag = DrawDrag | EraseDrag | RectDrag | MoveDrag | ResizeDrag
 
 const NO_KEYS: ReadonlySet<string> = new Set()
 const NO_NOTES: Note[] = []
@@ -187,7 +202,47 @@ export function createToolController(
     d.invalid = moveNotes(s.doc, d.file, d.keys, d.dTick, d.dLane) === null
   }
 
-  /** 선택 도구 누름: Shift+노트는 토글, 노트는 옮기기, 빈 곳은 사각 선택. */
+  /** 롱노트 끝 드래그: 스냅한 포인터 tick을 끝으로 한 미리보기. 그대로면 미리보기 없음. */
+  const resizeTo = (d: ResizeDrag, y: number) => {
+    const s = store.getState()
+    d.endTick = Math.max(0, snapTick(getGeometry().tm, tickAt(y), s.snap))
+    if (d.note.type === 'hold' && d.endTick === d.note.endTick) {
+      d.preview = NO_NOTES
+      d.invalid = false
+      return
+    }
+    d.preview = [resizedHold(d.note, d.endTick)]
+    d.invalid = resizeHold(s.doc, d.file, noteKey(d.note), d.endTick) === null
+  }
+
+  /** 잡은 노트의 드래그: 롱노트 끝 손잡이면 길이 조절, 아니면 keys를 옮긴다. */
+  const noteDrag = (
+    e: ToolPointer,
+    file: string,
+    hit: Note,
+    keys: ReadonlySet<string>,
+    select: boolean
+  ): Drag => {
+    const { tm, view } = getGeometry()
+    if (onHoldEnd(hit, tm, view, e.y)) {
+      const endTick = hit.type === 'hold' ? hit.endTick : hit.tick
+      return { kind: 'resize', file, note: hit, endTick, preview: NO_NOTES, invalid: false }
+    }
+    return {
+      kind: 'move',
+      file,
+      keys,
+      lane: laneAt(e.x),
+      tick: snapTick(tm, tickAt(e.y), store.getState().snap),
+      dLane: 0,
+      dTick: 0,
+      preview: NO_NOTES,
+      invalid: false,
+      select
+    }
+  }
+
+  /** 선택 도구 누름: Shift+노트는 토글, 롱노트 끝은 길이 조절, 노트는 옮기기, 빈 곳은 사각 선택. */
   const selectDown = (e: ToolPointer, file: string) => {
     const s = store.getState()
     const { tm, view, layout } = getGeometry()
@@ -216,17 +271,7 @@ export function createToolController(
     }
     // 선택 안 된 노트를 잡으면 그 노트만 선택해 옮긴다
     if (!s.selection.has(key)) store.set({ selection: new Set([key]) })
-    drag = {
-      kind: 'move',
-      file,
-      keys: store.getState().selection,
-      lane: laneAt(e.x),
-      tick: snapTick(tm, tickAt(e.y), s.snap),
-      dLane: 0,
-      dTick: 0,
-      preview: NO_NOTES,
-      invalid: false
-    }
+    drag = noteDrag(e, file, hit, store.getState().selection, true)
   }
 
   const pointerMove = (e: ToolPointer) => {
@@ -245,6 +290,8 @@ export function createToolController(
       eraseAt(d, e.x, e.y)
     } else if (d.kind === 'rect') {
       rectTo(d, e.x, e.y)
+    } else if (d.kind === 'resize') {
+      resizeTo(d, e.y)
     } else {
       moveTo(d, e.x, e.y)
     }
@@ -274,6 +321,12 @@ export function createToolController(
       const file = s.activeChart
       if (s.tool === 'draw') {
         const { tm, view, layout } = getGeometry()
+        // 노트를 잡으면 그 노트 하나만 옮기거나 (롱노트 끝이면) 길이를 바꾼다
+        const hit = hitTestNote(chartNotes(file), tm, view, layout, e.x, e.y)
+        if (hit) {
+          drag = noteDrag(e, file, hit, new Set([noteKey(hit)]), false)
+          return
+        }
         const cell = pointerToCell(tm, view, layout, e.x, e.y, s.snap)
         if (!cell) return
         const preview: Note = { tick: cell.tick, track: cell.track, type: 'tap' }
@@ -289,6 +342,16 @@ export function createToolController(
     },
 
     onPointerMove: pointerMove,
+
+    hoverAction(x, y) {
+      const s = store.getState()
+      if (drag || s.playing || (s.tool !== 'draw' && s.tool !== 'select')) return null
+      const { tm, view, layout } = getGeometry()
+      if (inTrackNameBand(layout, x, y)) return null
+      const hit = hitTestNote(chartNotes(s.activeChart), tm, view, layout, x, y)
+      if (!hit) return null
+      return onHoldEnd(hit, tm, view, y) ? 'resize' : 'move'
+    },
 
     refresh() {
       if (drag && last) pointerMove(last)
@@ -309,12 +372,26 @@ export function createToolController(
         if (d.keys.size > 0) store.apply('노트 지우기', removeNotes(s.doc, d.file, d.keys), d.file)
       } else if (d.kind === 'rect') {
         if (d.moved) rectTo(d, e.x, e.y)
+      } else if (d.kind === 'resize') {
+        resizeTo(d, e.y)
+        if (d.preview.length === 0) return
+        // 놓을 수 없는 길이면 그대로 둔다. 머리는 그대로라 노트 키(선택)도 그대로다
+        const resized = resizeHold(s.doc, d.file, noteKey(d.note), d.endTick)
+        if (resized) store.apply('롱노트 길이 조절', resized.doc, d.file)
       } else {
         moveTo(d, e.x, e.y)
         if (d.dLane === 0 && d.dTick === 0) return
         // 놓을 수 없는 자리면 아무것도 바꾸지 않는다 (원위치)
         const moved = moveNotes(s.doc, d.file, d.keys, d.dTick, d.dLane)
-        if (moved && store.apply('노트 이동', moved.doc, d.file)) store.set({ selection: moved.keys })
+        if (!moved || !store.apply('노트 이동', moved.doc, d.file)) return
+        if (d.select) {
+          store.set({ selection: moved.keys })
+        } else if ([...d.keys].some((k) => s.selection.has(k))) {
+          // 그리기 도구로 옮긴 노트가 선택돼 있었으면 선택도 새 자리로 따라간다
+          const selection = new Set([...s.selection].filter((k) => !d.keys.has(k)))
+          for (const k of moved.keys) selection.add(k)
+          store.set({ selection })
+        }
       }
     },
 
@@ -354,8 +431,9 @@ export function createToolController(
       if (d?.kind === 'draw') {
         return { preview: [d.preview], previewInvalid: d.invalid, hiddenKeys: NO_KEYS, selectRect: null }
       }
-      if (d?.kind === 'move') {
-        const hiddenKeys = d.preview.length > 0 ? d.keys : NO_KEYS
+      if (d?.kind === 'move' || d?.kind === 'resize') {
+        const keys = d.kind === 'move' ? d.keys : new Set([noteKey(d.note)])
+        const hiddenKeys = d.preview.length > 0 ? keys : NO_KEYS
         return { preview: d.preview, previewInvalid: d.invalid, hiddenKeys, selectRect: null }
       }
       return {

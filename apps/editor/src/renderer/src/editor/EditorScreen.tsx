@@ -200,6 +200,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     const s = store.getState()
     engine.setHits(hitTimesForChart(getChart(s.doc, s.activeChart), tmRef.current))
     engine.setHitVolume(s.hitsoundVolume)
+    engine.setMusicVolume(s.musicVolume)
     engine.play(s.playheadMs)
     if (engine.playing) store.set({ playing: true })
   }, [engine, store])
@@ -316,6 +317,11 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   useEffect(() => {
     engine.setHitVolume(hitsoundVolume)
   }, [engine, hitsoundVolume])
+
+  const musicVolume = useEditor((s) => s.musicVolume)
+  useEffect(() => {
+    engine.setMusicVolume(musicVolume)
+  }, [engine, musicVolume])
 
   // 재생 중 채보·타이밍이 바뀌면 효과음 예약을 다시 계산한다
   useEffect(() => {

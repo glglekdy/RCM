@@ -31,13 +31,17 @@
 - 트리거: `push` 태그 `v*.*.*`
 - 러너: `windows-latest`, Node 24
 - 단계: checkout → `npm ci` → `node node_modules/electron/install.js` → 태그 버전과 `apps/editor/package.json` 버전 일치 확인(다르면 실패) → `npm test` → `npm run typecheck` → `npm run dist` → `RCM-releases`에 Release 생성 및 파일 업로드
-- 업로드 파일: `RCM Chart Editor Setup X.Y.Z.exe`, `.exe.blockmap`, `latest.yml`
+- 업로드 파일: `RCM-Setup-X.Y.Z.exe`, `.exe.blockmap`, `latest.yml`
 - 업로드 방법: electron-builder `--publish always`와 `publish` 설정(`provider: github, owner: glglekdy, repo: RCM-releases, releaseType: release`) 사용, 토큰은 `GH_TOKEN` 환경변수 = Secret `RELEASES_TOKEN`
 - Release 이름 `vX.Y.Z`, 초안이 아닌 정식 릴리스
 - 로컬 `npm run dist`는 지금처럼 업로드하지 않는다 (`--publish never`)
 
-### 1.3 설치 파일 이름
-- 업데이트가 안정적으로 동작하도록 파일 이름에 공백을 쓰지 않는다: `artifactName: RCM-Chart-Editor-Setup-${version}.${ext}` (표시 이름 `RCM Chart Editor`는 그대로)
+### 1.3 앱 이름·설치 파일 이름·아이콘
+- 앱 이름(`productName`)은 **`RCM`** (Rhythm Chaebo Maker의 약자). 시작 메뉴·바탕화면 바로가기·설치 프로그램·작업 관리자에 `RCM`으로 표시된다. 설치 프로그램 설명(`description`)은 `RCM - Rhythm Chaebo Maker`
+- 설치 파일 이름은 공백 없이: `artifactName: RCM-Setup-${version}.${ext}`
+- `appId`는 `com.rcm.chart-editor` 그대로 (설치·업데이트 식별용이라 바꾸지 않는다)
+- 앱 이름이 바뀌면 설정 폴더도 `%APPDATA%\RCM Chart Editor` → `%APPDATA%\RCM`으로 바뀐다. 아직 배포 전이라 옮기지 않는다 (지금 PC의 최근 목록·프리셋은 한 번 초기화됨)
+- 아이콘: 사용자가 나중에 줄 이미지를 `apps/editor/build/icon.png`(512×512 이상 PNG)로 넣으면 electron-builder가 `.ico`로 변환해 설치 파일·exe·바로가기·창 아이콘에 쓴다. 아이콘을 넣으려면 `win.signAndEditExecutable: false`를 `win.signExecutable: false`로 바꾼다 (서명만 건너뛰고 아이콘·버전 정보는 exe에 기록). 아이콘이 아직 없으면 기본 Electron 아이콘으로 배포된다
 
 ## 2. 앱 업데이트 동작
 

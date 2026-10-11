@@ -26,6 +26,7 @@ const api: RcmApi = {
     }
   },
   forceClose: () => ipcRenderer.send('rcm:force-close'),
+  closeCancelled: () => ipcRenderer.send('rcm:close-cancelled'),
   minimize: () => ipcRenderer.send('rcm:minimize'),
   toggleMaximize: () => ipcRenderer.send('rcm:toggle-maximize'),
   close: () => ipcRenderer.send('rcm:close'),

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FolderOpen, House, Plus, Search, SlidersHorizontal } from 'lucide-react'
 import type { ProjectFiles, RecentProject } from '../../../shared/api'
 import { PresetsPage } from '../presets/PresetsPage'
+import { UpdatePanel } from '../update/UpdatePanel'
 import { Button, TextField, useDialogs } from '../ui'
 import { NewProjectDialog } from './NewProjectDialog'
 import { RecentTable } from './RecentTable'
@@ -98,6 +99,7 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
         >
           <SlidersHorizontal size={16} /> 트랙 프리셋
         </button>
+        <UpdatePanel />
       </aside>
       <main className={styles.main}>
         {page === 'presets' ? (

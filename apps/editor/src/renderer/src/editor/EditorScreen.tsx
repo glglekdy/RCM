@@ -360,6 +360,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
         closing.current = true
         try {
           if (await confirmLeave()) window.rcm.forceClose()
+          else window.rcm.closeCancelled()
         } finally {
           closing.current = false
         }

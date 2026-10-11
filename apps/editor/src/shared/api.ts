@@ -53,6 +53,8 @@ export interface RcmApi {
   setDirty(dirty: boolean): void
   onCloseRequested(cb: () => void): () => void
   forceClose(): void
+  /** 닫기 확인을 취소했다고 알린다 (재시작 설치 요청도 함께 취소된다). */
+  closeCancelled(): void
   minimize(): void
   toggleMaximize(): void
   close(): void

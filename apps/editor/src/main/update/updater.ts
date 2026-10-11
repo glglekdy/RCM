@@ -25,6 +25,7 @@ async function pendingDir(): Promise<string> {
   } catch (err) {
     console.error('app-update.yml을 읽지 못했어요', err)
   }
+  if (dirName === null) console.warn('app-update.yml에서 updaterCacheDirName을 찾지 못해 앱 이름을 대신 써요')
   return join(base, dirName ?? app.getName(), 'pending')
 }
 
@@ -63,6 +64,11 @@ export function startUpdater(getWindows: () => BrowserWindow[]): void {
     installRequested = true
     // 저장 안 한 창은 기존 닫기 가드가 renderer에 확인을 묻는다. 취소하면 창이 남고 설치되지 않는다.
     for (const win of getWindows()) win.close()
+  })
+
+  // 닫기 확인을 취소하면 설치 요청도 취소한다 (이후 평범한 종료가 재시작하지 않도록).
+  ipcMain.on('rcm:close-cancelled', () => {
+    installRequested = false
   })
 
   // 개발 모드에서는 업데이트 확인을 하지 않는다 (상태는 idle 고정).

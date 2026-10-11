@@ -16,4 +16,4 @@ publish:
   provider: github
   owner: glglekdy
   repo: RCM
-  releaseType: release
+  releaseType: draft

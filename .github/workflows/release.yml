@@ -42,7 +42,30 @@ jobs:
 
       - run: npm run typecheck
 
-      - name: 빌드하고 RCM 저장소에 릴리스 올리기
+      # releaseInfo.releaseName은 ${version} 매크로를 풀지 않으므로 태그 이름을 직접 넘긴다
+      - name: 빌드하고 RCM 저장소에 초안 릴리스 올리기
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-        run: npm -w @rcm/editor run dist:publish
+          EP_GH_IGNORE_TIME: 'true'
+        run: npm -w @rcm/editor run dist:publish -- "-c.releaseInfo.releaseName=$env:GITHUB_REF_NAME"
+
+      - name: 초안에 업데이트 파일이 모두 있는지 확인
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          $version = $env:GITHUB_REF_NAME.Substring(1)
+          $assets = gh release view "$env:GITHUB_REF_NAME" --repo glglekdy/RCM --json assets --jq '.assets[].name'
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          foreach ($name in @('latest.yml', "RCM-Setup-$version.exe")) {
+            if ($assets -notcontains $name) {
+              Write-Output "::error::초안 릴리스에 $name 파일이 없어요"
+              exit 1
+            }
+          }
+
+      - name: 초안을 정식 릴리스로 공개
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          gh release edit "$env:GITHUB_REF_NAME" --repo glglekdy/RCM --draft=false
+          if ($LASTEXITCODE -ne 0) { exit 1 }

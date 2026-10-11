@@ -51,11 +51,15 @@ npm run release -- X.Y.Z
 git push --follow-tags
 ```
 
-`npm run release`는 `apps/editor`의 버전을 올리고 `chore: release vX.Y.Z` 커밋과 `vX.Y.Z` 태그를 만들 뿐 push는 하지 않습니다. 태그가 push되면 `.github/workflows/release.yml`이 Windows에서 태그와 앱 버전이 같은지 확인하고 테스트와 타입 검사를 돌린 뒤, 설치 파일(`RCM-Setup-X.Y.Z.exe`, `.blockmap`, `latest.yml`)을 `RCM` 저장소 Release로 올립니다.
+`npm run release`는 `apps/editor`의 버전을 올리고 `chore: release vX.Y.Z` 커밋과 `vX.Y.Z` 태그를 만들 뿐 push는 하지 않습니다. 태그가 push되면 `.github/workflows/release.yml`이 Windows에서 태그와 앱 버전이 같은지 확인하고 테스트와 타입 검사를 돌린 뒤, 설치 파일(`RCM-Setup-X.Y.Z.exe`, `.blockmap`, `latest.yml`)을 `RCM` 저장소에 초안 Release로 올리고, `latest.yml`과 설치 파일이 모두 있는지 확인한 뒤 정식 릴리스로 공개합니다. 공개되기 전의 초안은 사용자에게 보이지 않습니다.
 
 ### 실패했을 때
 
 `RCM-Dev` 저장소의 Actions 탭에서 `release` 실행을 열어 실패한 단계의 로그를 확인합니다. `RELEASE_TOKEN Secret이 없어요`가 보이면 위 3번의 Secret 이름과 저장소를 확인하세요.
+
+실패했다면 같은 실행에서 job을 다시 실행(Re-run)하세요. 다시 올릴 때는 같은 초안에 덮어씁니다. 공개 전에 실패한 초안은 `RCM` 저장소에서 사용자에게 보이지 않습니다. 그래도 꼬였다면 `RCM`의 해당 초안 Release를 지우고, `RCM-Dev`의 원격 태그를 먼저 지운 뒤 태그를 다시 push하세요.
+
+게시 단계에서 `401`이나 `Bad credentials`가 나오면 fine-grained 토큰이 만료된 것입니다. 새 토큰을 만들어 `RCM-Dev`의 `RELEASE_TOKEN` Secret을 바꾸세요.
 
 ### 업데이트 파일 위치
 

@@ -1,0 +1,104 @@
+import { describe, expect, it, vi } from 'vitest'
+import { DEFAULT_PRESETS, hasPresetErrors, presetErrors, type PresetTrack } from '../../src/shared/presets'
+import {
+  BLANK_TEMPLATE,
+  TEMPLATE_GROUPS,
+  defaultTemplateName,
+  presetFromTemplate,
+  type PresetTemplate
+} from '../../src/shared/presetTemplates'
+
+const group = (id: string) => TEMPLATE_GROUPS.find((g) => g.id === id)!
+const template = (groupId: string, id: string): PresetTemplate => group(groupId).templates.find((t) => t.id === id)!
+/** `Note_1=KeyA`, 보조 키는 `+`, 기믹은 `(gimmick)` */
+const describeTracks = (tracks: readonly PresetTrack[]) =>
+  tracks.map((t) =>
+    t.kind === 'gimmick' ? `${t.id}(gimmick)` : `${t.id}=${[t.key, t.subKey].filter(Boolean).join('+')}`
+  )
+
+describe('presetTemplates', () => {
+  it('그룹 순서와 이름', () => {
+    expect(TEMPLATE_GROUPS.map((g) => g.id)).toEqual(['basic', 'djmax', 'ez2on', 'musedash', 'osu'])
+    expect(TEMPLATE_GROUPS.map((g) => g.name)).toEqual([
+      '기본',
+      'DJMAX RESPECT V',
+      'EZ2ON REBOOT : R',
+      'Muse Dash',
+      'osu!mania'
+    ])
+  })
+
+  it('모든 템플릿이 프리셋 검사를 통과하고 id가 겹치지 않는다', () => {
+    for (const g of TEMPLATE_GROUPS) {
+      expect(new Set(g.templates.map((t) => t.id)).size, g.id).toBe(g.templates.length)
+      for (const t of g.templates) {
+        expect(hasPresetErrors(presetErrors({ id: 'x', name: t.name, tracks: [...t.tracks] })), `${g.id}/${t.id}`).toBe(false)
+      }
+    }
+  })
+
+  it('기본 탭: 빈 프리셋 다음에 기본 프리셋', () => {
+    expect(group('basic').templates[0]).toBe(BLANK_TEMPLATE)
+    expect(BLANK_TEMPLATE).toEqual({ id: 'blank', name: '빈 프리셋', tracks: [{ id: 'Note_1', key: null }] })
+    expect(group('basic').templates.slice(1).map((t) => t.name)).toEqual(DEFAULT_PRESETS.map((p) => p.name))
+  })
+
+  it('템플릿은 바꿀 수 없다', () => {
+    for (const g of TEMPLATE_GROUPS) {
+      expect(Object.isFrozen(g)).toBe(true)
+      for (const t of g.templates) {
+        expect(Object.isFrozen(t) && Object.isFrozen(t.tracks) && t.tracks.every(Object.isFrozen)).toBe(true)
+      }
+    }
+  })
+
+  it('DJMAX 배치 (가운데 트랙은 두 키)', () => {
+    expect(describeTracks(template('djmax', '5b').tracks)).toEqual([
+      'Side_L=ShiftLeft', 'Note_1=KeyA', 'Note_2=KeyS', 'Note_3=KeyD+KeyL', 'Note_4=Semicolon', 'Note_5=Quote',
+      'Side_R=ShiftRight'
+    ])
+    expect(describeTracks(template('djmax', '4b').tracks)).toEqual([
+      'Side_L=ShiftLeft', 'Note_1=KeyA', 'Note_2=KeyS', 'Note_3=Semicolon', 'Note_4=Quote', 'Side_R=ShiftRight'
+    ])
+    expect(describeTracks(template('djmax', '8b').tracks)).toEqual([
+      'Side_L=ShiftLeft', 'Note_1=KeyA', 'Note_2=KeyS', 'Note_3=KeyD', 'FX_L=KeyC', 'FX_R=Comma',
+      'Note_4=KeyL', 'Note_5=Semicolon', 'Note_6=Quote', 'Side_R=ShiftRight'
+    ])
+  })
+
+  it('EZ2ON · Muse Dash · osu!mania 배치', () => {
+    expect(describeTracks(template('ez2on', '8k').tracks)).toEqual([
+      'Note_1=KeyA', 'Note_2=KeyS', 'Note_3=KeyD', 'Note_4=KeyF', 'Note_5=KeyJ', 'Note_6=KeyK', 'Note_7=KeyL',
+      'Note_8=Semicolon'
+    ])
+    expect(describeTracks(template('musedash', '2lane').tracks)).toEqual([
+      'Air=KeyF+KeyD', 'Ground=KeyJ+KeyK', 'Saw_Air(gimmick)', 'Saw_Ground(gimmick)'
+    ])
+    expect(describeTracks(template('osu', '7k').tracks)).toEqual([
+      'Note_1=KeyS', 'Note_2=KeyD', 'Note_3=KeyF', 'Note_4=Space', 'Note_5=KeyJ', 'Note_6=KeyK', 'Note_7=KeyL'
+    ])
+  })
+
+  it('기본 이름: 기본 탭은 템플릿 이름, 게임 탭은 게임 짧은 이름 + 템플릿', () => {
+    expect(defaultTemplateName(group('basic'), BLANK_TEMPLATE)).toBe('빈 프리셋')
+    expect(defaultTemplateName(group('djmax'), template('djmax', '5b'))).toBe('DJMAX 5B')
+    expect(defaultTemplateName(group('musedash'), template('musedash', '2lane'))).toBe('Muse Dash 2레인')
+  })
+
+  it('템플릿으로 프리셋 만들기: 빈 이름은 기본 이름, id는 겹치지 않고, 템플릿은 그대로', () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000)
+    try {
+      const t = template('djmax', '5b')
+      const a = presetFromTemplate(t, '  ', [], 'DJMAX 5B')
+      expect(a.name).toBe('DJMAX 5B')
+      expect(a.tracks).toEqual(t.tracks)
+      const b = presetFromTemplate(t, ' 내 5B ', [a], 'DJMAX 5B')
+      expect(b.name).toBe('내 5B')
+      expect(b.id).not.toBe(a.id)
+      a.tracks[0].key = 'KeyZ'
+      expect(t.tracks[0].key).toBe('ShiftLeft')
+    } finally {
+      now.mockRestore()
+    }
+  })
+})

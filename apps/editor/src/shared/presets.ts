@@ -3,6 +3,7 @@ import {
   MAX_TRACKS,
   MIN_TRACKS,
   TRACK_COLOR_PATTERN,
+  isGimmick,
   isValidTrackId,
   type Track
 } from '@rcm/core'
@@ -79,6 +80,8 @@ export function presetErrors(p: TrackPreset): PresetIssues {
     else if (ids.has(t.id)) row.id = '이미 있는 이름'
     ids.add(t.id)
     if (t.color !== undefined && !TRACK_COLOR_PATTERN.test(t.color)) row.color = '#rrggbb 형식이어야 해요'
+    // 기믹 트랙은 키를 쓰지 않으므로 검사하지도, 중복 집합에 넣지도 않는다
+    if (isGimmick(t)) return
     if (t.key !== null) {
       if (typeof t.key !== 'string' || t.key === '') row.key = '키가 올바르지 않아요'
       else if (keys.has(t.key)) row.key = '다른 트랙과 같은 키'
@@ -107,6 +110,10 @@ function parseTrack(v: unknown): PresetTrack | null {
   const key = v.key === undefined ? null : v.key
   if (key !== null && typeof key !== 'string') return null
   const t: PresetTrack = { id: v.id, key }
+  if (v.kind !== undefined && v.kind !== 'play') {
+    if (v.kind !== 'gimmick') return null
+    t.kind = 'gimmick'
+  }
   if (v.subKey !== undefined && v.subKey !== null) {
     if (typeof v.subKey !== 'string') return null
     t.subKey = v.subKey
@@ -155,9 +162,10 @@ export function newPresetId(existing: readonly TrackPreset[]): string {
   return `${base}-${n}`
 }
 
-/** 프리셋 트랙의 키 code들: 주 키, 보조 키 순. 비어 있는 칸은 뺀다. */
+/** 프리셋 트랙의 키 code들: 주 키, 보조 키 순. 비어 있는 칸은 빼고, 기믹 트랙은 키가 없다. */
 export function presetTrackKeys(t: PresetTrack): string[] {
   const out: string[] = []
+  if (isGimmick(t)) return out
   if (t.key) out.push(t.key)
   if (t.subKey) out.push(t.subKey)
   return out
@@ -180,9 +188,16 @@ export function resolveKeymap(tracks: readonly Track[], presets: readonly TrackP
   const keys = new Map<string, string[]>()
   if (match) {
     for (const t of match.tracks) keys.set(t.id, presetTrackKeys(t))
+    // 채보에서 기믹인 트랙은 프리셋이 키를 줘도 치지 않는다
+    for (const t of tracks) if (isGimmick(t)) keys.set(t.id, [])
     return { keys, source: { kind: 'preset', name: match.name } }
   }
-  tracks.forEach((t, i) => keys.set(t.id, i < AUTO_KEYS.length ? [AUTO_KEYS[i]] : []))
+  // 자동 배정은 플레이 트랙에만 순서대로
+  let n = 0
+  for (const t of tracks) {
+    const key = isGimmick(t) ? undefined : AUTO_KEYS[n++]
+    keys.set(t.id, key === undefined ? [] : [key])
+  }
   return { keys, source: { kind: 'auto' } }
 }
 
@@ -201,6 +216,7 @@ export function presetToChartTracks(p: TrackPreset): Track[] {
   return p.tracks.map((t) => {
     const out: Track = { id: t.id }
     if (t.color !== undefined && t.color.toLowerCase() !== DEFAULT_NOTE_COLOR) out.color = t.color
+    if (isGimmick(t)) out.kind = 'gimmick'
     return out
   })
 }

@@ -77,6 +77,57 @@ describe('presets', () => {
     expect(hasPresetErrors({ tracks: [{ subKey: 'x' }] })).toBe(true)
   })
 
+  it('기믹 트랙은 키 검사를 건너뛴다', () => {
+    const i = presetErrors({
+      id: 'x',
+      name: 'P',
+      tracks: [{ id: 'A', key: 'KeyD' }, { id: 'G', kind: 'gimmick', key: 'KeyD', subKey: 'KeyD' }]
+    })
+    expect(i.tracks.every((r) => !r.key && !r.subKey)).toBe(true)
+  })
+
+  it('채보 트랙이 기믹이면 프리셋 키와 상관없이 키 없음', () => {
+    const p: TrackPreset = { id: 'p', name: 'P', tracks: [t('A', 'KeyD'), { id: 'B', key: 'KeyF', subKey: 'KeyG' }] }
+    const r = resolveKeymap([{ id: 'A' }, { id: 'B', kind: 'gimmick' }], [p])
+    expect(r.source).toEqual({ kind: 'preset', name: 'P' })
+    expect(r.keys.get('A')).toEqual(['KeyD'])
+    expect(r.keys.get('B')).toEqual([])
+  })
+
+  it('프리셋에서 기믹인 트랙의 키는 쓰지 않는다', () => {
+    // 설정 파일에서 기믹 트랙이 플레이 트랙과 같은 키를 들고 있어도 그 키는 플레이 트랙만 친다
+    const p: TrackPreset = { id: 'p', name: 'P', tracks: [t('A', 'KeyD'), { id: 'G', kind: 'gimmick', key: 'KeyD' }] }
+    expect(sanitizePresets([p])).toEqual([p])
+    const r = resolveKeymap([{ id: 'A' }, { id: 'G' }], [p])
+    expect(r.keys.get('A')).toEqual(['KeyD'])
+    expect(r.keys.get('G')).toEqual([])
+  })
+
+  it('자동 배정은 기믹을 건너뛴다', () => {
+    const r = resolveKeymap([{ id: 'X' }, { id: 'G', kind: 'gimmick' }, { id: 'Y' }], DEFAULT_PRESETS)
+    expect(r.source).toEqual({ kind: 'auto' })
+    expect(r.keys.get('X')).toEqual(['KeyA'])
+    expect(r.keys.get('G')).toEqual([])
+    expect(r.keys.get('Y')).toEqual(['KeyS'])
+  })
+
+  it('설정 파일 kind', () => {
+    const gim = { id: 'a', name: 'A', tracks: [{ id: 'G', key: null, kind: 'gimmick' }] }
+    expect(sanitizePresets([gim])).toEqual([gim])
+    expect(sanitizePresets([{ id: 'b', name: 'B', tracks: [{ id: 'P', key: 'KeyD', kind: 'play' }] }])).toEqual([
+      { id: 'b', name: 'B', tracks: [t('P', 'KeyD')] }
+    ])
+    // 모르는 종류면 그 프리셋을 버린다
+    expect(sanitizePresets([gim, { id: 'c', name: 'C', tracks: [{ id: 'Z', key: null, kind: 'boss' }] }])).toEqual([gim])
+  })
+
+  it('채보로 복사할 때 기믹 종류는 유지', () => {
+    expect(presetToChartTracks({ id: 'x', name: 'P', tracks: [{ id: 'G', kind: 'gimmick', key: null }, t('A', 'KeyD')] })).toEqual([
+      { id: 'G', kind: 'gimmick' },
+      { id: 'A' }
+    ])
+  })
+
   it('설정 파일의 width는 버린다', () => {
     const raw = { id: 'a', name: 'A', tracks: [{ id: 'Side_L', key: 'ShiftLeft', width: 'wide' }, { id: 'B', key: null, width: 'huge' }] }
     expect(sanitizePresets([raw])).toEqual([{ id: 'a', name: 'A', tracks: [t('Side_L', 'ShiftLeft'), t('B')] }])

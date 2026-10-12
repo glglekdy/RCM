@@ -104,7 +104,11 @@ export function ChartPanel() {
           disabled={locked}
           onRename={rename}
           onLook={(i, patch) =>
-            applyTracks('트랙 모양 변경', updateTrackLook(store.getState().doc, file, i, patch), false)
+            applyTracks(
+              'kind' in patch ? '트랙 종류 변경' : '트랙 모양 변경',
+              updateTrackLook(store.getState().doc, file, i, patch),
+              false
+            )
           }
           onMove={(from, to) =>
             applyTracks('트랙 순서 변경', moveTrack(store.getState().doc, file, from, to), true)

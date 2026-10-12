@@ -63,6 +63,17 @@ describe('track commands', () => {
     expect(updateTrackLook(d0, F, 0, { color: 'red' })).toBeNull()
   })
 
+  it('종류 변경: 기믹으로, 같은 값이면 null, 플레이면 필드 삭제, 노트는 그대로', () => {
+    const base = withNotes(d0, [tap(0, 'Note_1')])
+    const g = updateTrackLook(base, F, 0, { kind: 'gimmick' })!
+    expect(getChart(g, F).tracks[0]).toEqual({ id: 'Note_1', kind: 'gimmick' })
+    expect(getChart(g, F).notes.map(noteKey)).toEqual(['Note_1:0'])
+    expect(updateTrackLook(g, F, 0, { kind: 'gimmick' })).toBeNull()
+    expect(updateTrackLook(base, F, 0, { kind: 'play' })).toBeNull()
+    expect(getChart(updateTrackLook(g, F, 0, { kind: 'play' })!, F).tracks[0]).toEqual({ id: 'Note_1' })
+    expect(updateTrackLook(base, F, 0, { kind: 'boss' as never })).toBeNull()
+  })
+
   it('모양 변경: 바뀌는 것이 없으면 null (빈 Undo 기록을 만들지 않는다)', () => {
     // 기본값 트랙에 기본값을 지정
     expect(updateTrackLook(d0, F, 0, { color: '#f2f2f2' })).toBeNull()

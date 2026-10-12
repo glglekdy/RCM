@@ -16,7 +16,7 @@ const withHard: ProjectDoc = {
 const titled = (title: string): ProjectDoc => ({ ...d0, song: { ...d0.song, title } })
 
 function make(doc: ProjectDoc = d0): EditorStore {
-  return new EditorStore({ dir: 'C:/p', audioPath: 'C:/p/audio.ogg' }, doc)
+  return new EditorStore({ dir: 'C:/p' }, doc)
 }
 
 beforeEach(() => {

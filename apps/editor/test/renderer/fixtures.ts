@@ -16,7 +16,6 @@ export function files(): ProjectFiles {
   const chart = { formatVersion: 1, name: 'NORMAL', level: 1, tracks: basicTracks(4), notes: [] }
   return {
     dir: 'C:/p',
-    audioPath: 'C:/p/audio.ogg',
     songText: JSON.stringify(song),
     charts: [{ file: 'normal.chart.json', text: JSON.stringify(chart) }],
     editorText: serializeEditorData(emptyEditorData())

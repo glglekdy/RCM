@@ -10,7 +10,8 @@ export interface CreateProjectOptions {
   parentDir: string
   title: string
   artist: string
-  audioPath: string
+  /** 음악 파일 경로. null이면 음악 없이 만든다 (나중에 곡 탭에서 고른다) */
+  audioPath: string | null
   bpm: number
   chartName: string
   tracks: Track[]
@@ -18,7 +19,6 @@ export interface CreateProjectOptions {
 
 export interface ProjectFiles {
   dir: string
-  audioPath: string
   songText: string
   charts: { file: string; text: string }[]
   editorText: string | null
@@ -41,6 +41,8 @@ export interface RcmApi {
   createProject(opts: CreateProjectOptions): Promise<{ dir: string }>
   openProject(dir: string): Promise<ProjectFiles>
   readAudio(path: string): Promise<ArrayBuffer>
+  /** 음악 파일을 프로젝트 폴더에 새 이름으로 복사하고 그 파일 이름(song.json의 `audio` 값)을 돌려준다. */
+  importProjectAudio(dir: string, source: string): Promise<string>
   writeProjectFiles(dir: string, files: { name: string; text: string }[]): Promise<void>
   /** 프로젝트 폴더의 `*.chart.json` 파일을 지운다 (다른 이름은 거부). */
   deleteProjectFiles(dir: string, names: string[]): Promise<void>

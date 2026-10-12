@@ -9,6 +9,7 @@ const api: RcmApi = {
   createProject: (opts) => ipcRenderer.invoke('rcm:create-project', opts),
   openProject: (dir) => ipcRenderer.invoke('rcm:open-project', dir),
   readAudio: (path) => ipcRenderer.invoke('rcm:read-audio', path),
+  importProjectAudio: (dir, source) => ipcRenderer.invoke('rcm:import-project-audio', dir, source),
   writeProjectFiles: (dir, files) => ipcRenderer.invoke('rcm:write-project-files', dir, files),
   deleteProjectFiles: (dir, names) => ipcRenderer.invoke('rcm:delete-project-files', dir, names),
   getRecentProjects: () => ipcRenderer.invoke('rcm:get-recent-projects'),

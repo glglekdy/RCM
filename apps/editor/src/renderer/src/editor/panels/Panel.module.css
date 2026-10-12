@@ -8,6 +8,14 @@
   flex: 1;
 }
 
+.fileName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
 .position {
   font-weight: 500;
   font-variant-numeric: tabular-nums;

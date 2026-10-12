@@ -1,4 +1,4 @@
-import { existsSync, promises as fs } from 'node:fs'
+import { constants as fsConstants, existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import {
   FORMAT_VERSION,
@@ -24,6 +24,19 @@ const AUDIO_EXTENSIONS = ['.ogg', '.mp3', '.wav']
 
 const isAudioFile = (file: string): boolean => AUDIO_EXTENSIONS.includes(path.extname(file).toLowerCase())
 
+const isAudioPath = (v: unknown): v is string => typeof v === 'string' && path.isAbsolute(v) && isAudioFile(v)
+
+/** 에디터가 프로젝트에 복사해 넣는 음악 파일 이름: `audio.ogg`, `audio-2.mp3` … */
+const PROJECT_AUDIO_NAME = /^audio(-\d+)?\.(ogg|mp3|wav)$/i
+
+/** `dir`에 아직 없는 `audio[-n].<ext>` 이름. */
+function uniqueAudioName(dir: string, ext: string): string {
+  for (let n = 1; ; n++) {
+    const name = n === 1 ? `audio${ext}` : `audio-${n}${ext}`
+    if (!existsSync(path.join(dir, name))) return name
+  }
+}
+
 /**
  * renderer가 보낸 새 프로젝트 옵션을 검사해 알려진 키만 돌려준다 (renderer는 신뢰 경계 밖).
  * 잘못됐으면 무엇이 잘못됐는지 적은 오류를 던진다.
@@ -45,8 +58,9 @@ export function validateCreateProjectOptions(raw: unknown): CreateProjectOptions
   if (typeof parentDir !== 'string' || !path.isAbsolute(parentDir)) {
     throw new Error('저장 위치가 올바르지 않아요')
   }
-  const audioPath = o.audioPath
-  if (typeof audioPath !== 'string' || !path.isAbsolute(audioPath) || !isAudioFile(audioPath)) {
+  // 음악은 나중에 골라도 된다 (null = 음악 없음)
+  const audioPath = o.audioPath ?? null
+  if (audioPath !== null && !isAudioPath(audioPath)) {
     throw new Error('음악 파일은 ogg, mp3, wav만 쓸 수 있어요')
   }
   const bpm = o.bpm
@@ -80,8 +94,11 @@ export async function createProject(raw: CreateProjectOptions): Promise<string> 
     }
   }
   try {
-    const audio = `audio${path.extname(opts.audioPath).toLowerCase()}`
-    await fs.copyFile(opts.audioPath, path.join(dir, audio))
+    let audio = ''
+    if (opts.audioPath !== null) {
+      audio = `audio${path.extname(opts.audioPath).toLowerCase()}`
+      await fs.copyFile(opts.audioPath, path.join(dir, audio))
+    }
     await fs.writeFile(
       path.join(dir, 'song.json'),
       serializeSong({
@@ -114,12 +131,6 @@ export async function openProjectFiles(dir: string): Promise<ProjectFiles> {
   } catch {
     throw new Error('song.json을 찾을 수 없어요')
   }
-  let audio: unknown
-  try {
-    audio = (JSON.parse(songText) as { audio?: unknown }).audio
-  } catch {
-    audio = undefined
-  }
   const names = (await fs.readdir(dir)).filter((f) => f.toLowerCase().endsWith('.chart.json')).sort()
   const charts = await Promise.all(
     names.map(async (file) => ({ file, text: await fs.readFile(path.join(dir, file), 'utf8') }))
@@ -132,7 +143,6 @@ export async function openProjectFiles(dir: string): Promise<ProjectFiles> {
   }
   return {
     dir,
-    audioPath: typeof audio === 'string' ? path.join(dir, audio) : '',
     songText,
     charts,
     editorText
@@ -191,6 +201,40 @@ export async function assertDirectory(dir: string): Promise<void> {
   const stat =
     typeof dir === 'string' && path.isAbsolute(dir) ? await fs.stat(dir).catch(() => null) : null
   if (!stat?.isDirectory()) throw new Error('폴더를 찾을 수 없어요')
+}
+
+/**
+ * 음악 파일을 프로젝트 폴더에 새 이름(`audio[-n].<ext>`)으로 복사하고 그 이름을 돌려준다.
+ * 이전 음악 파일은 Undo로 돌아갈 수 있으므로 지우지 않는다 (다음에 열 때 {@link removeUnusedAudio}가 정리).
+ */
+export async function importProjectAudio(dir: string, source: string): Promise<string> {
+  if (!isAudioPath(source)) throw new Error('음악 파일은 ogg, mp3, wav만 쓸 수 있어요')
+  await assertDirectory(dir)
+  const ext = path.extname(source).toLowerCase()
+  for (;;) {
+    const name = uniqueAudioName(dir, ext)
+    try {
+      await fs.copyFile(source, path.join(dir, name), fsConstants.COPYFILE_EXCL)
+      return name
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e
+    }
+  }
+}
+
+/**
+ * song.json이 가리키지 않는, 에디터가 복사해 넣은 음악 파일(`audio[-n].<ext>`)을 지운다.
+ * 음악을 바꾸고 저장하지 않았거나 바꾼 뒤 저장해 남은 파일들이다. song.json을 읽지 못하면 아무것도 지우지 않는다.
+ */
+export async function removeUnusedAudio(dir: string, songText: string): Promise<void> {
+  const song = parseSong(songText)
+  if (!song.ok) return
+  const keep = song.value.audio.toLowerCase()
+  for (const name of await fs.readdir(dir)) {
+    if (PROJECT_AUDIO_NAME.test(name) && name.toLowerCase() !== keep) {
+      await fs.rm(path.join(dir, name), { force: true })
+    }
+  }
 }
 
 export async function readAudioFile(file: string): Promise<ArrayBuffer> {

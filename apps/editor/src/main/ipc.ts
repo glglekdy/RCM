@@ -7,8 +7,10 @@ import {
   assertDirectory,
   createProject,
   deleteProjectFiles,
+  importProjectAudio,
   openProjectFiles,
   readAudioFile,
+  removeUnusedAudio,
   resolveProjectDir,
   summarizeProject,
   writeProjectFiles
@@ -87,11 +89,21 @@ export function registerProjectIpc(): void {
 
   ipcMain.handle('rcm:open-project', async (_e, dir: string) => {
     const files = await openProjectFiles(dir)
+    try {
+      await removeUnusedAudio(dir, files.songText)
+    } catch (err) {
+      // 정리하지 못해도 프로젝트는 연다
+      console.error('쓰지 않는 음악 파일을 지우지 못했어요', err)
+    }
     await touch(dir)
     return files
   })
 
   ipcMain.handle('rcm:read-audio', (_e, path: string) => readAudioFile(path))
+
+  ipcMain.handle('rcm:import-project-audio', (_e, dir: string, source: string) =>
+    importProjectAudio(dir, source)
+  )
 
   ipcMain.handle(
     'rcm:write-project-files',

@@ -15,6 +15,8 @@ export class AudioEngine {
   private isPlaying = false
   private disposed = false
   private buffer: AudioBuffer | null = null
+  /** 음악 없이 무음 버퍼로 재생 중 */
+  private silent = false
   private readonly clickBuffer: AudioBuffer
   private readonly hitGain: GainNode
   private readonly musicGain: GainNode
@@ -44,9 +46,9 @@ export class AudioEngine {
     return this.duration
   }
 
-  /** 디코딩된 오디오 (파형 계산용). 불러오기 전에는 null. */
+  /** 디코딩된 오디오 (파형 계산용). 불러오기 전이거나 음악이 없으면 null. */
   get decodedBuffer(): AudioBuffer | null {
-    return this.buffer
+    return this.silent ? null : this.buffer
   }
 
   get playing(): boolean {
@@ -56,6 +58,18 @@ export class AudioEngine {
   async load(data: ArrayBuffer): Promise<void> {
     this.stop()
     this.buffer = await this.ctx.decodeAudioData(data)
+    this.silent = false
+    this.duration = this.buffer.duration * 1000
+    this.lastPositionMs = 0
+  }
+
+  /** 음악 대신 `durationMs` 길이의 무음을 재생한다 (효과음·녹음·테스트 플레이는 그대로 된다). */
+  loadSilence(durationMs: number): void {
+    this.stop()
+    // 무음이라 샘플레이트를 낮춰 메모리를 아낀다
+    const rate = 8000
+    this.buffer = this.ctx.createBuffer(1, Math.max(1, Math.ceil((durationMs / 1000) * rate)), rate)
+    this.silent = true
     this.duration = this.buffer.duration * 1000
     this.lastPositionMs = 0
   }

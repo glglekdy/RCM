@@ -19,7 +19,7 @@ beforeEach(() => {
 })
 
 function setup(notes: Note[] = start) {
-  const store = new EditorStore({ dir: 'C:/p', audioPath: 'C:/p/audio.ogg' }, withNotes(d0, notes))
+  const store = new EditorStore({ dir: 'C:/p' }, withNotes(d0, notes))
   store.set({ snap: 4, selection: new Set(['Note_1:0', 'Note_2:480']) })
   const state = () => store.getState()
   const keys = () => getChart(state().doc, F).notes.map(noteKey)

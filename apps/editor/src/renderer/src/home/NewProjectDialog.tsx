@@ -139,6 +139,13 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
     }
   }
 
+  /** 고른 음악을 빼고 음악 없이 만들게 한다. */
+  const clearAudio = () => {
+    stopPlayback()
+    pickToken.current++ // 진행 중인 디코딩 결과 무효화
+    setAudio({ state: 'none' })
+  }
+
   const togglePlay = () => {
     if (playing) {
       stopPlayback()
@@ -174,13 +181,14 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
     !creating &&
     preset !== undefined &&
     title.trim() !== '' &&
-    audio.state === 'ok' &&
+    // 음악은 골라도 되고 안 골라도 되지만, 고른 파일은 열 수 있어야 한다
+    (audio.state === 'none' || audio.state === 'ok') &&
     bpm > 0 &&
     chartName.trim() !== '' &&
     parentDir !== ''
 
   const create = async () => {
-    if (!canCreate || audio.state !== 'ok' || !preset) return
+    if (!canCreate || !preset) return
     setCreating(true)
     stopPlayback()
     try {
@@ -188,7 +196,7 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
         parentDir,
         title: title.trim(),
         artist: artist.trim(),
-        audioPath: audio.path,
+        audioPath: audio.state === 'ok' ? audio.path : null,
         bpm,
         chartName: chartName.trim(),
         tracks: presetToChartTracks(preset)
@@ -233,10 +241,12 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
         </Row>
         <Row label="음악 파일">
           <span className={styles.fileName} title={audio.state === 'none' ? '' : audio.path}>
-            {audio.state === 'none' ? '' : baseName(audio.path)}
+            {audio.state === 'none' ? '(선택)' : baseName(audio.path)}
           </span>
+          {audio.state !== 'none' && <Button onClick={clearAudio}>빼기</Button>}
           <Button onClick={() => void pickAudio()}>파일 선택</Button>
         </Row>
+        {audio.state === 'none' && <div className={styles.hint}>나중에 곡 탭에서 고를 수 있어요</div>}
         {audio.state === 'ok' && (
           <div className={styles.audioInfo}>
             <IconButton

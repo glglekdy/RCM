@@ -27,7 +27,7 @@ beforeEach(() => {
 })
 
 function setup(doc: ProjectDoc = d0, tool: 'draw' | 'erase' | 'select' = 'draw') {
-  const store = new EditorStore({ dir: 'C:/p', audioPath: 'C:/p/audio.ogg' }, doc)
+  const store = new EditorStore({ dir: 'C:/p' }, doc)
   store.set({ tool, snap: 4 })
   const tools = createToolController(store, () => ({ tm, view, layout }))
   const notes = () => getChart(store.getState().doc, F).notes
@@ -98,7 +98,7 @@ describe('그리기 도구', () => {
 
   it('끄는 동안 시작 트랙이 사라지거나 바뀌면 드래그 취소', () => {
     for (const tracks of [basicTracks(1), [{ id: 'Note_2' }, { id: 'Other' }]]) {
-      const store = new EditorStore({ dir: 'C:/p', audioPath: 'C:/p/audio.ogg' }, d0)
+      const store = new EditorStore({ dir: 'C:/p' }, d0)
       store.set({ tool: 'draw', snap: 4 })
       let geo = { tm, view, layout }
       const tools = createToolController(store, () => geo)
@@ -334,7 +334,7 @@ describe('선택 도구', () => {
     // 휠은 재생선(view.playheadMs)을 옮긴다. 1000ms 스크롤 = 960 tick = 480px
     const scrolled = (doc: ProjectDoc) => {
       const v = { ...view }
-      const store = new EditorStore({ dir: 'C:/p', audioPath: 'C:/p/audio.ogg' }, doc)
+      const store = new EditorStore({ dir: 'C:/p' }, doc)
       store.set({ tool: 'select', snap: 4 })
       const tools = createToolController(store, () => ({ tm, view: v, layout }))
       return { store, tools, scroll: (ms: number) => (v.playheadMs += ms) }

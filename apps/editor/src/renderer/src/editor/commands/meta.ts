@@ -3,7 +3,7 @@ import { getChart, replaceChart, type ProjectDoc } from '../state/doc'
 
 export function updateSong(
   doc: ProjectDoc,
-  patch: Partial<Pick<Song, 'title' | 'artist' | 'previewStartMs'>>
+  patch: Partial<Pick<Song, 'title' | 'artist' | 'audio' | 'previewStartMs'>>
 ): ProjectDoc | null {
   const p = patch.previewStartMs
   if (p !== undefined && !(Number.isFinite(p) && p >= 0)) return null

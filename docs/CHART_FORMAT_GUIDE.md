@@ -27,7 +27,7 @@
 
 ```
 <곡 폴더>/
-  audio.ogg           음악 파일 (확장자는 원본 그대로: ogg/mp3/wav). 이름은 song.json의 "audio" 값
+  audio.ogg           음악 파일 (ogg/mp3/wav). 이름은 song.json의 "audio" 값 (audio-2.mp3 등일 수 있음)
   song.json           곡 정보 + 타이밍 (모든 난이도 공통)
   normal.chart.json   난이도별 채보. 파일 이름은 아무거나 가능, 확장자는 반드시 .chart.json
   hard.chart.json
@@ -49,7 +49,7 @@
   "formatVersion": 1,
   "title": "곡 제목",
   "artist": "아티스트",          // 빈 문자열 가능
-  "audio": "audio.ogg",          // 같은 폴더 안의 음악 파일 이름
+  "audio": "audio.ogg",          // 같은 폴더 안의 음악 파일 이름. 빈 문자열 = 아직 음악 없음
   "offsetMs": 120,               // 음악 파일에서 tick 0(첫 박)이 있는 시각(ms). 음수 가능, 소수 가능
   "previewStartMs": 30000,       // 곡 선택 화면 미리듣기 시작 위치(ms)
   "timing": [                    // BPM 변경 지점. tick 오름차순, 첫 항목은 반드시 tick 0
@@ -394,7 +394,7 @@ const endPos = notes.map(n => (n.endMs === undefined ? undefined : scroll.positi
 
 1. 곡 폴더에서 `song.json`을 읽고 검증한다.
 2. `*.chart.json`을 모두 찾아 검증하고 `name`·`level`로 난이도 목록을 만든다. 검증에 실패한 파일은 목록에서 빼고 이유를 로그에 남긴다.
-3. 음악 파일을 **전부 디코딩**해 둔다 (웹이면 `AudioContext.decodeAudioData`).
+3. 음악 파일을 **전부 디코딩**해 둔다 (웹이면 `AudioContext.decodeAudioData`). `audio`가 빈 문자열이면 음악이 아직 없는 곡이니 목록에서 빼거나 무음으로 다룬다.
 4. 고른 채보의 노트를 3장 공식으로 ms로 바꾸고 `startMs` 오름차순으로 정렬한 배열을 만든다. 트랙별로도 나눠 둔다 (판정은 트랙별로 한다).
 
 ### 4.2 트랙 이름 → 게임 규칙 대응

@@ -7,7 +7,6 @@ import { History } from './history'
 
 export interface EditorState {
   dir: string
-  audioPath: string
   doc: ProjectDoc
   saved: SavedRefs
   activeChart: string
@@ -36,10 +35,9 @@ export class EditorStore {
   private reportedGuard = false
   private pendingSave: Promise<void> | null = null
 
-  constructor(files: Pick<ProjectFiles, 'dir' | 'audioPath'>, doc: ProjectDoc) {
+  constructor(files: Pick<ProjectFiles, 'dir'>, doc: ProjectDoc) {
     this.state = {
       dir: files.dir,
-      audioPath: files.audioPath,
       doc,
       saved: savedRefsOf(doc),
       activeChart: doc.charts[0].file,

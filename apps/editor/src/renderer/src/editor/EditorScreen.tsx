@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { PanelRight } from 'lucide-react'
 import { TimingMap } from '@rcm/core'
 import { trackForCode, trackForKey, type TrackKeymap } from '@rcm/playfield'
@@ -13,6 +13,7 @@ import { pushTap } from './commands/tap'
 import { IconButton, TitleBar, useDialogs, useToast } from '../ui'
 import { AudioEngine } from './audio/AudioEngine'
 import { inputTimeMs } from './audio/inputTime'
+import { projectAudioPath, silentDurationMs } from './audio/projectAudio'
 import { hitTimesForChart } from './audio/schedule'
 import { computePeaks, type WaveformPeaks } from './audio/waveform'
 import { Recorder } from './input/recorder'
@@ -61,32 +62,56 @@ interface LoadedEditorProps extends EditorScreenProps {
 function LoadedEditor({ files, doc, onExit, onOpenProject }: LoadedEditorProps) {
   const [store] = useState(() => new EditorStore(files, doc))
   const [engine, setEngine] = useState<AudioEngine | null>(null)
+  /** 지금 화면에 쓰는 엔진. 음악을 바꾸면 새 엔진이 준비될 때까지 이걸 계속 쓴다 */
+  const engineRef = useRef<AudioEngine | null>(null)
   const dialogs = useDialogs()
-  const onExitRef = useRef(onExit)
-  onExitRef.current = onExit
+  const audio = useSyncExternalStore(store.subscribe, () => store.getState().doc.song.audio)
 
-  // 프로젝트마다 오디오 엔진 하나. 디코딩에 실패하면 곡을 열지 않는다 (5.14절)
+  // song.json의 음악마다 오디오 엔진 하나. 음악이 없거나 열 수 없으면 무음으로 편집한다
   useEffect(() => {
     const e = new AudioEngine()
     let cancelled = false
-    window.rcm
-      .readAudio(files.audioPath)
-      .then((data) => e.load(data))
-      .then(
-        () => {
-          if (!cancelled) setEngine(e)
-        },
-        async (err: unknown) => {
-          if (cancelled) return
-          await dialogs.alert('오디오를 열 수 없어요', err instanceof Error ? err.message : String(err))
-          onExitRef.current()
-        }
-      )
+    const silence = () => {
+      const { doc } = store.getState()
+      e.loadSilence(silentDurationMs(doc, new TimingMap(doc.song.timing, doc.song.offsetMs)))
+    }
+    const load = async () => {
+      if (audio === '') {
+        silence()
+        return
+      }
+      try {
+        await e.load(await window.rcm.readAudio(projectAudioPath(files.dir, audio)))
+      } catch (err) {
+        if (cancelled) return
+        silence()
+        void dialogs.alert('음악을 열 수 없어요', [
+          err instanceof Error ? err.message : String(err),
+          '음악 없이 열었어요. 곡 탭에서 음악을 다시 고를 수 있어요.'
+        ])
+      }
+    }
+    void load().then(() => {
+      if (cancelled) return
+      const prev = engineRef.current
+      engineRef.current = e
+      setEngine(e)
+      prev?.dispose()
+    })
     return () => {
       cancelled = true
-      e.dispose()
+      // 화면에 올라간 엔진은 다음 엔진으로 바뀔 때나 화면을 떠날 때 정리한다
+      if (engineRef.current !== e) e.dispose()
     }
-  }, [files.audioPath, dialogs])
+  }, [audio, files.dir, store, dialogs])
+
+  useEffect(
+    () => () => {
+      engineRef.current?.dispose()
+      engineRef.current = null
+    },
+    []
+  )
 
   // 홈으로 돌아가면 닫기 보호를 해제한다 (닫기 요청 처리는 EditorBody가 한다)
   useEffect(() => () => window.rcm.setDirty(false), [])
@@ -180,6 +205,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   const [peaks, setPeaks] = useState<WaveformPeaks | undefined>()
   useEffect(() => {
     const buffer = engine.decodedBuffer
+    setPeaks(undefined)
     if (!buffer) return
     const timer = setTimeout(() => {
       const channels = Array.from({ length: buffer.numberOfChannels }, (_, i) =>
@@ -189,6 +215,13 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     }, 0)
     return () => clearTimeout(timer)
   }, [engine])
+
+  // 음악을 바꿔 곡 길이가 달라지면 재생선을 새 길이 안으로 옮긴다
+  useEffect(() => {
+    const { playheadMs } = store.getState()
+    const clamped = clampPlayheadMs(tmRef.current, playheadMs, engine.durationMs)
+    if (clamped !== playheadMs) store.set({ playheadMs: clamped })
+  }, [engine, store])
 
   // ---- 재생 ----
   const play = useCallback(() => {

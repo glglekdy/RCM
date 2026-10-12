@@ -20,5 +20,6 @@ describe('meta commands', () => {
     expect(d.song).toMatchObject({ title: 'X', artist: 'A', previewStartMs: 1500 })
     expect(d.charts).toBe(d0.charts)
     expect(updateSong(d0, { previewStartMs: -1 })).toBeNull()
+    expect(updateSong(d0, { audio: 'audio-2.mp3' })!.song.audio).toBe('audio-2.mp3')
   })
 })

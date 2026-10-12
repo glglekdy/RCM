@@ -7,8 +7,10 @@ import {
   assertDirectory,
   createProject,
   deleteProjectFiles,
+  importProjectAudio,
   openProjectFiles,
   readAudioFile,
+  removeUnusedAudio,
   summarizeProject,
   validateCreateProjectOptions,
   writeProjectFiles
@@ -33,8 +35,9 @@ describe('projectFs', () => {
     const dir = await createProject({ ...opts, title: '진격의 승리: Remix?', artist: 'A', bpm: 150, tracks: basicTracks(7) })
     expect(path.basename(dir)).toBe('진격의 승리_ Remix_')
     const files = await openProjectFiles(dir)
-    expect(path.basename(files.audioPath)).toBe('audio.mp3')
     const song = parseSong(files.songText)
+    expect(song.ok && song.value.audio).toBe('audio.mp3')
+    expect(existsSync(path.join(dir, 'audio.mp3'))).toBe(true)
     expect(song.ok && song.value.timing).toEqual([{ tick: 0, bpm: 150, beatsPerMeasure: 4 }])
     expect(files.charts.map((c) => c.file)).toEqual(['normal.chart.json'])
     const chart = parseChart(files.charts[0].text, 'normal.chart.json')
@@ -51,6 +54,43 @@ describe('projectFs', () => {
     expect(chart.ok && chart.value.tracks.map((t) => t.id)).toEqual(['Side_L', 'Note_1'])
     expect(chart.ok && chart.value.tracks[0]).toEqual({ id: 'Side_L', color: '#f59e0b', kind: 'gimmick' })
     expect((await summarizeProject(dir)).charts).toEqual([{ name: 'NORMAL', trackCount: 2 }])
+  })
+  it('음악 없이 프로젝트 만들기', async () => {
+    const dir = await createProject({ ...opts, title: 'silent', audioPath: null })
+    const song = parseSong((await openProjectFiles(dir)).songText)
+    expect(song.ok && song.value.audio).toBe('')
+    expect((await fs.readdir(dir)).sort()).toEqual(['editor.json', 'normal.chart.json', 'song.json'])
+  })
+  it('음악을 새 이름으로 복사해 넣고, 이전 파일은 남김', async () => {
+    const dir = await createProject({ ...opts, title: 'swap' })
+    const ogg = path.join(tmp, 'y.ogg')
+    await fs.writeFile(ogg, Buffer.from([4, 5]))
+    expect(await importProjectAudio(dir, ogg)).toBe('audio.ogg')
+    expect(await importProjectAudio(dir, mp3)).toBe('audio-2.mp3')
+    expect(await importProjectAudio(dir, mp3)).toBe('audio-3.mp3')
+    expect(await fs.readFile(path.join(dir, 'audio.mp3'))).toEqual(Buffer.from([1, 2, 3]))
+    expect(await fs.readFile(path.join(dir, 'audio.ogg'))).toEqual(Buffer.from([4, 5]))
+    await expect(importProjectAudio(dir, path.join(tmp, 'x.exe'))).rejects.toThrow('음악 파일')
+    await expect(importProjectAudio(dir, 'x.mp3')).rejects.toThrow('음악 파일')
+    await expect(importProjectAudio(path.join(tmp, 'gone'), mp3)).rejects.toThrow('폴더')
+  })
+  it('song.json이 가리키지 않는 에디터 음악 파일만 정리', async () => {
+    const dir = await createProject({ ...opts, title: 'clean' })
+    for (const f of ['audio.ogg', 'audio-2.mp3', 'AUDIO-3.WAV', 'my song.mp3', 'audio-x.mp3', 'audio.txt']) {
+      await fs.writeFile(path.join(dir, f), 'x')
+    }
+    const songText = (await openProjectFiles(dir)).songText
+    await removeUnusedAudio(dir, songText.replace('"audio.mp3"', '"audio-2.mp3"'))
+    expect((await fs.readdir(dir)).filter((f) => !f.endsWith('.json')).sort()).toEqual([
+      'audio-2.mp3',
+      'audio-x.mp3',
+      'audio.txt',
+      'my song.mp3'
+    ])
+    // song.json을 읽지 못하면 아무것도 지우지 않는다
+    await removeUnusedAudio(dir, '{')
+    await removeUnusedAudio(dir, '{"audio": "audio-2.mp3"}')
+    expect(existsSync(path.join(dir, 'audio-2.mp3'))).toBe(true)
   })
   it('잘못된 트랙이면 만들지 않음', async () => {
     await expect(createProject({ ...opts, title: 'bad', tracks: [{ id: 'A' }, { id: 'A' }] })).rejects.toThrow()
@@ -135,6 +175,9 @@ describe('projectFs', () => {
     expect(validateCreateProjectOptions(opts)).toEqual(opts)
     // 알려진 키만 남긴다
     expect(validateCreateProjectOptions({ ...opts, extra: 1 })).toEqual(opts)
+    // 음악은 생략할 수 있다
+    expect(validateCreateProjectOptions({ ...opts, audioPath: null }).audioPath).toBeNull()
+    expect(validateCreateProjectOptions({ ...opts, audioPath: undefined }).audioPath).toBeNull()
     // 트랙도 알려진 필드만 남긴다 (예전 width는 버린다)
     const tracks = [
       { id: 'Side_L', color: '#f59e0b', width: 'wide', key: 'ShiftLeft' },
@@ -161,6 +204,8 @@ describe('projectFs', () => {
       [{ audioPath: path.join(tmp, 'x.exe') }, '음악 파일'],
       [{ audioPath: path.join(tmp, 'x.json') }, '음악 파일'],
       [{ audioPath: 'x.mp3' }, '음악 파일'],
+      [{ audioPath: '' }, '음악 파일'],
+      [{ audioPath: 3 }, '음악 파일'],
       [{ title: '' }, '제목'],
       [{ title: '   ' }, '제목'],
       [{ title: 1 }, '제목'],

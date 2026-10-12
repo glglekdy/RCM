@@ -22,6 +22,8 @@ const WIDTH_OPTIONS: { value: TrackWidth; label: string }[] = [
 
 type LookPatch = { color?: string; width?: TrackWidth }
 
+type KeyField = 'key' | 'subKey'
+
 interface TrackRowsEditorProps {
   tracks: readonly (Track | PresetTrack)[]
   /** 키 칸을 보일지 (프리셋 표만) */
@@ -34,7 +36,8 @@ interface TrackRowsEditorProps {
   issues?: PresetIssues['tracks']
   onRename(i: number, id: string): void
   onLook(i: number, patch: LookPatch): void
-  onKey?(i: number, code: string | null): void
+  /** 주 키(`key`)나 보조 키(`subKey`) 지정. null이면 비움 */
+  onKey?(i: number, field: KeyField, code: string | null): void
   onMove(from: number, to: number): void
   onRemove(i: number): void
   onAdd(): void
@@ -46,7 +49,7 @@ interface RowItem {
   key: string
 }
 
-/** 트랙 표: 손잡이(끌어서 순서 변경), 이름, 색, 폭, [키], 삭제. 프리셋 페이지와 채보 탭이 함께 쓴다. */
+/** 트랙 표: 손잡이(끌어서 순서 변경), 이름, 색, 폭, [키, 보조 키], 삭제. 프리셋 페이지와 채보 탭이 함께 쓴다. */
 export function TrackRowsEditor({
   tracks,
   showKeys,
@@ -127,11 +130,19 @@ export function TrackRowsEditor({
                 </span>
               )}
               {showKeys && (
-                <KeyButton
-                  code={'key' in track ? track.key : null}
-                  issue={issue.key}
-                  onKey={(code) => onKey?.(i, code)}
-                />
+                <>
+                  <KeyButton
+                    code={'key' in track ? track.key : null}
+                    issue={issue.key}
+                    onKey={(code) => onKey?.(i, 'key', code)}
+                  />
+                  <KeyButton
+                    sub
+                    code={('subKey' in track ? track.subKey : null) ?? null}
+                    issue={issue.subKey}
+                    onKey={(code) => onKey?.(i, 'subKey', code)}
+                  />
+                </>
               )}
               <IconButton
                 icon={Trash2}
@@ -208,15 +219,17 @@ function ColorSwatch({ value, onCommit }: { value: string; onCommit: (color: str
 
 /**
  * 키 지정 버튼: 누르면 `키를 누르세요` → 다음 키로 지정. Esc 취소, Backspace/Delete는 비움.
- * Tab은 지정하지 않고 취소한 뒤 포커스를 그대로 옮긴다.
+ * Tab은 지정하지 않고 취소한 뒤 포커스를 그대로 옮긴다. `sub`면 보조 키 칸 (비어 있으면 흐리게 `보조 키`).
  */
 function KeyButton({
   code,
   issue,
+  sub = false,
   onKey
 }: {
   code: string | null
   issue?: string
+  sub?: boolean
   onKey: (code: string | null) => void
 }) {
   const [capturing, setCapturing] = useState(false)
@@ -226,8 +239,8 @@ function KeyButton({
   return (
     <button
       type="button"
-      className={`${styles.key} ${capturing ? styles.capturing : ''} ${issue ? styles.invalidKey : ''}`}
-      title={issue ?? (code ?? '키 없음')}
+      className={`${styles.key} ${sub && !code ? styles.emptySub : ''} ${capturing ? styles.capturing : ''} ${issue ? styles.invalidKey : ''}`}
+      title={issue ?? (sub ? `보조 키: ${code ?? '없음'} (주 키와 함께 이 트랙을 쳐요)` : (code ?? '키 없음'))}
       onClick={(e) => {
         e.currentTarget.focus()
         setCapturing((c) => !c)
@@ -253,7 +266,7 @@ function KeyButton({
         e.preventDefault()
       }}
     >
-      {capturing ? '키를 누르세요' : code ? keyLabel(code) : '없음'}
+      {capturing ? '키를 누르세요' : code ? keyLabel(code) : sub ? '보조 키' : '없음'}
     </button>
   )
 }

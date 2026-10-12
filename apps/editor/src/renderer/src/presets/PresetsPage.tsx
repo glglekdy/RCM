@@ -7,6 +7,7 @@ import {
   hasPresetErrors,
   newPresetId,
   presetErrors,
+  presetTrackKeys,
   shadowingPreset,
   type PresetTrack,
   type TrackPreset
@@ -121,7 +122,7 @@ export function PresetsPage() {
 
   const addTrack = () =>
     edit((p) => {
-      const used = new Set(p.tracks.map((t) => t.key))
+      const used = new Set(p.tracks.flatMap(presetTrackKeys))
       const key = AUTO_KEYS.find((k) => !used.has(k)) ?? null
       return { ...p, tracks: [...p.tracks, { id: nextTrackId(p.tracks), key }] }
     })
@@ -191,7 +192,7 @@ export function PresetsPage() {
             issues={issues.tracks}
             onRename={(i, id) => edit((p) => withTrack(p, i, { id: id.trim() }))}
             onLook={(i, patch) => edit((p) => withTrack(p, i, patch))}
-            onKey={(i, key) => edit((p) => withTrack(p, i, { key }))}
+            onKey={(i, field, code) => edit((p) => withTrack(p, i, { [field]: code }))}
             onMove={(from, to) => edit((p) => ({ ...p, tracks: moveIndex(p.tracks, from, to) }))}
             onRemove={(i) => edit((p) => ({ ...p, tracks: p.tracks.filter((_, j) => j !== i) }))}
             onAdd={addTrack}

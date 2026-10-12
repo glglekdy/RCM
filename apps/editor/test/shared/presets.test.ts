@@ -28,17 +28,66 @@ describe('presets', () => {
   it('키는 위치가 아니라 id로 매칭', () => {
     const r = resolveKeymap([{ id: 'Note_2' }, { id: 'Note_1' }, { id: 'Note_3' }, { id: 'Note_4' }], DEFAULT_PRESETS)
     expect(r.source).toEqual({ kind: 'preset', name: '4K' })
-    expect(r.keys.get('Note_1')).toBe('KeyD')
-    expect(r.keys.get('Note_2')).toBe('KeyF')
+    expect(r.keys.get('Note_1')).toEqual(['KeyD'])
+    expect(r.keys.get('Note_2')).toEqual(['KeyF'])
   })
 
-  it('맞는 프리셋이 없으면 자동 배정, 16개 넘으면 null', () => {
+  it('맞는 프리셋이 없으면 자동 배정, 16개 넘으면 키 없음', () => {
     const tracks = Array.from({ length: 17 }, (_, i) => ({ id: `T${i}` }))
     const r = resolveKeymap(tracks, DEFAULT_PRESETS)
     expect(r.source).toEqual({ kind: 'auto' })
-    expect(r.keys.get('T0')).toBe('KeyA')
-    expect(r.keys.get('T15')).toBe('KeyP')
-    expect(r.keys.get('T16')).toBeNull()
+    expect(r.keys.get('T0')).toEqual(['KeyA'])
+    expect(r.keys.get('T15')).toEqual(['KeyP'])
+    expect(r.keys.get('T16')).toEqual([])
+  })
+
+  it('보조 키는 주 키 다음에, 빈 칸은 빼고', () => {
+    const p: TrackPreset = {
+      id: 'x',
+      name: 'P',
+      tracks: [
+        { id: 'A', key: 'Space', subKey: 'KeyB' },
+        { id: 'B', key: null, subKey: 'KeyN' },
+        { id: 'C', key: 'KeyD', subKey: null }
+      ]
+    }
+    const r = resolveKeymap([{ id: 'A' }, { id: 'B' }, { id: 'C' }], [p])
+    expect(r.keys.get('A')).toEqual(['Space', 'KeyB'])
+    expect(r.keys.get('B')).toEqual(['KeyN'])
+    expect(r.keys.get('C')).toEqual(['KeyD'])
+  })
+
+  it('검사: 보조 키 중복', () => {
+    const i = presetErrors({
+      id: 'x',
+      name: 'P',
+      tracks: [
+        { id: 'A', key: 'KeyD', subKey: 'KeyD' },
+        { id: 'B', key: 'KeyF', subKey: 'KeyJ' },
+        { id: 'C', key: 'KeyJ' },
+        { id: 'D', key: 'KeyK', subKey: 'KeyF' },
+        { id: 'E', key: null, subKey: '' }
+      ]
+    })
+    expect(i.tracks[0].subKey).toBe('주 키와 같은 키')
+    expect(i.tracks[1].subKey).toBeUndefined()
+    expect(i.tracks[2].key).toBeDefined()
+    expect(i.tracks[3].subKey).toBeDefined()
+    expect(i.tracks[4].subKey).toBeDefined()
+    expect(hasPresetErrors({ tracks: [{ subKey: 'x' }] })).toBe(true)
+  })
+
+  it('설정 파일의 보조 키', () => {
+    const withSub = { id: 'a', name: 'A', tracks: [{ id: 'Note_1', key: 'Space', subKey: 'KeyB' }] }
+    expect(sanitizePresets([withSub])).toEqual([withSub])
+    // null은 보조 키 없음
+    expect(sanitizePresets([{ id: 'a', name: 'A', tracks: [{ id: 'Note_1', key: 'KeyD', subKey: null }] }])).toEqual([
+      { id: 'a', name: 'A', tracks: [t('Note_1', 'KeyD')] }
+    ])
+    // 문자열이 아니거나 다른 키와 겹치면 프리셋을 버린다
+    const bad = { id: 'b', name: 'B', tracks: [{ id: 'Note_1', key: 'KeyD', subKey: 3 }] }
+    const dup = { id: 'c', name: 'C', tracks: [t('Note_1', 'KeyD'), { id: 'Note_2', key: 'KeyF', subKey: 'KeyD' }] }
+    expect(sanitizePresets([withSub, bad, dup])).toEqual([withSub])
   })
 
   it('검사: 이름·id·키 중복', () => {

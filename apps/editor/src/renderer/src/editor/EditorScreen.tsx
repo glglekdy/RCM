@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PanelRight } from 'lucide-react'
 import { TimingMap } from '@rcm/core'
-import { trackForCode, trackForKey } from '@rcm/playfield'
+import { trackForCode, trackForKey, type TrackKeymap } from '@rcm/playfield'
 import type { ProjectFiles } from '../../../shared/api'
 import { resolveKeymap } from '../../../shared/presets'
 import { NewProjectDialog } from '../home/NewProjectDialog'
@@ -119,8 +119,8 @@ const PLAYTEST_LEAD_IN_MS = 1500
 interface Recording {
   recorder: Recorder
   session: RecordSession
-  /** 트랙 id → 키 code (3.4절) */
-  keymap: ReadonlyMap<string, string | null>
+  /** 트랙 id → 키 code들 (3.4절) */
+  keymap: TrackKeymap
 }
 
 interface EditorBodyProps {

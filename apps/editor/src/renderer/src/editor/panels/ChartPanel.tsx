@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { BookmarkPlus } from 'lucide-react'
-import { keyLabel } from '@rcm/playfield'
+import { keysLabel } from '@rcm/playfield'
 import { resolveKeymap } from '../../../../shared/presets'
 import { usePresets } from '../../presets/presetStore'
 import { TrackRowsEditor } from '../../presets/TrackRowsEditor'
@@ -119,14 +119,11 @@ export function ChartPanel() {
         </div>
       </Card>
       <Card title="키 배치">
-        {chart.tracks.map((t) => {
-          const code = keymap.keys.get(t.id)
-          return (
-            <div key={t.id} className={styles.keyRow}>
-              {t.id} — {code ? keyLabel(code) : '-'}
-            </div>
-          )
-        })}
+        {chart.tracks.map((t) => (
+          <div key={t.id} className={styles.keyRow}>
+            {t.id} — {keysLabel(keymap.keys.get(t.id))}
+          </div>
+        ))}
         <p className={styles.hint}>{sourceText}</p>
       </Card>
       {savingPreset && <SavePresetDialog onClose={() => setSavingPreset(false)} />}

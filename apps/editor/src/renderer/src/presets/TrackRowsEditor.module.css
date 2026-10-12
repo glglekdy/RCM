@@ -103,6 +103,12 @@
   background: var(--bg-hover);
 }
 
+/* 비어 있는 보조 키 칸 */
+.emptySub {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
 .key:focus-visible {
   outline: none;
   border-color: var(--accent);

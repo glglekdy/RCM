@@ -162,7 +162,8 @@ export function UserGuidePage() {
             </li>
             <li className={styles.muted}>
               녹음 · 테스트 플레이의 키는 트랙 이름이 같은 프리셋의 키를 쓰고, 없으면 A S D F J K L ; … 순서로 자동
-              배정돼요.
+              배정돼요. 5K · 7K의 가운데 트랙처럼 한 트랙을 두 키로 치고 싶으면 프리셋에서 <b>보조 키</b>를 지정하세요.
+              두 키 중 아무거나 눌러도 그 트랙이 눌리고, 두 키를 모두 떼야 뗀 것으로 쳐요.
             </li>
           </ul>
         </Section>

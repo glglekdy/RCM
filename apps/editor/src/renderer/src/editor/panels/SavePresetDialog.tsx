@@ -24,7 +24,10 @@ export function SavePresetDialog({ onClose }: { onClose: () => void }) {
     const preset: TrackPreset = {
       id: newPresetId(presets),
       name: trimmed,
-      tracks: tracks.map((t) => ({ ...t, key: keys.get(t.id) ?? null }))
+      tracks: tracks.map((t) => {
+        const [key = null, subKey] = keys.get(t.id) ?? []
+        return subKey === undefined ? { ...t, key } : { ...t, key, subKey }
+      })
     }
     setSaving(true)
     try {

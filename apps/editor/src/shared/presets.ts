@@ -11,6 +11,8 @@ import {
 
 export interface PresetTrack extends Track {
   key: string | null
+  /** 보조 키: 주 키와 함께 이 트랙을 친다 (가운데 레인을 양손으로 칠 때 등). 없으면 생략 */
+  subKey?: string | null
 }
 
 export interface TrackPreset {
@@ -61,7 +63,7 @@ function defaultsCopy(): TrackPreset[] {
 
 export interface PresetIssues {
   name?: string
-  tracks: { id?: string; color?: string; key?: string }[]
+  tracks: { id?: string; color?: string; key?: string; subKey?: string }[]
   count?: string
 }
 
@@ -84,12 +86,18 @@ export function presetErrors(p: TrackPreset): PresetIssues {
       else if (keys.has(t.key)) row.key = '다른 트랙과 같은 키'
       else keys.add(t.key)
     }
+    if (t.subKey !== undefined && t.subKey !== null) {
+      if (typeof t.subKey !== 'string' || t.subKey === '') row.subKey = '키가 올바르지 않아요'
+      else if (t.subKey === t.key) row.subKey = '주 키와 같은 키'
+      else if (keys.has(t.subKey)) row.subKey = '다른 트랙과 같은 키'
+      else keys.add(t.subKey)
+    }
   })
   return issues
 }
 
 export function hasPresetErrors(i: PresetIssues): boolean {
-  return !!i.name || !!i.count || i.tracks.some((t) => !!t.id || !!t.color || !!t.key)
+  return !!i.name || !!i.count || i.tracks.some((t) => !!t.id || !!t.color || !!t.key || !!t.subKey)
 }
 
 function isObject(v: unknown): v is Record<string, unknown> {
@@ -101,6 +109,10 @@ function parseTrack(v: unknown): PresetTrack | null {
   const key = v.key === undefined ? null : v.key
   if (key !== null && typeof key !== 'string') return null
   const t: PresetTrack = { id: v.id, key }
+  if (v.subKey !== undefined && v.subKey !== null) {
+    if (typeof v.subKey !== 'string') return null
+    t.subKey = v.subKey
+  }
   if (v.color !== undefined) {
     if (typeof v.color !== 'string') return null
     t.color = v.color
@@ -149,8 +161,17 @@ export function newPresetId(existing: readonly TrackPreset[]): string {
   return `${base}-${n}`
 }
 
+/** 프리셋 트랙의 키 code들: 주 키, 보조 키 순. 비어 있는 칸은 뺀다. */
+export function presetTrackKeys(t: PresetTrack): string[] {
+  const out: string[] = []
+  if (t.key) out.push(t.key)
+  if (t.subKey) out.push(t.subKey)
+  return out
+}
+
 export interface ResolvedKeymap {
-  keys: Map<string, string | null>
+  /** 트랙 id → 키 code들 (주 키, 보조 키). 키 없는 트랙은 빈 배열 */
+  keys: Map<string, string[]>
   source: { kind: 'preset'; name: string } | { kind: 'auto' }
 }
 
@@ -162,12 +183,12 @@ function sameTrackIds(p: TrackPreset, ids: ReadonlySet<string>): boolean {
 export function resolveKeymap(tracks: readonly Track[], presets: readonly TrackPreset[]): ResolvedKeymap {
   const ids = new Set(tracks.map((t) => t.id))
   const match = presets.find((p) => sameTrackIds(p, ids))
-  const keys = new Map<string, string | null>()
+  const keys = new Map<string, string[]>()
   if (match) {
-    for (const t of match.tracks) keys.set(t.id, t.key)
+    for (const t of match.tracks) keys.set(t.id, presetTrackKeys(t))
     return { keys, source: { kind: 'preset', name: match.name } }
   }
-  tracks.forEach((t, i) => keys.set(t.id, AUTO_KEYS[i] ?? null))
+  tracks.forEach((t, i) => keys.set(t.id, i < AUTO_KEYS.length ? [AUTO_KEYS[i]] : []))
   return { keys, source: { kind: 'auto' } }
 }
 

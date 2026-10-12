@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { ScrollMap, type SpeedPoint, type TimingMap, type Track } from '@rcm/core'
-import { keyLabel } from '@rcm/playfield'
+import { keysLabel, type TrackKeymap } from '@rcm/playfield'
 import type { WaveformPeaks } from '../audio/waveform'
 import type { Recorder } from '../input/recorder'
 import { getChart } from '../state/doc'
@@ -15,15 +15,12 @@ interface TimelineCanvasProps {
   durationMs: number
   peaks?: WaveformPeaks
   /** 진행 중인 녹음. 눌린 트랙과 (녹음이 실제로 듣는) 키 이름을 겹쳐 그린다 */
-  recordingRef?: RefObject<{ recorder: Recorder; keymap: ReadonlyMap<string, string | null> } | null>
+  recordingRef?: RefObject<{ recorder: Recorder; keymap: TrackKeymap } | null>
 }
 
 /** 트랙 위치별 키 이름 (3.4절 키 배치). 키가 없는 트랙은 `-`. */
-function trackKeyLabels(tracks: readonly Track[], keymap: ReadonlyMap<string, string | null>): string[] {
-  return tracks.map((t) => {
-    const code = keymap.get(t.id)
-    return code ? keyLabel(code) : '-'
-  })
+function trackKeyLabels(tracks: readonly Track[], keymap: TrackKeymap): string[] {
+  return tracks.map((t) => keysLabel(keymap.get(t.id)))
 }
 
 const ZOOM_STEP = 1.1

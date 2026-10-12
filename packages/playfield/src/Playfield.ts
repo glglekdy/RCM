@@ -1,6 +1,6 @@
 import { DEFAULT_NOTE_COLOR, ScrollMap, type Chart, type TimingMap } from '@rcm/core';
 import { HOLD_RELEASE_TOLERANCE, type JudgeEvent, type Judgement, type Timing } from './judge';
-import { keyLabel, trackForCode, trackForKey } from './keymap';
+import { HeldKeys, keysLabel, trackForCode, trackForKey, type TrackKeymap } from './keymap';
 import { autoplayStep } from './autoplay';
 import { DEFAULT_LAYOUT, sanitizeLayout, type PlayfieldLayout } from './layout';
 import { PlayState } from './playState';
@@ -68,8 +68,8 @@ export interface PlayfieldOptions {
   fromMs: number;
   /** 배속 1.0~9.0 (DJMAX 고정 배속) */
   speed: number;
-  /** 트랙 id → 키 code (없으면 null). 키 없는 트랙은 칠 수 없다. */
-  keymap: ReadonlyMap<string, string | null>;
+  /** 트랙 id → 키 code들 (주 키, 보조 키). 키 없는 트랙은 칠 수 없다. */
+  keymap: TrackKeymap;
   colors?: Partial<PlayfieldColors>;
   /** 레인·노트·판정선 크기 (없으면 DEFAULT_LAYOUT) */
   layout?: PlayfieldLayout;
@@ -118,6 +118,8 @@ export class Playfield {
   /** 가장 긴 롱노트 길이(스크롤 위치 단위). 머리가 화면 아래로 지나간 롱노트도 그리기 위해 탐색 시작을 이만큼 당긴다. */
   private readonly maxHoldSpanPos: number;
   private readonly pressed: boolean[];
+  /** 레인별로 눌린 키. 보조 키가 있는 레인은 두 키를 모두 떼야 뗀 것이다 */
+  private readonly held = new HeldKeys();
   private speed: number;
   private layout: PlayfieldLayout;
   private autoplay: boolean;
@@ -134,10 +136,7 @@ export class Playfield {
     this.ctx = ctx;
     this.colors = { ...DEFAULT_PLAYFIELD_COLORS, ...opts.colors };
     this.lanes = opts.chart.tracks.length;
-    this.labels = opts.chart.tracks.map(t => {
-      const code = opts.keymap.get(t.id);
-      return code ? keyLabel(code) : '-';
-    });
+    this.labels = opts.chart.tracks.map(t => keysLabel(opts.keymap.get(t.id)));
     this.noteColors = opts.chart.tracks.map(t => t.color ?? DEFAULT_NOTE_COLOR);
     this.state = new PlayState(opts.chart, opts.tm, opts.fromMs);
     this.scroll = new ScrollMap(opts.chart.speeds, opts.tm);
@@ -190,20 +189,22 @@ export class Playfield {
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
-    const lane = this.laneOf(trackForKey(this.opts.keymap, e));
-    if (lane < 0) return;
+    const id = trackForKey(this.opts.keymap, e);
+    const lane = this.laneOf(id);
+    if (id === null || lane < 0) return;
     // Space 키 트랙이 포커스된 버튼을 누르지 않게 막는다
     e.preventDefault();
-    if (e.repeat || this.pressed[lane] || this.autoplay) return;
+    if (e.repeat || this.autoplay || !this.held.down(id, e.code)) return;
     this.pressed[lane] = true;
     this.show(this.state.press(lane, this.opts.getTimeMs()));
   };
 
   private readonly onKeyUp = (e: KeyboardEvent): void => {
-    const lane = this.laneOf(trackForCode(this.opts.keymap, e.code));
-    if (lane < 0 || !this.pressed[lane]) return;
+    const id = trackForCode(this.opts.keymap, e.code);
+    const lane = this.laneOf(id);
+    if (id === null || lane < 0) return;
     e.preventDefault();
-    this.release(lane);
+    if (this.held.up(id, e.code) && this.pressed[lane]) this.release(lane);
   };
 
   private laneOf(id: string | null): number {
@@ -212,6 +213,7 @@ export class Playfield {
 
   /** 창이 포커스를 잃으면 keyup이 오지 않으므로 눌린 레인을 모두 뗀다. */
   private readonly onBlur = (): void => {
+    this.held.clear();
     for (let lane = 0; lane < this.lanes; lane++) if (this.pressed[lane]) this.release(lane);
   };
 

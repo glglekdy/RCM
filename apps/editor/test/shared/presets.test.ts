@@ -77,6 +77,11 @@ describe('presets', () => {
     expect(hasPresetErrors({ tracks: [{ subKey: 'x' }] })).toBe(true)
   })
 
+  it('설정 파일의 width는 버린다', () => {
+    const raw = { id: 'a', name: 'A', tracks: [{ id: 'Side_L', key: 'ShiftLeft', width: 'wide' }, { id: 'B', key: null, width: 'huge' }] }
+    expect(sanitizePresets([raw])).toEqual([{ id: 'a', name: 'A', tracks: [t('Side_L', 'ShiftLeft'), t('B')] }])
+  })
+
   it('설정 파일의 보조 키', () => {
     const withSub = { id: 'a', name: 'A', tracks: [{ id: 'Note_1', key: 'Space', subKey: 'KeyB' }] }
     expect(sanitizePresets([withSub])).toEqual([withSub])
@@ -113,7 +118,7 @@ describe('presets', () => {
   })
 
   it('채보로 복사할 때 키와 기본값 제거', () => {
-    expect(presetToChartTracks(DEFAULT_PRESETS[5])[0]).toEqual({ id: 'Side_L', color: '#f59e0b', width: 'wide' })
+    expect(presetToChartTracks(DEFAULT_PRESETS[5])[0]).toEqual({ id: 'Side_L', color: '#f59e0b' })
     expect(presetToChartTracks(DEFAULT_PRESETS[0])[0]).toEqual({ id: 'Note_1' })
   })
 

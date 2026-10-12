@@ -1,4 +1,4 @@
-import type { TrackWidth } from './types';
+import type { TrackKind } from './types';
 
 export const TICKS_PER_BEAT = 480;
 export const FORMAT_VERSION = 1;
@@ -7,7 +7,7 @@ export const MAX_TRACKS = 16;
 export const TRACK_ID_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
 export const DEFAULT_NOTE_COLOR = '#f2f2f2';
 export const TRACK_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
-export const TRACK_WIDTHS: readonly TrackWidth[] = ['narrow', 'normal', 'wide'];
+export const TRACK_KINDS: readonly TrackKind[] = ['play', 'gimmick'];
 export const MIN_SCROLL_SPEED = 0;
 export const MAX_SCROLL_SPEED = 20;
 

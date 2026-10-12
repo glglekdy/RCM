@@ -1,11 +1,16 @@
-import { MAX_TRACKS, MIN_TRACKS, TRACK_COLOR_PATTERN, TRACK_ID_PATTERN, TRACK_WIDTHS } from './constants';
-import type { Note, Track } from './types';
+import { MAX_TRACKS, MIN_TRACKS, TRACK_COLOR_PATTERN, TRACK_ID_PATTERN, TRACK_KINDS } from './constants';
+import type { Note, Track, TrackKind } from './types';
 
 export function isValidTrackId(id: string): boolean {
   return TRACK_ID_PATTERN.test(id);
 }
 
-/** 트랙 목록 검사. 메시지는 `${prefix}[i].필드: 이유` 형태. */
+/** 판정 없는 기믹 트랙인지 */
+export function isGimmick(t: { kind?: TrackKind }): boolean {
+  return t.kind === 'gimmick';
+}
+
+/** 트랙 목록 검사. 메시지는 `${prefix}[i].필드: 이유` 형태. 예전 `width`는 검사하지 않는다(읽고 버림). */
 export function trackErrors(tracks: unknown, prefix: string): string[] {
   if (!Array.isArray(tracks)) return [`${prefix}: 배열이어야 함`];
   const errors: string[] = [];
@@ -30,8 +35,8 @@ export function trackErrors(tracks: unknown, prefix: string): string[] {
     if (t.color !== undefined && (typeof t.color !== 'string' || !TRACK_COLOR_PATTERN.test(t.color))) {
       errors.push(`${p}.color: #rrggbb 형식이어야 함`);
     }
-    if (t.width !== undefined && !(TRACK_WIDTHS as readonly unknown[]).includes(t.width)) {
-      errors.push(`${p}.width: narrow, normal, wide 중 하나여야 함`);
+    if (t.kind !== undefined && !(TRACK_KINDS as readonly unknown[]).includes(t.kind)) {
+      errors.push(`${p}.kind: play, gimmick 중 하나여야 함`);
     }
   });
   return errors;

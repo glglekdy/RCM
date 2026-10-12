@@ -38,12 +38,20 @@ describe('parseChart', () => {
     [{ tracks: tr(['A', 'A']) }, 'tracks[1].id'],
     [{ tracks: tr(['bad id']) }, 'tracks[0].id'],
     [{ tracks: [{ id: 'A', color: 'red' }] }, 'tracks[0].color'],
-    [{ tracks: [{ id: 'A', width: 'huge' }] }, 'tracks[0].width'],
+    [{ tracks: [{ id: 'A', kind: 'boss' }] }, 'tracks[0].kind'],
     [{ notes: [{ tick: 0, track: 'Nope', type: 'tap' }] }, 'notes[0].track'],
   ])('트랙 오류 %#', (patch, needle) => {
     const errors = errorsOf(parseChart(chartText((patch as { notes?: unknown[] }).notes ?? [], patch), 'hard.chart.json'));
     expect(errors.join('\n')).toContain('hard.chart.json');
     expect(errors.join('\n')).toContain(needle);
+  });
+  it('width는 값과 상관없이 버린다', () => {
+    const r = parseChart(chartText([], { tracks: [{ id: 'A', width: 'huge' }, { id: 'B', width: 'wide', color: '#ff0000' }] }), 'a.chart.json');
+    expect(r.ok && r.value.tracks).toEqual([{ id: 'A' }, { id: 'B', color: '#ff0000' }]);
+  });
+  it('kind: play는 생략형, gimmick은 유지', () => {
+    const r = parseChart(chartText([], { tracks: [{ id: 'A', kind: 'play' }, { id: 'G', kind: 'gimmick' }] }), 'a.chart.json');
+    expect(r.ok && r.value.tracks).toEqual([{ id: 'A' }, { id: 'G', kind: 'gimmick' }]);
   });
   it('예전 포맷 거부', () => {
     const errors = errorsOf(parseChart(JSON.stringify({ formatVersion: 1, name: 'N', level: 1, lanes: 4, notes: [] }), 'n.chart.json'));

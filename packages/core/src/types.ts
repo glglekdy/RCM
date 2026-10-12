@@ -14,12 +14,14 @@ export interface Song {
   timing: TimingPoint[];
 }
 
-export type TrackWidth = 'narrow' | 'normal' | 'wide';
+/** 플레이 = 치는 노트, 기믹 = 판정 없이 게임이 해석하는 데이터 (예: 장애물 등장 시각) */
+export type TrackKind = 'play' | 'gimmick';
 
 export interface Track {
   id: string;
   color?: string;
-  width?: TrackWidth;
+  /** 생략 = 'play' */
+  kind?: TrackKind;
 }
 
 export type Note =

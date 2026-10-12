@@ -55,10 +55,11 @@ export function validateCreateProjectOptions(raw: unknown): CreateProjectOptions
   }
   const errors = trackErrors(o.tracks, 'tracks')
   if (errors.length > 0) throw new Error(`트랙 목록이 올바르지 않아요 (${errors[0]})`)
-  const tracks = (o.tracks as Track[]).map(({ id, color, width }) => {
+  // 예전 width는 버리고, kind는 기믹일 때만 남긴다
+  const tracks = (o.tracks as Track[]).map(({ id, color, kind }) => {
     const t: Track = { id }
     if (color !== undefined) t.color = color
-    if (width !== undefined) t.width = width
+    if (kind === 'gimmick') t.kind = kind
     return t
   })
   return { parentDir, title, artist, audioPath, bpm, chartName, tracks }

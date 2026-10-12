@@ -25,10 +25,18 @@ describe('serialize', () => {
     expect(Object.keys(JSON.parse(text))).toEqual(['formatVersion', 'name', 'level', 'tracks', 'notes']);
     expect(Object.keys(JSON.parse(text).notes[0])).toEqual(['tick', 'track', 'type', 'endTick']);
   });
-  it('기본 색·폭은 생략, 나머지는 유지', () => {
+  it('기본 색은 생략, 기믹은 kind로, width는 쓰지 않는다', () => {
     const text = serializeChart({ formatVersion: 1, name: 'N', level: 1, notes: [],
-      tracks: [{ id: 'Side_L', color: '#f59e0b', width: 'wide' }, { id: 'Note_1', color: '#F2F2F2', width: 'normal' }] });
-    expect(JSON.parse(text).tracks).toEqual([{ id: 'Side_L', color: '#f59e0b', width: 'wide' }, { id: 'Note_1' }]);
+      tracks: [
+        { id: 'Note_1', color: '#F2F2F2' },
+        { id: 'G', kind: 'gimmick', color: '#ff0000' },
+        { id: 'P', kind: 'play' },
+        { id: 'Side_L', width: 'wide' } as never,
+      ] });
+    expect(text).not.toContain('width');
+    const tracks = JSON.parse(text).tracks;
+    expect(tracks).toEqual([{ id: 'Note_1' }, { id: 'G', color: '#ff0000', kind: 'gimmick' }, { id: 'P' }, { id: 'Side_L' }]);
+    expect(Object.keys(tracks[1])).toEqual(['id', 'color', 'kind']);
   });
   it('같은 tick은 트랙 순서로 저장', () => {
     const text = serializeChart({ formatVersion: 1, name: 'N', level: 1, tracks: [{ id: 'B' }, { id: 'A' }],

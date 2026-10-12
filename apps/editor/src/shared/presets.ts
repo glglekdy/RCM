@@ -3,10 +3,8 @@ import {
   MAX_TRACKS,
   MIN_TRACKS,
   TRACK_COLOR_PATTERN,
-  TRACK_WIDTHS,
   isValidTrackId,
-  type Track,
-  type TrackWidth
+  type Track
 } from '@rcm/core'
 
 export interface PresetTrack extends Track {
@@ -47,9 +45,9 @@ export const DEFAULT_PRESETS: readonly TrackPreset[] = Object.freeze([
   preset('7k', '7K', notes(['KeyS', 'KeyD', 'KeyF', 'Space', 'KeyJ', 'KeyK', 'KeyL'])),
   preset('8k', '8K', notes(['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon'])),
   preset('6k-side', '6K + 사이드', [
-    { id: 'Side_L', color: SIDE_COLOR, width: 'wide', key: 'ShiftLeft' },
+    { id: 'Side_L', color: SIDE_COLOR, key: 'ShiftLeft' },
     ...notes(['KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL']),
-    { id: 'Side_R', color: SIDE_COLOR, width: 'wide', key: 'ShiftRight' }
+    { id: 'Side_R', color: SIDE_COLOR, key: 'ShiftRight' }
   ])
 ])
 
@@ -116,10 +114,6 @@ function parseTrack(v: unknown): PresetTrack | null {
   if (v.color !== undefined) {
     if (typeof v.color !== 'string') return null
     t.color = v.color
-  }
-  if (v.width !== undefined) {
-    if (!(TRACK_WIDTHS as readonly unknown[]).includes(v.width)) return null
-    t.width = v.width as TrackWidth
   }
   return t
 }
@@ -207,7 +201,6 @@ export function presetToChartTracks(p: TrackPreset): Track[] {
   return p.tracks.map((t) => {
     const out: Track = { id: t.id }
     if (t.color !== undefined && t.color.toLowerCase() !== DEFAULT_NOTE_COLOR) out.color = t.color
-    if (t.width !== undefined && t.width !== 'normal') out.width = t.width
     return out
   })
 }

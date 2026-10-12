@@ -1,26 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { GripVertical, Plus, Trash2 } from 'lucide-react'
-import {
-  DEFAULT_NOTE_COLOR,
-  MAX_TRACKS,
-  TRACK_COLOR_PATTERN,
-  type Track,
-  type TrackWidth
-} from '@rcm/core'
+import { DEFAULT_NOTE_COLOR, MAX_TRACKS, TRACK_COLOR_PATTERN, type Track } from '@rcm/core'
 import { keyLabel } from '@rcm/playfield'
 import type { PresetIssues, PresetTrack } from '../../../shared/presets'
-import { Button, IconButton, SegmentedControl, SortableList, TextField } from '../ui'
+import { Button, IconButton, SortableList, TextField } from '../ui'
 import styles from './TrackRowsEditor.module.css'
 
 const TRACK_ROW_HEIGHT = 36
 
-const WIDTH_OPTIONS: { value: TrackWidth; label: string }[] = [
-  { value: 'narrow', label: '좁게' },
-  { value: 'normal', label: '보통' },
-  { value: 'wide', label: '넓게' }
-]
-
-type LookPatch = { color?: string; width?: TrackWidth }
+type LookPatch = { color?: string }
 
 type KeyField = 'key' | 'subKey'
 
@@ -28,7 +16,7 @@ interface TrackRowsEditorProps {
   tracks: readonly (Track | PresetTrack)[]
   /** 키 칸을 보일지 (프리셋 표만) */
   showKeys: boolean
-  /** 좁은 자리(채보 탭)용: 색은 스와치만, 폭은 작은 그림 버튼 */
+  /** 좁은 자리(채보 탭)용: 색은 스와치만 */
   compact?: boolean
   /** 모든 입력·버튼과 끌기를 막는다 */
   disabled?: boolean
@@ -49,7 +37,7 @@ interface RowItem {
   key: string
 }
 
-/** 트랙 표: 손잡이(끌어서 순서 변경), 이름, 색, 폭, [키, 보조 키], 삭제. 프리셋 페이지와 채보 탭이 함께 쓴다. */
+/** 트랙 표: 손잡이(끌어서 순서 변경), 이름, 색, [키, 보조 키], 삭제. 프리셋 페이지와 채보 탭이 함께 쓴다. */
 export function TrackRowsEditor({
   tracks,
   showKeys,
@@ -80,7 +68,6 @@ export function TrackRowsEditor({
         renderRow={({ track }, i, handle) => {
           const issue = issues?.[i] ?? {}
           const color = track.color ?? DEFAULT_NOTE_COLOR
-          const width = track.width ?? 'normal'
           return (
             <div className={styles.row}>
               <span
@@ -107,24 +94,6 @@ export function TrackRowsEditor({
                       const c = text.trim().toLowerCase()
                       // 형식이 틀리면 반영하지 않는다 (입력칸은 원래 값으로 돌아간다)
                       if (TRACK_COLOR_PATTERN.test(c) && c !== color.toLowerCase()) onLook(i, { color: c })
-                    }}
-                  />
-                </span>
-              )}
-              {compact ? (
-                <WidthPicker
-                  value={width}
-                  onChange={(w) => {
-                    if (w !== width) onLook(i, { width: w })
-                  }}
-                />
-              ) : (
-                <span className={styles.widths}>
-                  <SegmentedControl
-                    options={WIDTH_OPTIONS}
-                    value={width}
-                    onChange={(w) => {
-                      if (w !== width) onLook(i, { width: w })
                     }}
                   />
                 </span>
@@ -160,28 +129,6 @@ export function TrackRowsEditor({
         </Button>
       </div>
     </fieldset>
-  )
-}
-
-/** 좁은 자리용 폭 고르기: 폭을 막대 굵기로 보여주는 세 버튼. */
-function WidthPicker({ value, onChange }: { value: TrackWidth; onChange: (w: TrackWidth) => void }) {
-  return (
-    <span className={styles.widthPicker} role="radiogroup" aria-label="트랙 폭">
-      {WIDTH_OPTIONS.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          role="radio"
-          aria-checked={o.value === value}
-          aria-label={o.label}
-          title={o.label}
-          className={`${styles.widthOption} ${o.value === value ? styles.widthSelected : ''}`}
-          onClick={() => onChange(o.value)}
-        >
-          <span className={`${styles.widthBar} ${styles[o.value]}`} />
-        </button>
-      ))}
-    </span>
   )
 }
 

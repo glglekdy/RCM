@@ -5,8 +5,7 @@ import {
   type SnapDivision,
   type SpeedPoint,
   type TimingMap,
-  type Track,
-  type TrackWidth
+  type Track
 } from '@rcm/core'
 
 /** 재생선이 놓이는 높이 비율 (위에서부터). 아래 1/4 지점. */
@@ -27,8 +26,8 @@ export function yToMs(v: TimelineView, y: number): number {
   return v.playheadMs + (v.height * PLAYHEAD_RATIO - y) / v.pxPerMs
 }
 
-/** 에디터 타임라인의 트랙 폭(px). */
-export const TRACK_PX: Readonly<Record<TrackWidth, number>> = { narrow: 32, normal: 48, wide: 80 }
+/** 에디터 타임라인의 트랙 폭(px). 모든 트랙이 같다. */
+export const TRACK_PX = 48
 export const WAVE_WIDTH = 64
 /** 트랙 오른쪽 속도 그래프 띠의 폭(px). */
 export const SPEED_GRAPH_WIDTH = 20
@@ -54,15 +53,14 @@ export interface TimelineLayout {
 }
 
 export function layoutTimeline(width: number, tracks: readonly Track[]): TimelineLayout {
-  const widths = tracks.map((t) => TRACK_PX[t.width ?? 'normal'])
-  const totalWidth = widths.reduce((a, b) => a + b, 0)
+  const totalWidth = tracks.length * TRACK_PX
   const tracksX = Math.round((width - totalWidth) / 2)
-  let x = tracksX
-  const columns = tracks.map((t, i) => {
-    const col = { id: t.id, x, width: widths[i], color: t.color ?? DEFAULT_NOTE_COLOR }
-    x += widths[i]
-    return col
-  })
+  const columns = tracks.map((t, i) => ({
+    id: t.id,
+    x: tracksX + i * TRACK_PX,
+    width: TRACK_PX,
+    color: t.color ?? DEFAULT_NOTE_COLOR
+  }))
   const speedX = tracksX + totalWidth + GAP
   return {
     tracksX,

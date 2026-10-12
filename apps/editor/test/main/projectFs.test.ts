@@ -45,11 +45,11 @@ describe('projectFs', () => {
     const dir = await createProject({
       ...opts,
       title: 'side',
-      tracks: [{ id: 'Side_L', color: '#f59e0b', width: 'wide' }, { id: 'Note_1' }]
+      tracks: [{ id: 'Side_L', color: '#f59e0b', kind: 'gimmick' }, { id: 'Note_1' }]
     })
     const chart = parseChart((await openProjectFiles(dir)).charts[0].text, 'normal.chart.json')
     expect(chart.ok && chart.value.tracks.map((t) => t.id)).toEqual(['Side_L', 'Note_1'])
-    expect(chart.ok && chart.value.tracks[0]).toEqual({ id: 'Side_L', color: '#f59e0b', width: 'wide' })
+    expect(chart.ok && chart.value.tracks[0]).toEqual({ id: 'Side_L', color: '#f59e0b', kind: 'gimmick' })
     expect((await summarizeProject(dir)).charts).toEqual([{ name: 'NORMAL', trackCount: 2 }])
   })
   it('잘못된 트랙이면 만들지 않음', async () => {
@@ -135,10 +135,15 @@ describe('projectFs', () => {
     expect(validateCreateProjectOptions(opts)).toEqual(opts)
     // 알려진 키만 남긴다
     expect(validateCreateProjectOptions({ ...opts, extra: 1 })).toEqual(opts)
-    // 트랙도 알려진 필드만 남긴다
-    const tracks = [{ id: 'Side_L', color: '#f59e0b', width: 'wide', key: 'ShiftLeft' }, { id: 'Note_1' }]
+    // 트랙도 알려진 필드만 남긴다 (예전 width는 버린다)
+    const tracks = [
+      { id: 'Side_L', color: '#f59e0b', width: 'wide', key: 'ShiftLeft' },
+      { id: 'G', kind: 'gimmick', width: 'huge' },
+      { id: 'Note_1', kind: 'play' }
+    ]
     expect(validateCreateProjectOptions({ ...opts, tracks }).tracks).toEqual([
-      { id: 'Side_L', color: '#f59e0b', width: 'wide' },
+      { id: 'Side_L', color: '#f59e0b' },
+      { id: 'G', kind: 'gimmick' },
       { id: 'Note_1' }
     ])
     const bad: [Record<string, unknown>, string][] = [

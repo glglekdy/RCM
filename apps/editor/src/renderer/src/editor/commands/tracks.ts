@@ -3,13 +3,11 @@ import {
   MAX_TRACKS,
   MIN_TRACKS,
   TRACK_COLOR_PATTERN,
-  TRACK_WIDTHS,
   compareNotes,
   isValidTrackId,
   nextTrackId,
   type Chart,
-  type Track,
-  type TrackWidth
+  type Track
 } from '@rcm/core'
 import { getChart, replaceChart, type ProjectDoc } from '../state/doc'
 
@@ -46,25 +44,23 @@ export function moveTrack(doc: ProjectDoc, file: string, from: number, to: numbe
 }
 
 /**
- * 트랙 색·폭을 바꾼다. 형식이 틀리거나 바뀌는 것이 없으면(색은 대소문자 무관) null.
- * 기본값(`#f2f2f2`, `normal`)이 되면 그 필드를 지운다.
+ * 트랙 색을 바꾼다. 형식이 틀리거나 바뀌는 것이 없으면(색은 대소문자 무관) null.
+ * 기본값(`#f2f2f2`)이 되면 그 필드를 지운다.
  */
 export function updateTrackLook(
   doc: ProjectDoc,
   file: string,
   index: number,
-  patch: { color?: string; width?: TrackWidth }
+  patch: { color?: string }
 ): ProjectDoc | null {
   const chart = getChart(doc, file)
   if (!validIndex(chart.tracks, index)) return null
   if (patch.color !== undefined && !TRACK_COLOR_PATTERN.test(patch.color)) return null
-  if (patch.width !== undefined && !TRACK_WIDTHS.includes(patch.width)) return null
   const cur = chart.tracks[index]
   const next: Track = { ...cur, ...patch }
   const colorOf = (t: Track) => (t.color ?? DEFAULT_NOTE_COLOR).toLowerCase()
-  if (colorOf(next) === colorOf(cur) && (next.width ?? 'normal') === (cur.width ?? 'normal')) return null
+  if (colorOf(next) === colorOf(cur)) return null
   if (next.color !== undefined && next.color.toLowerCase() === DEFAULT_NOTE_COLOR) delete next.color
-  if (next.width === 'normal') delete next.width
   const tracks = chart.tracks.map((t, i) => (i === index ? next : t))
   return replaceChart(doc, file, { ...chart, tracks })
 }

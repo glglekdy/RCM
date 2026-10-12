@@ -116,7 +116,8 @@ export function validateChart(root: Obj, file: string): ParseResult<Chart> {
     for (const raw of root.tracks as Obj[]) {
       const t: Track = { id: raw.id as string };
       if (raw.color !== undefined) t.color = raw.color as string;
-      if (raw.width !== undefined) t.width = raw.width as Track['width'];
+      // 'play'는 생략형으로, 예전 width는 버린다
+      if (raw.kind === 'gimmick') t.kind = 'gimmick';
       tracks.push(t);
     }
   }

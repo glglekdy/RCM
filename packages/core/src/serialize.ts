@@ -33,7 +33,7 @@ function noteOut(n: Note) {
 function trackOut(t: Track) {
   const out: Track = { id: t.id };
   if (t.color !== undefined && t.color.toLowerCase() !== DEFAULT_NOTE_COLOR) out.color = t.color;
-  if (t.width !== undefined && t.width !== 'normal') out.width = t.width;
+  if (t.kind === 'gimmick') out.kind = t.kind;
   return out;
 }
 

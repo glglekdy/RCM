@@ -28,13 +28,9 @@ describe('track commands', () => {
     expect(renameTrack(base, F, 0, 'Note_1')).toBeNull()
   })
 
-  it('이름 변경: 색·폭은 유지', () => {
-    const d = updateTrackLook(d0, F, 1, { color: '#f59e0b', width: 'wide' })!
-    expect(getChart(renameTrack(d, F, 1, 'X')!, F).tracks[1]).toEqual({
-      id: 'X',
-      color: '#f59e0b',
-      width: 'wide'
-    })
+  it('이름 변경: 색은 유지', () => {
+    const d = updateTrackLook(d0, F, 1, { color: '#f59e0b' })!
+    expect(getChart(renameTrack(d, F, 1, 'X')!, F).tracks[1]).toEqual({ id: 'X', color: '#f59e0b' })
   })
 
   it('순서 변경: 노트는 그대로, 같은 자리는 null', () => {
@@ -60,42 +56,30 @@ describe('track commands', () => {
   it('추가와 모양 변경', () => {
     expect(getChart(addTrack(d0, F)!, F).tracks.at(-1)!.id).toBe('Note_5')
     expect(addTrack(withNotes(d0, [], 16), F)).toBeNull()
-    expect(getChart(updateTrackLook(d0, F, 0, { color: '#f59e0b', width: 'wide' })!, F).tracks[0]).toEqual({
+    expect(getChart(updateTrackLook(d0, F, 0, { color: '#f59e0b' })!, F).tracks[0]).toEqual({
       id: 'Note_1',
-      color: '#f59e0b',
-      width: 'wide'
+      color: '#f59e0b'
     })
     expect(updateTrackLook(d0, F, 0, { color: 'red' })).toBeNull()
   })
 
   it('모양 변경: 바뀌는 것이 없으면 null (빈 Undo 기록을 만들지 않는다)', () => {
     // 기본값 트랙에 기본값을 지정
-    expect(updateTrackLook(d0, F, 0, { color: '#f2f2f2', width: 'normal' })).toBeNull()
+    expect(updateTrackLook(d0, F, 0, { color: '#f2f2f2' })).toBeNull()
     expect(updateTrackLook(d0, F, 0, {})).toBeNull()
-    const d = updateTrackLook(d0, F, 0, { color: '#f59e0b', width: 'wide' })!
+    const d = updateTrackLook(d0, F, 0, { color: '#f59e0b' })!
     // 이미 지정된 값을 다시 지정 (색은 대소문자 무관)
-    expect(updateTrackLook(d, F, 0, { width: 'wide' })).toBeNull()
     expect(updateTrackLook(d, F, 0, { color: '#F59E0B' })).toBeNull()
-    expect(updateTrackLook(d, F, 0, { color: '#f59e0b', width: 'wide' })).toBeNull()
-    // 하나라도 바뀌면 새 문서
-    expect(getChart(updateTrackLook(d, F, 0, { color: '#f59e0b', width: 'narrow' })!, F).tracks[0]).toEqual({
+    // 바뀌면 새 문서
+    expect(getChart(updateTrackLook(d, F, 0, { color: '#00ff00' })!, F).tracks[0]).toEqual({
       id: 'Note_1',
-      color: '#f59e0b',
-      width: 'narrow'
+      color: '#00ff00'
     })
   })
 
   it('모양 변경: 기본값으로 되돌리면 필드 삭제, 고치지 않은 필드는 유지', () => {
-    const d = updateTrackLook(d0, F, 0, { color: '#f59e0b', width: 'wide' })!
-    expect(getChart(updateTrackLook(d, F, 0, { width: 'normal' })!, F).tracks[0]).toEqual({
-      id: 'Note_1',
-      color: '#f59e0b'
-    })
-    expect(getChart(updateTrackLook(d, F, 0, { color: '#F2F2F2' })!, F).tracks[0]).toEqual({
-      id: 'Note_1',
-      width: 'wide'
-    })
-    expect(updateTrackLook(d0, F, 0, { width: 'huge' as 'wide' })).toBeNull()
+    const d = updateTrackLook(d0, F, 0, { color: '#f59e0b' })!
+    expect(getChart(updateTrackLook(d, F, 0, { color: '#F2F2F2' })!, F).tracks[0]).toEqual({ id: 'Note_1' })
   })
 
   it('트랙의 노트 수', () => {

@@ -32,23 +32,22 @@ describe('timeline view', () => {
     expect(xToLane(l, 403)).toBeNull()
     expect(xToLane(l, 596)).toBeNull()
   })
-  it('폭이 다른 트랙 레이아웃과 경계', () => {
-    const l = layoutTimeline(1000, [{ id: 'Side_L', width: 'wide' }, { id: 'Note_1' }, { id: 'T', width: 'narrow' }])
-    expect(l.totalWidth).toBe(160)
-    expect(l.tracksX).toBe(420)
-    expect(l.columns.map((c) => [c.id, c.x, c.width])).toEqual([['Side_L', 420, 80], ['Note_1', 500, 48], ['T', 548, 32]])
-    expect(xToLane(l, 499)).toBe(0)
-    expect(xToLane(l, 500)).toBe(1)
-    expect(xToLane(l, 547)).toBe(1)
-    expect(xToLane(l, 548)).toBe(2)
-    expect(xToLane(l, 580)).toBeNull()
-    expect(l.waveX).toBe(420 - 8 - 64)
-    expect(l.labelX).toBe(420 + 160 + 8 + 28)
+  it('모든 트랙은 같은 폭 (예전 width는 무시)', () => {
+    const l = layoutTimeline(1000, [{ id: 'Side_L', width: 'wide' } as never, { id: 'Note_1' }, { id: 'T', kind: 'gimmick' }])
+    expect(l.totalWidth).toBe(144)
+    expect(l.tracksX).toBe(428)
+    expect(l.columns.map((c) => [c.id, c.x, c.width])).toEqual([['Side_L', 428, 48], ['Note_1', 476, 48], ['T', 524, 48]])
+    expect(xToLane(l, 475)).toBe(0)
+    expect(xToLane(l, 476)).toBe(1)
+    expect(xToLane(l, 524)).toBe(2)
+    expect(xToLane(l, 572)).toBeNull()
+    expect(l.waveX).toBe(428 - 8 - 64)
+    expect(l.labelX).toBe(428 + 144 + 8 + 28)
   })
   it('속도 그래프 띠와 라벨 위치', () => {
-    const l = layoutTimeline(1000, [{ id: 'Side_L', width: 'wide' }, { id: 'Note_1' }, { id: 'T', width: 'narrow' }])
-    expect(l.speedX).toBe(420 + 160 + 8)
-    expect(l.labelX).toBe(420 + 160 + 8 + 20 + 8)
+    const l = layoutTimeline(1000, [{ id: 'Side_L' }, { id: 'Note_1' }, { id: 'T' }])
+    expect(l.speedX).toBe(428 + 144 + 8)
+    expect(l.labelX).toBe(428 + 144 + 8 + 20 + 8)
   })
   it('변속 칩 문구', () => {
     expect(speedLabel({ tick: 0, speed: 2 })).toBe('×2.0')
@@ -60,8 +59,8 @@ describe('timeline view', () => {
   it('tick 0 지점은 서서히여도 즉시로 표시 (효과 없음)', () => {
     expect(speedLabel({ tick: 0, speed: 3, ease: 'linear' })).toBe('×3.0')
   })
-  it('트랙 폭과 색', () => {
-    expect(TRACK_PX).toEqual({ narrow: 32, normal: 48, wide: 80 })
+  it('트랙 폭(고정)과 색', () => {
+    expect(TRACK_PX).toBe(48)
     const l = layoutTimeline(1000, [{ id: 'A', color: '#f59e0b' }, { id: 'B' }])
     expect(l.columns.map((c) => c.color)).toEqual(['#f59e0b', '#f2f2f2'])
   })

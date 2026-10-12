@@ -1,7 +1,6 @@
 import { ChevronDown } from 'lucide-react'
 import { DEFAULT_NOTE_COLOR } from '@rcm/core'
 import type { TrackPreset } from '../../../shared/presets'
-import { TRACK_PX } from '../editor/timeline/view'
 import { Row } from '../ui'
 import styles from './PresetPicker.module.css'
 
@@ -41,7 +40,7 @@ export function PresetPicker({ presets, value, onChange }: PresetPickerProps) {
               <span
                 key={t.id}
                 className={styles.chip}
-                style={{ flexGrow: TRACK_PX[t.width ?? 'normal'], borderColor: color, color }}
+                style={{ borderColor: color, color }}
                 title={t.id}
               >
                 {t.id}

@@ -75,10 +75,11 @@
   "name": "HARD",                // 난이도 표시 이름
   "level": 12,                   // 난이도 숫자
   "tracks": [                    // 트랙 목록. 배열 순서 = 화면 왼쪽→오른쪽 순서
-    { "id": "Side_L", "color": "#f59e0b", "width": "wide" },
+    { "id": "Side_L", "color": "#f59e0b" },
     { "id": "Note_1" }, { "id": "Note_2" }, { "id": "Note_3" },
     { "id": "Note_4" }, { "id": "Note_5" }, { "id": "Note_6" },
-    { "id": "Side_R", "color": "#f59e0b", "width": "wide" }
+    { "id": "Side_R", "color": "#f59e0b" },
+    { "id": "Saw", "kind": "gimmick" }
   ],
   "speeds": [                    // (선택) 노트 속도 변경. 없거나 비면 항상 ×1
     { "tick": 3840, "speed": 2 },
@@ -97,11 +98,13 @@
 |---|---|---|
 | `id` | 필수 | `^[A-Za-z0-9_-]{1,32}$`. 채보 안에서 유일 (대소문자 구분) |
 | `color` | 선택 | `#rrggbb`. 생략 = `#f2f2f2` (기본 노트 색) |
-| `width` | 선택 | `"narrow"` \| `"normal"` \| `"wide"`. 생략 = `"normal"`. **에디터 화면 표시용**. 플레이 화면의 레인 너비와는 무관 |
+| `kind` | 선택 | `"play"` \| `"gimmick"`. 생략 = `"play"` (치는 노트) |
 
 - 트랙 수: 1~16개.
 - `color`는 **표시 힌트**다. 게임은 따라도 되고 무시해도 된다.
-- `width`는 **에디터 타임라인에서만** 쓰는 값이다. 플레이 화면의 레인 너비는 게임(스킨·사용자 설정)이 정하고, 모든 레인을 같은 너비로 두는 것을 권장한다. RCM 테스트 플레이도 `width`를 무시하고 게임플레이 설정의 레인 너비를 쓴다.
+- `kind: "gimmick"` 트랙의 노트는 **판정 대상이 아니다**. 키를 배정하지 않고 콤보·점수에도 넣지 않는다. 게임이 해석하는 데이터다 (예: 장애물·톱니바퀴 등장 시각). 어떻게 보여 줄지는 게임이 정한다.
+- 예전 파일의 트랙에 `width`가 있으면 무시한다. RCM은 더 이상 `width`를 쓰지 않는다. 레인 너비는 게임(스킨·사용자 설정)이 정한다.
+- `kind`를 모르는 예전 게임은 기믹 노트를 일반 노트로 읽을 수 있다.
 
 **노트 (`notes[]`)**
 
@@ -194,7 +197,7 @@ export interface Song {
   formatVersion: 1; title: string; artist: string; audio: string;
   offsetMs: number; previewStartMs: number; timing: TimingPoint[];
 }
-export interface Track { id: string; color?: string; width?: 'narrow' | 'normal' | 'wide' }
+export interface Track { id: string; color?: string; kind?: 'play' | 'gimmick' }
 export type Note =
   | { tick: number; track: string; type: 'tap' }
   | { tick: number; track: string; type: 'hold'; endTick: number };

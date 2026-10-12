@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { basicTracks, compareNotes, isValidTrackId, nextTrackId, trackErrors, trackIndex, type Note } from '../src';
+import { basicTracks, compareNotes, isGimmick, isValidTrackId, nextTrackId, trackErrors, trackIndex, type Note } from '../src';
 
 describe('tracks', () => {
   it('트랙 id 규칙', () => {
@@ -27,5 +27,12 @@ describe('tracks', () => {
     expect(trackErrors([{ id: 'A' }], 'x › tracks')).toEqual([]);
     expect(trackErrors('no', 'x › tracks')).toHaveLength(1);
     expect(trackErrors([{ id: 'A' }, { id: 'A' }], 'x › tracks')[0]).toContain('x › tracks[1].id');
+    expect(trackErrors([{ id: 'A', kind: 'x' }], 'tracks')).toEqual(['tracks[0].kind: play, gimmick 중 하나여야 함']);
+    expect(trackErrors([{ id: 'A', width: 'huge' }, { id: 'B', kind: 'gimmick' }], 'tracks')).toEqual([]);
+  });
+  it('isGimmick', () => {
+    expect(isGimmick({ kind: 'gimmick' })).toBe(true);
+    expect(isGimmick({ kind: 'play' })).toBe(false);
+    expect(isGimmick({})).toBe(false);
   });
 });

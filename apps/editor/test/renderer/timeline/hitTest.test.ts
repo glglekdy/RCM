@@ -55,15 +55,15 @@ describe('timeline hit-test', () => {
     expect(hitTestNote(notes, tm, far, layout, 410, 600 - 4)).toBe(notes[0])
   })
 
-  it('폭이 다른 트랙: 열 위치로 트랙을 찾는다', () => {
-    const side = layoutTimeline(1000, [{ id: 'Side_L', width: 'wide' }, { id: 'Note_1' }]) // 436~516, 516~564
+  it('트랙 두 개: 열 위치로 트랙을 찾는다', () => {
+    const side = layoutTimeline(1000, [{ id: 'Side_L' }, { id: 'Note_1' }]) // 452~500, 500~548
     const notes: Note[] = [
       { tick: 0, track: 'Side_L', type: 'tap' },
       { tick: 0, track: 'Note_1', type: 'tap' }
     ]
-    expect(pointerToCell(tm, view, side, 510, 600, 4)).toEqual({ lane: 0, track: 'Side_L', tick: 0 })
-    expect(hitTestNote(notes, tm, view, side, 510, 600)).toBe(notes[0])
-    expect(hitTestNote(notes, tm, view, side, 520, 600)).toBe(notes[1])
+    expect(pointerToCell(tm, view, side, 495, 600, 4)).toEqual({ lane: 0, track: 'Side_L', tick: 0 })
+    expect(hitTestNote(notes, tm, view, side, 495, 600)).toBe(notes[0])
+    expect(hitTestNote(notes, tm, view, side, 505, 600)).toBe(notes[1])
   })
 })
 

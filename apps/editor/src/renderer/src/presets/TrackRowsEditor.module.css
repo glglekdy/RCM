@@ -73,15 +73,6 @@
   opacity: 0;
 }
 
-.widths {
-  flex: none;
-}
-
-.widths button {
-  height: 24px;
-  padding: 0 8px;
-}
-
 .key {
   flex: none;
   width: 92px;
@@ -140,58 +131,6 @@
   min-width: 48px;
 }
 
-.widthPicker {
-  display: inline-flex;
-  flex: none;
-  gap: 2px;
-  padding: 2px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-
-.widthOption {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
-  cursor: default;
-}
-
-.widthOption:hover:not(:disabled) {
-  color: var(--text);
-}
-
-.widthSelected,
-.widthSelected:hover:not(:disabled) {
-  background: var(--bg-input);
-  color: var(--text);
-}
-
-.widthBar {
-  height: 12px;
-  border-radius: 1px;
-  background: currentColor;
-}
-
-.narrow {
-  width: 4px;
-}
-
-.normal {
-  width: 8px;
-}
-
-.wide {
-  width: 14px;
-}
-
 /* 막힌 동안 (재생·녹음·테스트 플레이 중) */
 .editor:disabled .grip {
   color: var(--text-muted);
@@ -201,8 +140,6 @@
 
 .editor:disabled .id input,
 .editor:disabled .hex input,
-.editor:disabled .swatch,
-.editor:disabled .widthPicker,
-.editor:disabled .widths {
+.editor:disabled .swatch {
   opacity: 0.4;
 }

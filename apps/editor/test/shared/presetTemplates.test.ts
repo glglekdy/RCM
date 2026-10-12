@@ -76,8 +76,21 @@ describe('presetTemplates', () => {
     expect(template('djmax', '4b').tracks[0].color).toBe('#38bdf8')
   })
 
+  it('EZ2ON 노트 색: 흰(W)·파랑(B) 배열, 8K는 Type A·B·H', () => {
+    const pattern = (id: string) =>
+      template('ez2on', id).tracks.map((t) => (t.color === undefined ? 'W' : t.color === '#2f80ff' ? 'B' : '?')).join('')
+    expect(group('ez2on').templates.map((t) => t.id)).toEqual(['4k', '5k', '6k', '8k-a', '8k-b', '8k-h'])
+    expect(group('ez2on').templates.map((t) => t.name)).toEqual(['4K', '5K', '6K', '8K Type A', '8K Type B', '8K Type H'])
+    expect(pattern('4k')).toBe('WBBW')
+    expect(pattern('5k')).toBe('WBWBW')
+    expect(pattern('6k')).toBe('WBWWBW')
+    expect(pattern('8k-a')).toBe('WBWBBWBW')
+    expect(pattern('8k-b')).toBe('WBWBWBWB')
+    expect(pattern('8k-h')).toBe('WBBWWBBW')
+  })
+
   it('EZ2ON · Muse Dash · osu!mania 배치', () => {
-    expect(describeTracks(template('ez2on', '8k').tracks)).toEqual([
+    expect(describeTracks(template('ez2on', '8k-a').tracks)).toEqual([
       'Note_1=KeyA', 'Note_2=KeyS', 'Note_3=KeyD', 'Note_4=KeyF', 'Note_5=KeyJ', 'Note_6=KeyK', 'Note_7=KeyL',
       'Note_8=Semicolon'
     ])

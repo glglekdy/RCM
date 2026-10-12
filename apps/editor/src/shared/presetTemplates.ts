@@ -18,6 +18,8 @@ export interface TemplateGroup {
 /** DJMAX: 사이드는 하늘색, 8B 트리거는 빨강·분홍 */
 const DJMAX_SIDE_COLOR = '#38bdf8'
 const DJMAX_TRIGGER_COLOR = '#f43f5e'
+/** EZ2ON 파랑 노트 (흰 노트는 기본 색) */
+const EZ2ON_BLUE = '#2f80ff'
 const GIMMICK_COLOR = '#ef4444'
 
 /** `[주 키, 보조 키?]` 목록을 `Note_1`… 트랙으로 */
@@ -37,6 +39,11 @@ function withSides(tracks: PresetTrack[]): PresetTrack[] {
   ]
 }
 
+/** EZ2ON 색 배열: `W` = 흰(기본 색), `B` = 파랑. 트랙 순서대로 칠한다 */
+function ez2on(pattern: string, tracks: PresetTrack[]): PresetTrack[] {
+  return tracks.map((t, i) => (pattern[i] === 'B' ? { ...t, color: EZ2ON_BLUE } : t))
+}
+
 function template(id: string, name: string, tracks: PresetTrack[]): PresetTemplate {
   tracks.forEach((t) => Object.freeze(t))
   return Object.freeze({ id, name, tracks: Object.freeze(tracks) })
@@ -45,6 +52,8 @@ function template(id: string, name: string, tracks: PresetTrack[]): PresetTempla
 function group(id: string, name: string, shortName: string, templates: PresetTemplate[]): TemplateGroup {
   return Object.freeze({ id, name, shortName, templates: Object.freeze(templates) })
 }
+
+const EZ2ON_8K_KEYS = ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon']
 
 export const BLANK_TEMPLATE: PresetTemplate = template('blank', '빈 프리셋', [{ id: 'Note_1', key: null }])
 
@@ -67,10 +76,13 @@ export const TEMPLATE_GROUPS: readonly TemplateGroup[] = Object.freeze([
     )
   ]),
   group('ez2on', 'EZ2ON REBOOT : R', 'EZ2ON', [
-    template('4k', '4K', notes(['KeyD', 'KeyF', 'KeyJ', 'KeyK'])),
-    template('5k', '5K', notes(['KeyD', 'KeyF', 'Space', 'KeyJ', 'KeyK'])),
-    template('6k', '6K', notes(['KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL'])),
-    template('8k', '8K', notes(['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon']))
+    template('4k', '4K', ez2on('WBBW', notes(['KeyD', 'KeyF', 'KeyJ', 'KeyK']))),
+    template('5k', '5K', ez2on('WBWBW', notes(['KeyD', 'KeyF', 'Space', 'KeyJ', 'KeyK']))),
+    template('6k', '6K', ez2on('WBWWBW', notes(['KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL']))),
+    // 8K 색 배열 세 가지: A = 2021년 11월 패치 이후 기본값
+    template('8k-a', '8K Type A', ez2on('WBWBBWBW', notes(EZ2ON_8K_KEYS))),
+    template('8k-b', '8K Type B', ez2on('WBWBWBWB', notes(EZ2ON_8K_KEYS))),
+    template('8k-h', '8K Type H', ez2on('WBBWWBBW', notes(EZ2ON_8K_KEYS)))
   ]),
   group('musedash', 'Muse Dash', 'Muse Dash', [
     template('2lane', '2레인', [

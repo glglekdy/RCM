@@ -191,7 +191,10 @@ export function PresetsPage() {
             showKeys
             issues={issues.tracks}
             onRename={(i, id) => edit((p) => withTrack(p, i, { id: id.trim() }))}
-            onLook={(i, patch) => edit((p) => withTrack(p, i, patch))}
+            onLook={(i, patch) =>
+              // 기믹 트랙은 키가 없으므로 기믹으로 바꾸면 키를 비운다
+              edit((p) => withTrack(p, i, patch.kind === 'gimmick' ? { ...patch, key: null, subKey: undefined } : patch))
+            }
             onKey={(i, field, code) => edit((p) => withTrack(p, i, { [field]: code }))}
             onMove={(from, to) => edit((p) => ({ ...p, tracks: moveIndex(p.tracks, from, to) }))}
             onRemove={(i) => edit((p) => ({ ...p, tracks: p.tracks.filter((_, j) => j !== i) }))}

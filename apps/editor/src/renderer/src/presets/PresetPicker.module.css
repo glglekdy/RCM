@@ -48,7 +48,7 @@
 }
 
 .chip {
-  flex-basis: 0;
+  flex: 1 1 0;
   min-width: 0;
   height: 22px;
   padding: 0 4px;
@@ -61,4 +61,8 @@
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.gimmickChip {
+  border-style: dashed;
 }

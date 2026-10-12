@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { BookmarkPlus } from 'lucide-react'
+import { isGimmick } from '@rcm/core'
 import { keysLabel } from '@rcm/playfield'
 import { resolveKeymap } from '../../../../shared/presets'
 import { usePresets } from '../../presets/presetStore'
@@ -125,7 +126,7 @@ export function ChartPanel() {
       <Card title="키 배치">
         {chart.tracks.map((t) => (
           <div key={t.id} className={styles.keyRow}>
-            {t.id} — {keysLabel(keymap.keys.get(t.id))}
+            {t.id} — {isGimmick(t) ? '⚙ 기믹' : keysLabel(keymap.keys.get(t.id))}
           </div>
         ))}
         <p className={styles.hint}>{sourceText}</p>

@@ -1,14 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import { GripVertical, Plus, Trash2 } from 'lucide-react'
-import { DEFAULT_NOTE_COLOR, MAX_TRACKS, TRACK_COLOR_PATTERN, type Track } from '@rcm/core'
+import { Cog, GripVertical, Music, Plus, Trash2 } from 'lucide-react'
+import { DEFAULT_NOTE_COLOR, MAX_TRACKS, TRACK_COLOR_PATTERN, isGimmick, type Track, type TrackKind } from '@rcm/core'
 import { keyLabel } from '@rcm/playfield'
 import type { PresetIssues, PresetTrack } from '../../../shared/presets'
-import { Button, IconButton, SortableList, TextField } from '../ui'
+import { Button, IconButton, SegmentedControl, SortableList, TextField } from '../ui'
 import styles from './TrackRowsEditor.module.css'
 
 const TRACK_ROW_HEIGHT = 36
 
-type LookPatch = { color?: string }
+const KIND_OPTIONS: { value: TrackKind; label: string }[] = [
+  { value: 'play', label: '플레이' },
+  { value: 'gimmick', label: '기믹' }
+]
+
+type LookPatch = { color?: string; kind?: TrackKind }
 
 type KeyField = 'key' | 'subKey'
 
@@ -16,7 +21,7 @@ interface TrackRowsEditorProps {
   tracks: readonly (Track | PresetTrack)[]
   /** 키 칸을 보일지 (프리셋 표만) */
   showKeys: boolean
-  /** 좁은 자리(채보 탭)용: 색은 스와치만 */
+  /** 좁은 자리(채보 탭)용: 색은 스와치만, 종류는 아이콘 토글 */
   compact?: boolean
   /** 모든 입력·버튼과 끌기를 막는다 */
   disabled?: boolean
@@ -37,7 +42,7 @@ interface RowItem {
   key: string
 }
 
-/** 트랙 표: 손잡이(끌어서 순서 변경), 이름, 색, [키, 보조 키], 삭제. 프리셋 페이지와 채보 탭이 함께 쓴다. */
+/** 트랙 표: 손잡이(끌어서 순서 변경), 이름, 색, 종류(플레이/기믹), [키, 보조 키], 삭제. 프리셋 페이지와 채보 탭이 함께 쓴다. */
 export function TrackRowsEditor({
   tracks,
   showKeys,
@@ -68,6 +73,7 @@ export function TrackRowsEditor({
         renderRow={({ track }, i, handle) => {
           const issue = issues?.[i] ?? {}
           const color = track.color ?? DEFAULT_NOTE_COLOR
+          const kind: TrackKind = isGimmick(track) ? 'gimmick' : 'play'
           return (
             <div className={styles.row}>
               <span
@@ -98,17 +104,32 @@ export function TrackRowsEditor({
                   />
                 </span>
               )}
+              {compact ? (
+                <KindToggle value={kind} onChange={(k) => onLook(i, { kind: k })} />
+              ) : (
+                <span className={styles.kinds}>
+                  <SegmentedControl
+                    options={KIND_OPTIONS}
+                    value={kind}
+                    onChange={(k) => {
+                      if (k !== kind) onLook(i, { kind: k })
+                    }}
+                  />
+                </span>
+              )}
               {showKeys && (
                 <>
                   <KeyButton
                     code={'key' in track ? track.key : null}
                     issue={issue.key}
+                    gimmick={kind === 'gimmick'}
                     onKey={(code) => onKey?.(i, 'key', code)}
                   />
                   <KeyButton
                     sub
                     code={('subKey' in track ? track.subKey : null) ?? null}
                     issue={issue.subKey}
+                    gimmick={kind === 'gimmick'}
                     onKey={(code) => onKey?.(i, 'subKey', code)}
                   />
                 </>
@@ -129,6 +150,24 @@ export function TrackRowsEditor({
         </Button>
       </div>
     </fieldset>
+  )
+}
+
+/** 좁은 자리용 종류 토글: 음표 = 플레이, 톱니 = 기믹. 누르면 반대 종류로 바꾼다. */
+function KindToggle({ value, onChange }: { value: TrackKind; onChange: (k: TrackKind) => void }) {
+  const gimmick = value === 'gimmick'
+  const Icon = gimmick ? Cog : Music
+  return (
+    <button
+      type="button"
+      className={`${styles.kindToggle} ${gimmick ? styles.kindGimmick : ''}`}
+      aria-pressed={gimmick}
+      aria-label="기믹 트랙"
+      title={gimmick ? '기믹 트랙 (판정 없음) — 누르면 플레이 트랙으로' : '플레이 트랙 — 누르면 기믹 트랙으로'}
+      onClick={() => onChange(gimmick ? 'play' : 'gimmick')}
+    >
+      <Icon size={14} />
+    </button>
   )
 }
 
@@ -167,21 +206,32 @@ function ColorSwatch({ value, onCommit }: { value: string; onCommit: (color: str
 /**
  * 키 지정 버튼: 누르면 `키를 누르세요` → 다음 키로 지정. Esc 취소, Backspace/Delete는 비움.
  * Tab은 지정하지 않고 취소한 뒤 포커스를 그대로 옮긴다. `sub`면 보조 키 칸 (비어 있으면 흐리게 `보조 키`).
+ * `gimmick`이면 키가 없는 트랙이므로 막고 `—`만 보인다.
  */
 function KeyButton({
   code,
   issue,
   sub = false,
+  gimmick = false,
   onKey
 }: {
   code: string | null
   issue?: string
   sub?: boolean
+  gimmick?: boolean
   onKey: (code: string | null) => void
 }) {
   const [capturing, setCapturing] = useState(false)
   // 지정에 쓴 키의 keyup이 버튼 클릭(Space)으로 이어지지 않게 한다
   const swallowKeyUp = useRef(false)
+
+  if (gimmick) {
+    return (
+      <button type="button" className={`${styles.key} ${styles.emptySub}`} disabled title="기믹 트랙은 키가 없어요">
+        —
+      </button>
+    )
+  }
 
   return (
     <button

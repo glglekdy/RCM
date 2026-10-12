@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react'
-import { DEFAULT_NOTE_COLOR } from '@rcm/core'
+import { DEFAULT_NOTE_COLOR, isGimmick } from '@rcm/core'
 import type { TrackPreset } from '../../../shared/presets'
 import { Row } from '../ui'
 import styles from './PresetPicker.module.css'
@@ -11,7 +11,7 @@ interface PresetPickerProps {
   onChange: (id: string) => void
 }
 
-/** 트랙 프리셋 드롭다운과 그 아래 트랙 미리보기 (칩 너비 = 트랙 폭 비율, 테두리·글자 = 트랙 색). */
+/** 트랙 프리셋 드롭다운과 그 아래 트랙 미리보기 (칩은 같은 너비, 테두리·글자 = 트랙 색, 기믹은 점선). */
 export function PresetPicker({ presets, value, onChange }: PresetPickerProps) {
   const preset = presets.find((p) => p.id === value)
   return (
@@ -36,12 +36,13 @@ export function PresetPicker({ presets, value, onChange }: PresetPickerProps) {
         <div className={styles.chips}>
           {preset.tracks.map((t) => {
             const color = t.color ?? DEFAULT_NOTE_COLOR
+            const gimmick = isGimmick(t)
             return (
               <span
                 key={t.id}
-                className={styles.chip}
+                className={`${styles.chip} ${gimmick ? styles.gimmickChip : ''}`}
                 style={{ borderColor: color, color }}
-                title={t.id}
+                title={gimmick ? `${t.id} (기믹)` : t.id}
               >
                 {t.id}
               </span>

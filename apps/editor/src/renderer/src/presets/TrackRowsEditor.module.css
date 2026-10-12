@@ -73,6 +73,41 @@
   opacity: 0;
 }
 
+.kinds {
+  flex: none;
+}
+
+.kinds button {
+  height: 24px;
+  padding: 0 8px;
+}
+
+.kindToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.kindToggle:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.kindGimmick,
+.kindGimmick:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
 .key {
   flex: none;
   width: 92px;
@@ -140,6 +175,8 @@
 
 .editor:disabled .id input,
 .editor:disabled .hex input,
-.editor:disabled .swatch {
+.editor:disabled .swatch,
+.editor:disabled .kinds,
+.editor:disabled .kindToggle {
   opacity: 0.4;
 }

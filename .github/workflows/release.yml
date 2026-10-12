@@ -12,9 +12,11 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
+      # 전체 기록을 받아야 주석 태그(업데이트 내역)가 일반 태그로 바뀌지 않는다
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Secret 확인
         env:
@@ -37,6 +39,10 @@ jobs:
 
       - name: 태그와 앱 버전 일치 확인
         run: node scripts/check-tag.mjs "$env:GITHUB_REF_NAME"
+
+      # npm run release가 태그 메시지에 적은 업데이트 내역을 Release 본문으로 쓴다
+      - name: 태그에서 업데이트 내역 읽기
+        run: node scripts/tag-notes.mjs "$env:GITHUB_REF_NAME" "$env:RUNNER_TEMP/release-notes.md"
 
       - run: npm test
 
@@ -89,9 +95,9 @@ jobs:
           }
           "RELEASE_ID=$($ids[0])" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: 초안을 정식 릴리스로 공개
+      - name: 업데이트 내역을 넣고 정식 릴리스로 공개
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
-          gh api -X PATCH "repos/glglekdy/RCM/releases/$env:RELEASE_ID" -F draft=false --silent
+          gh api -X PATCH "repos/glglekdy/RCM/releases/$env:RELEASE_ID" -F draft=false -F "body=@$env:RUNNER_TEMP/release-notes.md" --silent
           if ($LASTEXITCODE -ne 0) { exit 1 }

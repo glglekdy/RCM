@@ -41,6 +41,25 @@ export function trackColumns(canvasWidth: number, laneCount: number, laneWidth: 
   });
 }
 
+/** 축소해서 보여 줄 때 레인 양옆에 남길 여백(px, 축소 전 기준) */
+export const FIT_SIDE_MARGIN = 24;
+
+/**
+ * 작은 캔버스(boxWidth×boxHeight)에 높이 viewHeight인 실제 플레이 화면을 축소해 보여 줄 배율 (1 이하).
+ * 화면 높이 전체와 모든 레인(양옆 여백 포함)이 다 들어가는 가장 큰 값.
+ */
+export function fitScale(
+  boxWidth: number,
+  boxHeight: number,
+  viewHeight: number,
+  laneCount: number,
+  laneWidth: number,
+): number {
+  const fieldWidth = laneCount * laneWidth + FIT_SIDE_MARGIN * 2;
+  const scale = Math.min(1, boxWidth / fieldWidth, boxHeight / Math.max(viewHeight, 1));
+  return scale > 0 ? scale : 1;
+}
+
 /** 판정선 중심의 y. */
 export function judgeLineY(height: number, layout: PlayfieldLayout): number {
   return height - layout.judgeLineFromBottom;

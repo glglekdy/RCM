@@ -1,5 +1,6 @@
 import { createClickBuffer } from './hitsound'
 import { collectDueHits, playbackStartParams } from './schedule'
+import { SmoothClock } from './smoothClock'
 
 const TICK_INTERVAL_MS = 25
 const LOOK_AHEAD_MS = 100
@@ -27,6 +28,8 @@ export class AudioEngine {
   private fromMs = 0
   private lastPositionMs = 0
   private endedCb: (() => void) | null = null
+  /** 재생 위치용: currentTime의 계단을 메워 화면이 매끄럽게 움직이게 한다 */
+  private readonly smooth = new SmoothClock()
 
   constructor() {
     this.ctx = new AudioContext()
@@ -77,6 +80,7 @@ export class AudioEngine {
 
     this.music = src
     this.startCtxTime = now
+    this.smooth.reset()
     this.fromMs = fromMs
     this.cursor = 0
     this.isPlaying = true
@@ -104,7 +108,8 @@ export class AudioEngine {
 
   positionMs(): number {
     if (!this.isPlaying) return this.lastPositionMs
-    const pos = (this.ctx.currentTime - this.startCtxTime) * 1000 + this.fromMs
+    const ctxNow = this.smooth.read(this.ctx.currentTime, performance.now())
+    const pos = (ctxNow - this.startCtxTime) * 1000 + this.fromMs
     return Math.min(pos, this.duration)
   }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ScrollMap, TimingMap } from '@rcm/core';
+import { ScrollMap, TICKS_PER_BEAT, TimingMap } from '@rcm/core';
 import {
   clampSpeed,
   DEFAULT_LAYOUT,
@@ -13,6 +13,8 @@ import {
   MIN_SPEED,
   SPEED_STEP,
   firstAtOrAbove,
+  fitScale,
+  FIT_SIDE_MARGIN,
   notePositions,
   noteY,
   pxPerMsForSpeed,
@@ -65,6 +67,39 @@ describe('playfield view', () => {
       false,
       false,
     ]);
+  });
+  it('BPM이 달라도 같은 배속이면 낙하 시간이 같다 (132 / 140 BPM, 6.5배속)', () => {
+    const judgeY = 680;
+    const pxPerMs = pxPerMsForSpeed(6.5, judgeY);
+    const travel = DJMAX_TRAVEL_MS_AT_1X / 6.5;
+    for (const [bpm, offsetMs] of [[132, 90], [140, 0]]) {
+      const tm = new TimingMap([{ tick: 0, bpm }], offsetMs);
+      const scroll = new ScrollMap(undefined, tm);
+      // 16마디째 노트
+      const noteMs = tm.tickToMs(16 * 4 * TICKS_PER_BEAT);
+      const notePos = scroll.positionAt(noteMs);
+      const yAt = (ms: number) => noteY(notePos, scroll.positionAt(ms), judgeY, pxPerMs);
+      expect(yAt(noteMs - travel)).toBeCloseTo(0, 6);
+      expect(yAt(noteMs)).toBeCloseTo(judgeY, 6);
+    }
+  });
+  it('fitScale: 화면 높이 전체와 모든 레인이 작은 캔버스에 들어간다', () => {
+    // 300×480 미리보기, 실제 화면 높이 764
+    const s1 = fitScale(300, 480, 764, 4, 64);
+    expect(s1).toBeCloseTo(480 / 764, 9);
+    // 레인이 넓으면 너비 기준으로 더 줄인다
+    const s2 = fitScale(300, 480, 764, 4, 200);
+    expect(s2).toBeCloseTo(300 / (800 + FIT_SIDE_MARGIN * 2), 9);
+    for (const [lanes, laneWidth] of [[4, 64], [4, 200], [8, 200]]) {
+      const s = fitScale(300, 480, 764, lanes, laneWidth);
+      expect(300 / s).toBeGreaterThanOrEqual(lanes * laneWidth + FIT_SIDE_MARGIN * 2 - 1e-9);
+      expect(480 / s).toBeGreaterThanOrEqual(764 - 1e-9);
+      // 판정선을 최대(400)로 올려도 축소 전 화면 안에 있다
+      expect(judgeLineY(480 / s, { ...DEFAULT_LAYOUT, judgeLineFromBottom: 400 })).toBeGreaterThan(0);
+    }
+    // 캔버스가 더 크면 키우지 않는다, 크기가 0이어도 1
+    expect(fitScale(2000, 2000, 764, 4, 64)).toBe(1);
+    expect(fitScale(0, 0, 764, 4, 64)).toBe(1);
   });
   it('판정선을 옮겨도 낙하 시간 유지', () => {
     for (const judgeLineFromBottom of [0, 400]) {

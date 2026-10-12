@@ -255,6 +255,10 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   const [playtestFromMs, setPlaytestFromMs] = useState<number | null>(null)
   /** 끝나면 돌아갈 재생선 위치 */
   const playtestReturnRef = useRef(0)
+  /** 다시 시작할 때마다 올려 테스트 플레이 화면(판정 상태)을 새로 만든다 */
+  const [playtestRun, setPlaytestRun] = useState(0)
+  /** 자동 플레이 (F4). 다시 시작해도 유지하고, 새로 들어가면 꺼진 채로 시작한다 */
+  const [playtestAuto, setPlaytestAuto] = useState(false)
 
   const startPlaytest = useCallback(
     (fromStart: boolean) => {
@@ -272,11 +276,20 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       // 툴바 버튼에 포커스가 남아 Enter 등으로 눌리지 않게 한다
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
       playtestReturnRef.current = s.playheadMs
+      setPlaytestAuto(false)
       setPlaytestFromMs(fromMs)
       store.set({ mode: 'playtest' })
     },
     [engine, store, stop]
   )
+
+  /** 같은 위치에서 테스트 플레이를 처음부터 다시 한다. */
+  const restartPlaytest = useCallback(() => {
+    if (store.getState().mode !== 'playtest' || playtestFromMs === null) return
+    engine.stop()
+    engine.play(playtestFromMs - PLAYTEST_LEAD_IN_MS)
+    setPlaytestRun((n) => n + 1)
+  }, [engine, store, playtestFromMs])
 
   /** 테스트 플레이를 끝내고 재생선을 시작 전 위치로 돌린다. 결과는 저장하지 않는다. */
   const exitPlaytest = useCallback(() => {
@@ -292,14 +305,12 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
 
   useEffect(() => {
     engine.onEnded(() => {
-      if (store.getState().mode === 'playtest') {
-        exitPlaytest()
-        return
-      }
+      // 테스트 플레이는 곡이 끝나도 결과를 보여 주며 Esc를 기다린다
+      if (store.getState().mode === 'playtest') return
       store.set({ playing: false, playheadMs: engine.durationMs })
       finishRecording(engine.durationMs)
     })
-  }, [engine, store, finishRecording, exitPlaytest])
+  }, [engine, store, finishRecording])
 
   // 재생 중에는 화면 프레임마다 오디오 시계를 읽어 재생선을 옮긴다
   useEffect(() => {
@@ -462,6 +473,12 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       case 'playtestStart':
         startPlaytest(true)
         break
+      case 'playtestRestart':
+        restartPlaytest()
+        break
+      case 'playtestAuto':
+        setPlaytestAuto((on) => !on)
+        break
       case 'save':
         void save()
         break
@@ -573,7 +590,8 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   return (
     <div className={styles.screen}>
       <TitleBar title={title} dirty={dirty} />
-      <div className={styles.main}>
+      {/* 테스트 플레이 화면 아래의 편집 화면은 Tab 등으로 포커스되지 않게 한다 */}
+      <div className={styles.main} inert={playtestFromMs !== null}>
         <div className={styles.timeline}>
           <TimelineCanvas
             tm={tm}
@@ -603,12 +621,15 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
         onOpenProject={() => void openProject()}
         onSave={() => void save()}
         onHome={() => void goHome()}
+        inert={playtestFromMs !== null}
       />
       {playtestFromMs !== null && (
         <PlaytestOverlay
+          key={playtestRun}
           fromMs={playtestFromMs}
           tm={tm}
           getTimeMs={getTimeMs}
+          autoplay={playtestAuto}
           onExit={exitPlaytest}
         />
       )}

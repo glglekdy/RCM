@@ -22,6 +22,16 @@ describe('resolveShortcut', () => {
       expect(resolveShortcut(k('Space'), mode)).toBeNull()
     }
   })
+  it('테스트 플레이 중 F5는 다시 시작', () => {
+    expect(resolveShortcut(k('F5'), 'playtest')).toBe('playtestRestart')
+    expect(resolveShortcut(k('F5', false, true), 'playtest')).toBeNull()
+    expect(resolveShortcut(k('F5'), 'recording')).toBeNull()
+  })
+  it('테스트 플레이 중 F4는 자동 플레이 켜고 끄기', () => {
+    expect(resolveShortcut(k('F4'), 'playtest')).toBe('playtestAuto')
+    expect(resolveShortcut(k('F4'), 'edit')).toBeNull()
+    expect(resolveShortcut(k('F4'), 'recording')).toBeNull()
+  })
 })
 
 describe('resolveTypingShortcut', () => {

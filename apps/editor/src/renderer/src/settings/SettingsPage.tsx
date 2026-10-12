@@ -63,7 +63,7 @@ export function SettingsPage() {
         <aside className={styles.preview}>
           <span className={styles.previewTitle}>미리보기</span>
           <div className={previewStyles.box}>
-            <LayoutPreview layout={layout} className={previewStyles.canvas} />
+            <LayoutPreview layout={layout} className={previewStyles.canvas} fit />
             <button type="button" className={previewStyles.expand} onClick={() => setFullscreen(true)}>
               <Maximize2 size={14} /> 전체화면으로 보기
             </button>

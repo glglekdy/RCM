@@ -43,6 +43,8 @@ interface BottomToolbarProps {
   onOpenProject: () => void
   onSave: () => void
   onHome: () => void
+  /** 테스트 플레이 화면에 덮여 있는 동안 포커스·클릭을 받지 않는다 */
+  inert?: boolean
 }
 
 export function BottomToolbar({
@@ -53,7 +55,8 @@ export function BottomToolbar({
   onNewProject,
   onOpenProject,
   onSave,
-  onHome
+  onHome,
+  inert
 }: BottomToolbarProps) {
   const store = useStore()
   const charts = useEditor((s) => s.doc.charts)
@@ -66,7 +69,7 @@ export function BottomToolbar({
   const [adding, setAdding] = useState(false)
 
   return (
-    <div className={styles.bar}>
+    <div className={styles.bar} inert={inert}>
       <div className={styles.side}>
         <div className={styles.group}>
           {charts.map((c) => (

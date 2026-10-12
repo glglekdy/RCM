@@ -21,6 +21,8 @@ export type Action =
   | 'stop'
   | 'playtestHere'
   | 'playtestStart'
+  | 'playtestRestart'
+  | 'playtestAuto'
   | { kind: 'snap'; division: SnapDivision }
 
 export interface KeyInput {
@@ -66,6 +68,10 @@ const PLAIN_KEYS: Record<string, Action> = {
 }
 
 export function resolveShortcut(e: KeyInput, mode: EditorMode): Action | null {
+  if (mode === 'playtest' && !e.ctrl && !e.shift) {
+    if (e.code === 'F5') return 'playtestRestart'
+    if (e.code === 'F4') return 'playtestAuto'
+  }
   if (mode !== 'edit') return e.code === 'Escape' ? 'stop' : null
 
   if (e.ctrl) {

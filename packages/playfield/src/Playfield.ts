@@ -1,11 +1,12 @@
 import { DEFAULT_NOTE_COLOR, ScrollMap, type Chart, type TimingMap } from '@rcm/core';
-import { HOLD_RELEASE_TOLERANCE, type JudgeEvent, type Judgement } from './judge';
+import { HOLD_RELEASE_TOLERANCE, type JudgeEvent, type Judgement, type Timing } from './judge';
 import { keyLabel, trackForCode, trackForKey } from './keymap';
 import { autoplayStep } from './autoplay';
 import { DEFAULT_LAYOUT, sanitizeLayout, type PlayfieldLayout } from './layout';
 import { PlayState } from './playState';
 import {
   clampSpeed,
+  fitScale,
   firstAtOrAbove,
   holdBodyWidth,
   KEY_LABEL_OFFSET,
@@ -35,6 +36,9 @@ export interface PlayfieldColors {
   great: string;
   good: string;
   miss: string;
+  /** 판정 글자 밑 EARLY / LATE */
+  early: string;
+  late: string;
 }
 
 /** 기본 색: 에디터 타임라인 색(6.3절), 판정선은 `--accent`. 노트는 트랙 색으로 그린다 */
@@ -51,6 +55,8 @@ export const DEFAULT_PLAYFIELD_COLORS: PlayfieldColors = {
   great: '#22d3ee',
   good: '#f59e0b',
   miss: '#ef4444',
+  early: '#60a5fa',
+  late: '#f87171',
 };
 
 export interface PlayfieldOptions {
@@ -69,7 +75,12 @@ export interface PlayfieldOptions {
   layout?: PlayfieldLayout;
   /** false면 키 입력을 받지 않는다 (미리보기). 기본 true */
   input?: boolean;
-  /** true면 모든 노트를 노트 시각에 자동으로 친다 (미리보기). 기본 false */
+  /**
+   * 작은 미리보기용: 실제 플레이 화면의 높이(px). 주면 그 높이의 화면을 캔버스에 맞게 축소해 그린다
+   * (레인과 판정선이 캔버스 밖으로 넘치지 않는다). 없으면 캔버스 크기 그대로 그린다.
+   */
+  viewHeight?: () => number;
+  /** true면 모든 노트를 노트 시각에 자동으로 친다 (미리보기). 기본 false. `setAutoplay`로 바꿀 수 있다 */
   autoplay?: boolean;
 }
 
@@ -85,6 +96,8 @@ const JUDGEMENT_TEXT: Record<Judgement, string> = {
   good: 'GOOD',
   miss: 'MISS',
 };
+
+const TIMING_TEXT: Record<Timing, string> = { early: 'EARLY', late: 'LATE' };
 
 /**
  * 떨어지는 노트를 Canvas에 그리고 레인 키 입력을 판정한다.
@@ -107,7 +120,8 @@ export class Playfield {
   private readonly pressed: boolean[];
   private speed: number;
   private layout: PlayfieldLayout;
-  private last: { judgement: Judgement; ms: number } | null = null;
+  private autoplay: boolean;
+  private last: { judgement: Judgement; ms: number; timing?: Timing } | null = null;
   private raf = 0;
   private running = false;
 
@@ -134,6 +148,7 @@ export class Playfield {
     this.pressed = Array.from({ length: this.lanes }, () => false);
     this.speed = clampSpeed(opts.speed);
     this.layout = sanitizeLayout(opts.layout ?? DEFAULT_LAYOUT);
+    this.autoplay = opts.autoplay === true;
   }
 
   /** 그리기 루프와 키 입력을 시작한다. */
@@ -166,12 +181,20 @@ export class Playfield {
     this.layout = sanitizeLayout(layout);
   }
 
+  /**
+   * 플레이 도중 자동 플레이를 켜고 끈다. 켜져 있는 동안 레인 키는 무시한다.
+   * 끌 때 자동 플레이가 잡고 있던 롱노트는 끝까지 이어진다.
+   */
+  setAutoplay(on: boolean): void {
+    this.autoplay = on;
+  }
+
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     const lane = this.laneOf(trackForKey(this.opts.keymap, e));
     if (lane < 0) return;
     // Space 키 트랙이 포커스된 버튼을 누르지 않게 막는다
     e.preventDefault();
-    if (e.repeat || this.pressed[lane]) return;
+    if (e.repeat || this.pressed[lane] || this.autoplay) return;
     this.pressed[lane] = true;
     this.show(this.state.press(lane, this.opts.getTimeMs()));
   };
@@ -194,34 +217,43 @@ export class Playfield {
 
   private release(lane: number): void {
     this.pressed[lane] = false;
-    this.show(this.state.release(lane, this.opts.getTimeMs()));
+    // 누른 채로 자동 플레이를 켰으면 그 레인의 롱노트는 자동 플레이가 뗀다
+    if (!this.autoplay) this.show(this.state.release(lane, this.opts.getTimeMs()));
   }
 
   private show(events: JudgeEvent[]): void {
     const e = events[events.length - 1];
-    if (e) this.last = { judgement: e.judgement, ms: e.ms };
+    if (e) this.last = { judgement: e.judgement, ms: e.ms, timing: e.timing };
   }
 
   private readonly frame = (): void => {
     this.raf = requestAnimationFrame(this.frame);
     const now = this.opts.getTimeMs();
-    if (this.opts.autoplay) this.show(autoplayStep(this.state, now));
+    if (this.autoplay) this.show(autoplayStep(this.state, now));
     this.show(this.state.update(now));
     this.draw(now);
   };
 
   private draw(now: number): void {
     const { canvas, ctx, colors } = this;
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
+    const boxWidth = canvas.clientWidth;
+    const boxHeight = canvas.clientHeight;
     const dpr = window.devicePixelRatio || 1;
-    const bw = Math.round(width * dpr);
-    const bh = Math.round(height * dpr);
+    const bw = Math.round(boxWidth * dpr);
+    const bh = Math.round(boxHeight * dpr);
     if (canvas.width !== bw || canvas.height !== bh) {
       canvas.width = bw;
       canvas.height = bh;
     }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const viewHeight = this.opts.viewHeight?.();
+    const scale =
+      viewHeight === undefined
+        ? 1
+        : fitScale(boxWidth, boxHeight, viewHeight, this.lanes, this.layout.laneWidth);
+    // 이 아래는 축소 전 크기로 그린다
+    const width = boxWidth / scale;
+    const height = boxHeight / scale;
+    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
     ctx.globalAlpha = 1;
     ctx.fillStyle = colors.background;
     ctx.fillRect(0, 0, width, height);
@@ -273,6 +305,12 @@ export class Playfield {
       ctx.fillStyle = colors[this.last.judgement];
       ctx.font = `800 28px ${FONT}`;
       ctx.fillText(JUDGEMENT_TEXT[this.last.judgement], centerX, judgeY - 180);
+      const { timing } = this.last;
+      if (timing) {
+        ctx.fillStyle = colors[timing];
+        ctx.font = `700 13px ${FONT}`;
+        ctx.fillText(TIMING_TEXT[timing], centerX, judgeY - 156);
+      }
     }
   }
 
@@ -322,7 +360,7 @@ export class Playfield {
 
   /** 키를 누르고 있거나 자동 플레이가 롱노트를 잡고 있는 레인 (키빔) */
   private lanePressed(lane: number): boolean {
-    return this.pressed[lane] || (this.opts.autoplay === true && this.state.heldNote(lane) >= 0);
+    return this.pressed[lane] || (this.autoplay && this.state.heldNote(lane) >= 0);
   }
 
   private drawHead(laneX: number, laneWidth: number, y: number): void {

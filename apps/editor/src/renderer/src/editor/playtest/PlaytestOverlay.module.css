@@ -38,6 +38,11 @@
   color: var(--text-muted);
 }
 
+.autoOn {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .exit {
   padding: 0;
   border: 0;

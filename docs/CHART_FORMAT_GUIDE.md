@@ -458,8 +458,9 @@ const endPos = notes.map(n => (n.endMs === undefined ? undefined : scroll.positi
    - `endMs − 120ms` 이전에 떼면 꼬리 MISS
    - 그 이후에 떼거나 `endMs`까지 누르고 있으면 꼬리 PERFECT
    - 롱노트 하나는 판정 2개(머리, 꼬리)를 만든다.
-4. **콤보**: MISS면 0으로, 그 외에는 +1. 최대 콤보를 따로 기록한다.
-5. 키 반복(keydown repeat) 이벤트는 무시한다. Ctrl/Alt/Meta와 함께 누른 키는 게임 입력으로 보지 않는다 (Shift는 사이드 트랙 키로 쓰일 수 있으므로 허용).
+4. **EARLY / LATE**: 머리 판정이 GREAT·GOOD이면 노트보다 일찍 쳤는지(EARLY) 늦게 쳤는지(LATE)도 알려준다 (`timing`). PERFECT·MISS와 꼬리 판정에는 없다. 판정 문구 밑에 작게 보여주면 어느 쪽으로 어긋나는지 알 수 있다.
+5. **콤보**: MISS면 0으로, 그 외에는 +1. 최대 콤보를 따로 기록한다.
+6. 키 반복(keydown repeat) 이벤트는 무시한다. Ctrl/Alt/Meta와 함께 누른 키는 게임 입력으로 보지 않는다 (Shift는 사이드 트랙 키로 쓰일 수 있으므로 허용).
 
 **참고 구현: `PlayState` (TypeScript).** 에디터 테스트 플레이와 같은 판정 코드다 (3.5절의 `Chart`, `TimingMap` 사용). 사용자가 7장에서 다른 판정 방식을 고르면 이 코드를 고쳐서 쓴다.
 
@@ -468,7 +469,9 @@ export const JUDGE_WINDOWS = { perfect: 40, great: 80, good: 120 } as const;
 export const HOLD_RELEASE_TOLERANCE = 120;
 
 export type Judgement = 'perfect' | 'great' | 'good' | 'miss';
-export interface JudgeEvent { lane: number; judgement: Judgement; part: 'head' | 'tail'; ms: number }
+export type Timing = 'early' | 'late';
+/** timing은 GREAT·GOOD 머리 판정에만 붙는다 */
+export interface JudgeEvent { lane: number; judgement: Judgement; part: 'head' | 'tail'; ms: number; timing?: Timing }
 
 /** 입력 시각 − 노트 시각(ms)을 판정으로 바꾼다. 창 밖이면 null (치지 않은 것으로 본다) */
 export function judgeDelta(deltaMs: number): Judgement | null {
@@ -477,6 +480,12 @@ export function judgeDelta(deltaMs: number): Judgement | null {
   if (d <= JUDGE_WINDOWS.great) return 'great';
   if (d <= JUDGE_WINDOWS.good) return 'good';
   return null;
+}
+
+/** GREAT·GOOD이면 입력이 빨랐는지 늦었는지, PERFECT·MISS면 null */
+export function timingOf(deltaMs: number, judgement: Judgement): Timing | null {
+  if (judgement === 'perfect' || judgement === 'miss') return null;
+  return deltaMs < 0 ? 'early' : 'late';
 }
 
 export interface PlayNote { lane: number; startMs: number; endMs?: number; headJudged: boolean; tailJudged: boolean }
@@ -521,13 +530,17 @@ export class PlayState {
       const n = this.playNotes[idx];
       if (n.headJudged) continue;
       if (n.startMs - ms > JUDGE_WINDOWS.good) break;
-      const j = judgeDelta(ms - n.startMs);
+      const delta = ms - n.startMs;
+      const j = judgeDelta(delta);
       if (j === null) continue;
       n.headJudged = true;
       if (n.endMs === undefined) n.tailJudged = true;
       else this.holding[lane] = idx;
       this.advance(lane);
-      return [this.record(lane, j, 'head', ms)];
+      const e = this.record(lane, j, 'head', ms);
+      const timing = timingOf(delta, j);
+      if (timing) e.timing = timing;
+      return [e];
     }
     return [];
   }
@@ -594,13 +607,13 @@ export class PlayState {
 ```ts
 const state = new PlayState(chart, tm, /* fromMs */ 0);
 // 키 입력 → lane(트랙 위치)으로 바꾼 뒤, 그 순간의 곡 위치(ms, 4.3절)와 함께 넘긴다
-state.press(lane, nowMs);    // → JudgeEvent[]  { lane, judgement, part: 'head'|'tail', ms }
+state.press(lane, nowMs);    // → JudgeEvent[]  { lane, judgement, part: 'head'|'tail', ms, timing?: 'early'|'late' }
 state.release(lane, nowMs);
 state.update(nowMs);         // 매 프레임 호출
 state.combo; state.maxCombo; state.counts;   // { perfect, great, good, miss }
 ```
 
-화면(노트·판정선·키 라벨·판정 문구·콤보)은 게임이 직접 그린다. 노트 위치는 4.4절 공식을 따른다.
+화면(노트·판정선·키 라벨·판정 문구와 EARLY/LATE·콤보)은 게임이 직접 그린다. 노트 위치는 4.4절 공식을 따른다.
 
 ### 4.6 점수 (포맷이 정하지 않음 — 제안)
 

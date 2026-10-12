@@ -7,14 +7,21 @@ import { previewChart } from './previewChart'
 
 /** 시작 전 준비 시간 (첫 노트가 위에서부터 내려오도록) */
 const LEAD_MS = 1000
+/** 테스트 플레이 화면은 타이틀바(36px) 아래를 모두 덮는다 (PlaytestOverlay.module.css) */
+const TITLE_BAR_HEIGHT = 36
+
+/** 지금 창에서 테스트 플레이 화면의 높이 */
+const playViewHeight = () => window.innerHeight - TITLE_BAR_HEIGHT
 
 interface LayoutPreviewProps {
   layout: PlayfieldLayout
   className?: string
+  /** true면 테스트 플레이 화면 크기로 그린 것을 캔버스에 맞게 줄여 보여 준다 (작은 미리보기) */
+  fit?: boolean
 }
 
 /** 게임플레이 레이아웃 미리보기: 4키 데모 채보를 자동 플레이로 계속 반복한다. 키 입력은 받지 않는다. */
-export function LayoutPreview({ layout, className }: LayoutPreviewProps) {
+export function LayoutPreview({ layout, className, fit = false }: LayoutPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const playfieldRef = useRef<Playfield | null>(null)
   const layoutRef = useRef(layout)
@@ -38,7 +45,8 @@ export function LayoutPreview({ layout, className }: LayoutPreviewProps) {
         keymap: keys,
         layout: layoutRef.current,
         input: false,
-        autoplay: true
+        autoplay: true,
+        viewHeight: fit ? playViewHeight : undefined
       })
       playfieldRef.current = pf
       pf.start()
@@ -50,7 +58,7 @@ export function LayoutPreview({ layout, className }: LayoutPreviewProps) {
       playfieldRef.current?.stop()
       playfieldRef.current = null
     }
-  }, [])
+  }, [fit])
 
   useEffect(() => {
     playfieldRef.current?.setLayout(layout)

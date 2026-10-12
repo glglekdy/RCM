@@ -1,5 +1,8 @@
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { buildReleaseNotes, tagMessage } from './releaseNotes.mjs'
 import { compareVersions, isValidVersion, tagFor } from './version.mjs'
 
 const fail = (msg) => {
@@ -8,9 +11,16 @@ const fail = (msg) => {
 }
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' })
 
-const next = process.argv[2]
+// 사용법: npm run release -- X.Y.Z [--notes <업데이트 내역 파일>]
+const args = process.argv.slice(2)
+const next = args[0]
 if (!isValidVersion(next)) {
   fail(`버전 형식이 올바르지 않아요: ${next ?? '(없음)'} (예: 0.1.0)`)
+}
+const notesIdx = args.indexOf('--notes')
+const notesFile = notesIdx >= 0 ? args[notesIdx + 1] : undefined
+if (notesIdx >= 0 && (!notesFile || !existsSync(notesFile))) {
+  fail(`업데이트 내역 파일이 없어요: ${notesFile ?? '(없음)'}`)
 }
 
 const branch = git('rev-parse', '--abbrev-ref', 'HEAD').trim()
@@ -33,6 +43,22 @@ if (git('tag', '--list', tag).trim() !== '') {
   fail(`태그 ${tag}가 이미 있어요`)
 }
 
+// 업데이트 내역: 직접 쓴 파일이 있으면 그대로, 없으면 지난 태그 뒤 커밋(feat·fix·perf)으로 만든다
+let notes
+if (notesFile) {
+  notes = readFileSync(notesFile, 'utf8').trim()
+  if (notes === '') fail(`업데이트 내역 파일이 비어 있어요: ${notesFile}`)
+} else {
+  let range = 'HEAD'
+  try {
+    range = `${git('describe', '--tags', '--abbrev=0', '--match', 'v*').trim()}..HEAD`
+  } catch {
+    // 첫 배포: 모든 커밋
+  }
+  notes = buildReleaseNotes(git('log', '--no-merges', '--format=%s', range).split('\n').filter(Boolean))
+}
+console.log(`\n${tag} 업데이트 내역\n\n${notes}\n`)
+
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 let committed = false
 try {
@@ -43,7 +69,15 @@ try {
   git('add', 'apps/editor/package.json', 'package-lock.json')
   git('commit', '-m', `chore: release ${tag}`)
   committed = true
-  git('tag', '-a', tag, '-m', tag)
+  // '## 제목'이 주석으로 지워지지 않게 메시지를 그대로 둔다
+  const dir = mkdtempSync(join(tmpdir(), 'rcm-release-'))
+  try {
+    const msgFile = join(dir, 'TAG_MSG')
+    writeFileSync(msgFile, tagMessage(tag, notes))
+    git('tag', '-a', tag, '-F', msgFile, '--cleanup=verbatim')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 } catch (err) {
   console.error(`배포 준비 중 실패했어요: ${err.message}`)
   if (committed) {

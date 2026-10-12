@@ -51,7 +51,7 @@ npm run release -- X.Y.Z
 git push --follow-tags
 ```
 
-`npm run release`는 `apps/editor`의 버전을 올리고 `chore: release vX.Y.Z` 커밋과 `vX.Y.Z` 태그를 만들 뿐 push는 하지 않습니다. 태그가 push되면 `.github/workflows/release.yml`이 Windows에서 태그와 앱 버전이 같은지 확인하고 테스트와 타입 검사를 돌린 뒤, 설치 파일(`RCM-Setup-X.Y.Z.exe`, `.blockmap`, `latest.yml`)을 `RCM` 저장소에 초안 Release로 올리고, `latest.yml`과 설치 파일이 모두 있는지 확인한 뒤 정식 릴리스로 공개합니다. 공개되기 전의 초안은 사용자에게 보이지 않습니다.
+`npm run release`는 `apps/editor`의 버전을 올리고 `chore: release vX.Y.Z` 커밋과 `vX.Y.Z` 태그를 만들 뿐 push는 하지 않습니다. 태그 메시지에는 업데이트 내역이 들어가고, 같은 내용이 `RCM` 저장소 Release 본문에도 올라갑니다. 내역은 지난 태그 뒤의 커밋 중 `feat`(새 기능), `fix`(버그 수정), `perf`(성능 개선)를 종류별로 모아 자동으로 만들고, 실행할 때 화면에 보여 줍니다. 직접 쓴 내역을 쓰려면 Markdown 파일을 저장소 밖에 만들어 `npm run release -- X.Y.Z --notes <파일 경로>`로 넘기세요 (저장소 안에 두면 커밋 안 된 변경으로 보여 거부됩니다). 태그의 내역은 `git tag -n99 vX.Y.Z`로 볼 수 있습니다. 태그가 push되면 `.github/workflows/release.yml`이 Windows에서 태그와 앱 버전이 같은지 확인하고 테스트와 타입 검사를 돌린 뒤, 설치 파일(`RCM-Setup-X.Y.Z.exe`, `.blockmap`, `latest.yml`)을 `RCM` 저장소에 초안 Release로 올리고, `latest.yml`과 설치 파일이 모두 있는지 확인한 뒤 정식 릴리스로 공개합니다. 공개되기 전의 초안은 사용자에게 보이지 않습니다.
 
 ### 실패했을 때
 

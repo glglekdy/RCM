@@ -12,6 +12,13 @@ describe('PlayState', () => {
     expect(s.press(0, 700)).toEqual([]);
     expect(s.combo).toBe(1);
   });
+  it('PERFECT가 아닌 머리 판정에는 EARLY/LATE가 붙는다', () => {
+    const notes: Note[] = [{ tick: 480, track: 'Note_1', type: 'tap' }, { tick: 960, track: 'Note_1', type: 'tap' }];
+    const s = new PlayState(chart(notes), tm, 0);
+    expect(s.press(0, 440)).toEqual([{ lane: 0, judgement: 'great', part: 'head', ms: 440, timing: 'early' }]);
+    expect(s.press(0, 1100)).toEqual([{ lane: 0, judgement: 'good', part: 'head', ms: 1100, timing: 'late' }]);
+    expect(new PlayState(chart(notes), tm, 0).press(0, 530)[0]).not.toHaveProperty('timing');
+  });
   it('지나간 노트는 miss', () => {
     const s = new PlayState(chart([{ tick: 480, track: 'Note_1', type: 'tap' }]), tm, 0);
     expect(s.update(620)).toEqual([]);

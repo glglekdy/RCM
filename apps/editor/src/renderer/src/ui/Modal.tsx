@@ -7,9 +7,11 @@ interface ModalProps {
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
+  /** 넓은 창 (템플릿 고르기 등) */
+  wide?: boolean
 }
 
-export function Modal({ open, title, onClose, children, footer }: ModalProps) {
+export function Modal({ open, title, onClose, children, footer, wide = false }: ModalProps) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -25,7 +27,7 @@ export function Modal({ open, title, onClose, children, footer }: ModalProps) {
   if (!open) return null
   return (
     <div className={styles.overlay} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={styles.box} role="dialog" aria-modal="true" aria-label={title}>
+      <div className={`${styles.box} ${wide ? styles.wide : ''}`} role="dialog" aria-modal="true" aria-label={title}>
         <h2 className={styles.title}>{title}</h2>
         <div className={styles.body}>{children}</div>
         {footer && <div className={styles.footer}>{footer}</div>}

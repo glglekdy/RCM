@@ -1,5 +1,9 @@
 const SYMBOLS: Record<string, string> = {
   Semicolon: ';',
+  Quote: "'",
+  Comma: ',',
+  Period: '.',
+  Slash: '/',
   ShiftLeft: 'L Shift',
   ShiftRight: 'R Shift',
   Space: 'Space',

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { CircleAlert, Copy, Plus, RotateCcw, Trash2 } from 'lucide-react'
-import { basicTracks, nextTrackId } from '@rcm/core'
+import { nextTrackId } from '@rcm/core'
 import {
   AUTO_KEYS,
   DEFAULT_PRESETS,
@@ -14,6 +14,7 @@ import {
 } from '../../../shared/presets'
 import { Button, TextField, useDialogs } from '../ui'
 import { moveIndex } from '../ui/reorder'
+import { NewPresetDialog } from './NewPresetDialog'
 import { getPresets, savePresets, usePresets } from './presetStore'
 import { TrackRowsEditor } from './TrackRowsEditor'
 import styles from './PresetsPage.module.css'
@@ -33,6 +34,8 @@ export function PresetsPage() {
   const [selectedId, setSelectedId] = useState(() => presets[0].id)
   /** 규칙 위반이 있어 저장하지 않은 편집 (프리셋 id → 화면에 보일 값). 이 화면을 떠나면 버린다 */
   const [drafts, setDrafts] = useState<ReadonlyMap<string, TrackPreset>>(() => new Map())
+  /** `새 프리셋` 템플릿 창이 열려 있는지 */
+  const [creating, setCreating] = useState(false)
 
   const shownOf = (p: TrackPreset): TrackPreset => drafts.get(p.id) ?? p
   const stored = presets.find((p) => p.id === selectedId) ?? presets[0]
@@ -70,15 +73,11 @@ export function PresetsPage() {
     void save(getPresets().map((p) => (p.id === next.id ? next : p)))
   }
 
-  const addPreset = () => {
-    const list = getPresets()
-    const p: TrackPreset = {
-      id: newPresetId(list),
-      name: '새 프리셋',
-      tracks: basicTracks(4).map((t, i) => ({ ...t, key: AUTO_KEYS[i] }))
-    }
+  /** 템플릿 창에서 고른 프리셋을 목록 끝에 추가하고 고른다 */
+  const addPreset = (p: TrackPreset) => {
+    setCreating(false)
     setSelectedId(p.id)
-    void save([...list, p])
+    void save([...getPresets(), p])
   }
 
   const duplicate = () => {
@@ -147,7 +146,7 @@ export function PresetsPage() {
             ))}
           </div>
           <div className={styles.actions}>
-            <Button variant="ghost" onClick={addPreset}>
+            <Button variant="ghost" onClick={() => setCreating(true)}>
               <Plus size={16} /> 새 프리셋
             </Button>
             <Button variant="ghost" onClick={duplicate}>
@@ -202,6 +201,7 @@ export function PresetsPage() {
           />
         </section>
       </div>
+      <NewPresetDialog open={creating} onClose={() => setCreating(false)} onCreate={addPreset} />
     </div>
   )
 }

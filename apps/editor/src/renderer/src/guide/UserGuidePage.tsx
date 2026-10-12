@@ -159,7 +159,8 @@ export function UserGuidePage() {
             <li>
               <b>트랙 프리셋</b>은 자주 쓰는 트랙 구성과 키 배치를 저장해 둔 것이에요. 새 프로젝트나 난이도를 만들 때
               고르고, 왼쪽 <code>트랙 프리셋</code> 메뉴에서 관리해요. 채보 탭의 <code>프리셋으로 저장</code>으로 지금
-              트랙을 프리셋으로 만들 수도 있어요.
+              트랙을 프리셋으로 만들 수도 있어요. <code>새 프리셋</code>을 누르면 빈 프리셋이나 DJMAX · EZ2ON · Muse
+              Dash · osu!mania 배치를 골라 시작할 수 있어요.
             </li>
             <li className={styles.muted}>
               녹음 · 테스트 플레이의 키는 트랙 이름이 같은 프리셋의 키를 쓰고, 없으면 A S D F J K L ; … 순서로 자동

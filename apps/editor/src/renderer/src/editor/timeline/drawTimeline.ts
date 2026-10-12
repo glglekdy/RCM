@@ -85,6 +85,10 @@ const HOLD_BODY_INSET = 8
 const HOLD_BODY_ALPHA = 0.6
 const PREVIEW_ALPHA = 0.5
 const SELECTED_BORDER = 2
+/** 기믹 노트 테두리 두께와 기믹 트랙 바탕 빗금 */
+const GIMMICK_BORDER = 2
+const HATCH_GAP = 8
+const HATCH_ALPHA = 0.06
 const CHIP_HEIGHT = 20
 /** 속도 그래프 띠가 꽉 차는 배율 (그 이상은 잘린다) */
 const SPEED_GRAPH_MAX = 4
@@ -108,6 +112,7 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
   // 트랙 바탕·구분선
   ctx.fillStyle = COLORS.laneBg
   ctx.fillRect(left, 0, right - left, h)
+  for (const col of layout.columns) if (col.gimmick) drawHatch(ctx, col, h)
   drawDividers(ctx, layout, 0, h)
 
   // 녹음 중 눌린 트랙: 트랙 전체 높이를 강조
@@ -311,7 +316,7 @@ function drawTrackNames(ctx: CanvasRenderingContext2D, layout: TimelineLayout): 
   ctx.textBaseline = 'middle'
   ctx.fillStyle = COLORS.trackName
   for (const col of layout.columns) {
-    const text = fitText(ctx, col.id, col.width - NAME_PADDING * 2)
+    const text = fitText(ctx, col.gimmick ? `⚙ ${col.id}` : col.id, col.width - NAME_PADDING * 2)
     ctx.fillText(text, col.x + col.width / 2, TRACK_NAME_HEIGHT / 2 + 0.5)
   }
   ctx.textAlign = 'start'
@@ -395,6 +400,24 @@ function drawWaveform(ctx: CanvasRenderingContext2D, p: DrawParams, peaks: Wavef
   }
 }
 
+/** 기믹 트랙 바탕: 트랙 색의 옅은 45° 빗금 (열 안으로 자른다) */
+function drawHatch(ctx: CanvasRenderingContext2D, col: TimelineColumn, h: number): void {
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(col.x, 0, col.width, h)
+  ctx.clip()
+  ctx.strokeStyle = col.color
+  ctx.globalAlpha = HATCH_ALPHA
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  for (let x = col.x - h; x < col.x + col.width; x += HATCH_GAP) {
+    ctx.moveTo(x, h)
+    ctx.lineTo(x + h, 0)
+  }
+  ctx.stroke()
+  ctx.restore()
+}
+
 function drawNote(
   ctx: CanvasRenderingContext2D,
   p: DrawParams,
@@ -407,10 +430,23 @@ function drawNote(
   const { view, tm } = p
   const x = col.x
   const y = msToY(view, tm.tickToMs(note.tick))
-  ctx.fillStyle = color
-  ctx.strokeStyle = COLORS.selected
-  ctx.lineWidth = SELECTED_BORDER
   ctx.globalAlpha = alpha
+  // 기믹 노트는 속이 빈 테두리로 그린다. 선택 테두리는 그 위에
+  const paint = () => {
+    if (col.gimmick) {
+      ctx.strokeStyle = color
+      ctx.lineWidth = GIMMICK_BORDER
+      ctx.stroke()
+    } else {
+      ctx.fillStyle = color
+      ctx.fill()
+    }
+    if (selected) {
+      ctx.strokeStyle = COLORS.selected
+      ctx.lineWidth = SELECTED_BORDER
+      ctx.stroke()
+    }
+  }
 
   if (note.type === 'hold') {
     const yEnd = msToY(view, tm.tickToMs(note.endTick))
@@ -423,9 +459,8 @@ function drawNote(
       y - yEnd + NOTE_HEIGHT / 2,
       NOTE_RADIUS
     )
-    ctx.fill()
+    paint()
     ctx.globalAlpha = alpha
-    if (selected) ctx.stroke()
   }
 
   ctx.beginPath()
@@ -436,8 +471,7 @@ function drawNote(
     NOTE_HEIGHT,
     NOTE_RADIUS
   )
-  ctx.fill()
-  if (selected) ctx.stroke()
+  paint()
   ctx.globalAlpha = 1
 }
 

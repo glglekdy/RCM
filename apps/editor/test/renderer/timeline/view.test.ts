@@ -26,7 +26,7 @@ describe('timeline view', () => {
     expect(l.totalWidth).toBe(192)
     expect(l.waveX).toBe(332)
     expect(l.labelX).toBe(404 + 192 + 8 + 28)
-    expect(l.columns[0]).toEqual({ id: 'Note_1', x: 404, width: 48, color: '#f2f2f2' })
+    expect(l.columns[0]).toEqual({ id: 'Note_1', x: 404, width: 48, color: '#f2f2f2', gimmick: false })
     expect(xToLane(l, 404)).toBe(0)
     expect(xToLane(l, 595)).toBe(3)
     expect(xToLane(l, 403)).toBeNull()
@@ -43,6 +43,10 @@ describe('timeline view', () => {
     expect(xToLane(l, 572)).toBeNull()
     expect(l.waveX).toBe(428 - 8 - 64)
     expect(l.labelX).toBe(428 + 144 + 8 + 28)
+  })
+  it('열은 기믹 트랙인지 안다', () => {
+    const l = layoutTimeline(1000, [{ id: 'A' }, { id: 'G', kind: 'gimmick' }])
+    expect(l.columns.map((c) => c.gimmick)).toEqual([false, true])
   })
   it('속도 그래프 띠와 라벨 위치', () => {
     const l = layoutTimeline(1000, [{ id: 'Side_L' }, { id: 'Note_1' }, { id: 'T' }])

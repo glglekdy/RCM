@@ -1,6 +1,7 @@
 import {
   DEFAULT_NOTE_COLOR,
   formatSpeed,
+  isGimmick,
   stepTick,
   type SnapDivision,
   type SpeedPoint,
@@ -39,6 +40,8 @@ export interface TimelineColumn {
   x: number
   width: number
   color: string
+  /** 판정 없는 기믹 트랙: 빗금 바탕, 속 빈 노트로 그린다 */
+  gimmick: boolean
 }
 
 export interface TimelineLayout {
@@ -59,7 +62,8 @@ export function layoutTimeline(width: number, tracks: readonly Track[]): Timelin
     id: t.id,
     x: tracksX + i * TRACK_PX,
     width: TRACK_PX,
-    color: t.color ?? DEFAULT_NOTE_COLOR
+    color: t.color ?? DEFAULT_NOTE_COLOR,
+    gimmick: isGimmick(t)
   }))
   const speedX = tracksX + totalWidth + GAP
   return {

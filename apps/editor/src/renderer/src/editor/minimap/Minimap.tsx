@@ -32,6 +32,8 @@ const TAP_HEIGHT = 2
 const TRACK_GAP = 1
 /** 노트 막대는 트랙 색을 이만큼 흐리게 */
 const NOTE_ALPHA = 0.7
+/** 기믹 노트는 플레이 노트보다 흐리게 (NOTE_ALPHA에 곱한다) */
+const GIMMICK_ALPHA = 0.4
 
 const crisp = (v: number) => Math.round(v) + 0.5
 
@@ -64,7 +66,7 @@ function drawStatic(canvas: HTMLCanvasElement, p: StaticInput): void {
   const columns = new Map(
     layout.columns.map((c) => [
       c.id,
-      { x: PADDING + (c.x - layout.tracksX) * scale, width: c.width * scale, color: c.color }
+      { x: PADDING + (c.x - layout.tracksX) * scale, width: c.width * scale, color: c.color, gimmick: c.gimmick }
     ])
   )
 
@@ -74,6 +76,8 @@ function drawStatic(canvas: HTMLCanvasElement, p: StaticInput): void {
     const col = columns.get(note.track)
     if (!col) continue
     ctx.fillStyle = col.color
+    // 기믹 노트는 판정 대상이 아니므로 흐리게
+    ctx.globalAlpha = col.gimmick ? NOTE_ALPHA * GIMMICK_ALPHA : NOTE_ALPHA
     const start = Math.round(y(tm.tickToMs(note.tick)))
     if (note.type === 'hold') {
       const end = Math.round(y(tm.tickToMs(note.endTick)))

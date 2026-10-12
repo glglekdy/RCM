@@ -5,6 +5,7 @@ import {
   TEMPLATE_GROUPS,
   defaultTemplateName,
   presetFromTemplate,
+  templateShadowedBy,
   type PresetTemplate
 } from '../../src/shared/presetTemplates'
 
@@ -100,5 +101,13 @@ describe('presetTemplates', () => {
     } finally {
       now.mockRestore()
     }
+  })
+
+  it('트랙 이름이 같은 앞 프리셋이 있으면 알려 준다 (그 프리셋의 키가 쓰인다)', () => {
+    // DJMAX 6B는 기본 '6K + 사이드'와 트랙 이름이 같아 그 키에 가려진다
+    expect(templateShadowedBy(template('djmax', '6b'), DEFAULT_PRESETS)?.name).toBe('6K + 사이드')
+    expect(templateShadowedBy(template('djmax', '5b'), DEFAULT_PRESETS)).toBeNull()
+    expect(templateShadowedBy(template('musedash', '2lane'), DEFAULT_PRESETS)).toBeNull()
+    expect(templateShadowedBy(template('osu', '4k'), DEFAULT_PRESETS)?.name).toBe('4K')
   })
 })

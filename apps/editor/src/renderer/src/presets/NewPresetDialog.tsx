@@ -7,6 +7,7 @@ import {
   TEMPLATE_GROUPS,
   defaultTemplateName,
   presetFromTemplate,
+  templateShadowedBy,
   type PresetTemplate,
   type TemplateGroup
 } from '../../../shared/presetTemplates'
@@ -49,6 +50,7 @@ export function NewPresetDialog({ open, onClose, onCreate }: NewPresetDialogProp
 
   // 고른 템플릿이 속한 탭 (다른 탭을 보는 중에도 오른쪽 정보와 만들기는 고른 템플릿 기준)
   const pickedGroup = TEMPLATE_GROUPS.find((g) => g.templates.includes(picked)) ?? group
+  const shadow = templateShadowedBy(picked, getPresets())
 
   return (
     <Modal
@@ -109,6 +111,11 @@ export function NewPresetDialog({ open, onClose, onCreate }: NewPresetDialogProp
               <TextField value={name} onChange={setName} placeholder={defaultTemplateName(pickedGroup, picked)} width={220} />
             </label>
             <span className={styles.label}>트랙 {picked.tracks.length}개</span>
+            {shadow && (
+              <p className={styles.shadow}>
+                트랙 이름이 같은 '{shadow.name}' 프리셋이 앞에 있어서, 녹음 · 테스트 플레이에는 그 프리셋의 키가 쓰여요.
+              </p>
+            )}
             <ul className={styles.trackList}>
               {picked.tracks.map((t) => (
                 <li key={t.id} className={styles.trackRow}>

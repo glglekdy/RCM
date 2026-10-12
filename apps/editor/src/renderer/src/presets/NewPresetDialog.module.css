@@ -177,3 +177,13 @@
 .trackKey {
   text-align: right;
 }
+
+.shadow {
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  font-size: 12px;
+  line-height: 1.4;
+}

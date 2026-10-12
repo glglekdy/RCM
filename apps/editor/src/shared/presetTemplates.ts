@@ -1,4 +1,4 @@
-import { DEFAULT_PRESETS, newPresetId, type PresetTrack, type TrackPreset } from './presets'
+import { DEFAULT_PRESETS, newPresetId, shadowingPreset, type PresetTrack, type TrackPreset } from './presets'
 
 /** `새 프리셋` 창에서 고르는 내장 프리셋 틀. 만들 때 복사한다. */
 export interface PresetTemplate {
@@ -104,4 +104,13 @@ export function presetFromTemplate(
     name: trimmed === '' ? fallbackName : trimmed,
     tracks: t.tracks.map((track) => ({ ...track }))
   }
+}
+
+/**
+ * 이 템플릿으로 만든 프리셋(목록 끝에 붙는다)을 가리는 앞 프리셋. 트랙 이름이 같은 프리셋은 앞의 것의 키가
+ * 녹음·플레이에 쓰이므로(트랙 스펙 3.4) 만들기 전에 알려 준다. 없으면 null.
+ */
+export function templateShadowedBy(t: PresetTemplate, presets: readonly TrackPreset[]): TrackPreset | null {
+  const candidate: TrackPreset = { id: '', name: t.name, tracks: [...t.tracks] }
+  return shadowingPreset([...presets, candidate], presets.length)
 }

@@ -28,8 +28,6 @@ export const AUTO_KEYS: readonly string[] = [
 /** 프리셋 id 최대 길이 (설정 파일·마지막 프리셋 id 검사) */
 export const MAX_PRESET_ID_LENGTH = 64
 
-const SIDE_COLOR = '#f59e0b'
-
 function notes(keys: string[]): PresetTrack[] {
   return keys.map((key, i) => ({ id: `Note_${i + 1}`, key }))
 }
@@ -43,13 +41,7 @@ export const DEFAULT_PRESETS: readonly TrackPreset[] = Object.freeze([
   preset('4k', '4K', notes(['KeyD', 'KeyF', 'KeyJ', 'KeyK'])),
   preset('5k', '5K', notes(['KeyD', 'KeyF', 'Space', 'KeyJ', 'KeyK'])),
   preset('6k', '6K', notes(['KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL'])),
-  preset('7k', '7K', notes(['KeyS', 'KeyD', 'KeyF', 'Space', 'KeyJ', 'KeyK', 'KeyL'])),
-  preset('8k', '8K', notes(['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon'])),
-  preset('6k-side', '6K + 사이드', [
-    { id: 'Side_L', color: SIDE_COLOR, key: 'ShiftLeft' },
-    ...notes(['KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL']),
-    { id: 'Side_R', color: SIDE_COLOR, key: 'ShiftRight' }
-  ])
+  preset('8k', '8K', notes(['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon']))
 ])
 
 function copyPreset(p: TrackPreset): TrackPreset {

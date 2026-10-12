@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { DEFAULT_PRESETS, hasPresetErrors, presetErrors, type PresetTrack } from '../../src/shared/presets'
+import { DEFAULT_PRESETS, hasPresetErrors, presetErrors, type PresetTrack, type TrackPreset } from '../../src/shared/presets'
 import {
   BLANK_TEMPLATE,
   TEMPLATE_GROUPS,
@@ -74,8 +74,6 @@ describe('presetTemplates', () => {
     expect(color('Trigger_L')).toBe('#f43f5e')
     expect(color('Trigger_R')).toBe('#f43f5e')
     expect(template('djmax', '4b').tracks[0].color).toBe('#38bdf8')
-    // 기본 탭의 '6K + 사이드'는 그대로 주황
-    expect(group('basic').templates.find((t) => t.name === '6K + 사이드')!.tracks[0].color).toBe('#f59e0b')
   })
 
   it('EZ2ON · Muse Dash · osu!mania 배치', () => {
@@ -115,9 +113,11 @@ describe('presetTemplates', () => {
   })
 
   it('트랙 이름이 같은 앞 프리셋이 있으면 알려 준다 (그 프리셋의 키가 쓰인다)', () => {
-    // DJMAX 6B는 기본 '6K + 사이드'와 트랙 이름이 같아 그 키에 가려진다
-    expect(templateShadowedBy(template('djmax', '6b'), DEFAULT_PRESETS)?.name).toBe('6K + 사이드')
-    expect(templateShadowedBy(template('djmax', '5b'), DEFAULT_PRESETS)).toBeNull()
+    // osu!mania 4K는 기본 4K와 트랙 이름이 같아 그 키에 가려진다. 기본에 7K가 없으니 7K는 아니다
+    expect(templateShadowedBy(template('osu', '7k'), DEFAULT_PRESETS)).toBeNull()
+    expect(templateShadowedBy(template('djmax', '6b'), DEFAULT_PRESETS)).toBeNull()
+    const custom: TrackPreset = { id: 'c', name: '내 6B', tracks: [...template('djmax', '6b').tracks] }
+    expect(templateShadowedBy(template('djmax', '6b'), [custom])?.name).toBe('내 6B')
     expect(templateShadowedBy(template('musedash', '2lane'), DEFAULT_PRESETS)).toBeNull()
     expect(templateShadowedBy(template('osu', '4k'), DEFAULT_PRESETS)?.name).toBe('4K')
   })

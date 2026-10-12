@@ -16,11 +16,11 @@ const t = (id: string, key: string | null = null): PresetTrack => ({ id, key })
 
 describe('presets', () => {
   it('기본 프리셋', () => {
-    expect(DEFAULT_PRESETS.map((p) => p.name)).toEqual(['4K', '5K', '6K', '7K', '8K', '6K + 사이드'])
-    const side = DEFAULT_PRESETS[5]
-    expect(side.tracks.map((x) => `${x.id}=${x.key}`)).toEqual([
-      'Side_L=ShiftLeft', 'Note_1=KeyS', 'Note_2=KeyD', 'Note_3=KeyF',
-      'Note_4=KeyJ', 'Note_5=KeyK', 'Note_6=KeyL', 'Side_R=ShiftRight'
+    expect(DEFAULT_PRESETS.map((p) => p.name)).toEqual(['4K', '5K', '6K', '8K'])
+    expect(DEFAULT_PRESETS.map((p) => p.id)).toEqual(['4k', '5k', '6k', '8k'])
+    expect(DEFAULT_PRESETS[3].tracks.map((x) => `${x.id}=${x.key}`)).toEqual([
+      'Note_1=KeyA', 'Note_2=KeyS', 'Note_3=KeyD', 'Note_4=KeyF',
+      'Note_5=KeyJ', 'Note_6=KeyK', 'Note_7=KeyL', 'Note_8=Semicolon'
     ])
     expect(DEFAULT_PRESETS.every((p) => !hasPresetErrors(presetErrors(p)))).toBe(true)
   })
@@ -169,7 +169,10 @@ describe('presets', () => {
   })
 
   it('채보로 복사할 때 키와 기본값 제거', () => {
-    expect(presetToChartTracks(DEFAULT_PRESETS[5])[0]).toEqual({ id: 'Side_L', color: '#f59e0b' })
+    expect(presetToChartTracks({ id: 'x', name: 'P', tracks: [{ id: 'Side_L', color: '#f59e0b', key: 'ShiftLeft' }] })[0]).toEqual({
+      id: 'Side_L',
+      color: '#f59e0b'
+    })
     expect(presetToChartTracks(DEFAULT_PRESETS[0])[0]).toEqual({ id: 'Note_1' })
   })
 

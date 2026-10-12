@@ -405,6 +405,7 @@ const endPos = notes.map(n => (n.endMs === undefined ? undefined : scroll.positi
   - `Note_1`…`Note_N` → 일반 레인 (번호 순서대로 왼쪽부터)
   - `Side_L` / `Side_R` → 사이드 트랙 (예: 왼쪽/오른쪽 Shift, 넓은 판정 영역)
   - `Trigger_1` 등 → 게임이 정의하는 특수 입력
+- **`kind: "gimmick"` 트랙**: 치는 레인이 아니다. 키를 배정하지 않고 판정·콤보·점수에서 뺀다. 노트는 게임이 정한 의미(장애물·연출 등)로 해석한다.
 - **배열 순서를 화면 배치로 사용**: `tracks` 배열 순서가 에디터의 왼쪽→오른쪽 순서다. 특별한 배치가 없다면 이 순서대로 레인을 그리면 된다.
 - **모르는 트랙 이름**: 게임이 지원하지 않는 트랙이 있으면 (a) 그 채보를 "지원하지 않음"으로 표시하거나 (b) 그 트랙 노트를 무시한다. 조용히 다른 레인에 옮기지 말 것.
 - **키 배치는 게임 설정이다**: 에디터의 키 배치(프리셋)는 앱 설정에만 있고 채보 파일에는 없다. 에디터 기본값을 따르고 싶다면: 4K `D F J K` / 5K `D F Space J K` / 6K `S D F J K L` / 7K `S D F Space J K L` / 8K `A S D F J K L ;` / 6K+사이드 `LShift, S D F J K L, RShift`.
@@ -507,7 +508,7 @@ export class PlayState {
   constructor(chart: Chart, tm: TimingMap, fromMs: number) {
     for (const n of chart.notes) {
       const lane = chart.tracks.findIndex(t => t.id === n.track);
-      if (lane < 0) continue;
+      if (lane < 0 || chart.tracks[lane].kind === 'gimmick') continue;  // 기믹 노트는 판정하지 않는다
       const startMs = tm.tickToMs(n.tick);
       if (startMs < fromMs) continue;
       this.playNotes.push({

@@ -5,7 +5,32 @@ import { PlayState } from '../src';
 const tm = new TimingMap([{ tick: 0, bpm: 120 }], 0);
 const chart = (notes: Note[]): Chart => ({ formatVersion: 1, name: 't', level: 1, tracks: basicTracks(4), notes });
 
+const withGimmick = (notes: Note[]): Chart => ({
+  formatVersion: 1, name: 't', level: 1, tracks: [{ id: 'A' }, { id: 'G', kind: 'gimmick' }], notes,
+});
+
 describe('PlayState', () => {
+  it('기믹 레인 노트는 판정하지 않는다', () => {
+    const s = new PlayState(withGimmick([
+      { tick: 480, track: 'A', type: 'tap' },
+      { tick: 480, track: 'G', type: 'tap' },
+      { tick: 960, track: 'G', type: 'hold', endTick: 1920 },
+    ]), tm, 0);
+    expect(s.notes.map(n => n.lane)).toEqual([0]);
+    expect(s.press(1, 500)).toEqual([]);
+    s.update(10_000);
+    expect(s.counts).toEqual({ perfect: 0, great: 0, good: 0, miss: 1 });
+  });
+  it('기믹 트랙만 있는 채보', () => {
+    const c: Chart = { formatVersion: 1, name: 't', level: 1, tracks: [{ id: 'G', kind: 'gimmick' }],
+      notes: [{ tick: 0, track: 'G', type: 'hold', endTick: 960 }] };
+    const s = new PlayState(c, tm, 0);
+    expect(s.notes).toHaveLength(0);
+    expect(s.press(0, 0)).toEqual([]);
+    expect(s.release(0, 10)).toEqual([]);
+    expect(s.update(10_000)).toEqual([]);
+    expect(s.combo).toBe(0);
+  });
   it('tap 판정과 콤보', () => {
     const s = new PlayState(chart([{ tick: 480, track: 'Note_1', type: 'tap' }, { tick: 960, track: 'Note_1', type: 'tap' }]), tm, 0);
     expect(s.press(0, 530)).toEqual([{ lane: 0, judgement: 'perfect', part: 'head', ms: 530 }]);

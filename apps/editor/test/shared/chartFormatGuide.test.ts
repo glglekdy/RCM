@@ -104,9 +104,11 @@ describe('CHART_FORMAT_GUIDE.md', () => {
         formatVersion: 1,
         name: 'T',
         level: 1,
-        tracks: [{ id: 'Note_1' }, { id: 'Note_2' }],
+        tracks: [{ id: 'Note_1' }, { id: 'Note_2' }, { id: 'Saw', kind: 'gimmick' }],
         notes: [
           { tick: 480, track: 'Note_1', type: 'tap' },
+          { tick: 480, track: 'Saw', type: 'tap' },
+          { tick: 1920, track: 'Saw', type: 'hold', endTick: 2400 },
           { tick: 960, track: 'Note_2', type: 'hold', endTick: 1920 },
           { tick: 1440, track: 'Note_1', type: 'tap' },
           { tick: 2400, track: 'Note_1', type: 'hold', endTick: 2880 },
@@ -125,6 +127,8 @@ describe('CHART_FORMAT_GUIDE.md', () => {
         ['update', 0, 3000], // 끝까지 누름: 꼬리 PERFECT
         ['release', 0, 3010],
         ['update', 0, 3200], // 3000ms 노트 놓침: MISS
+        ['press', 2, 500], // 기믹 레인: 판정 없음
+        ['update', 0, 2600], // 기믹 롱노트가 지나가도 판정 없음
         ['press', 1, 4000], // PERFECT
         ['update', 0, 5000]
       ]

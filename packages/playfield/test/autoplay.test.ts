@@ -69,4 +69,11 @@ describe('autoplayStep', () => {
     expect(autoplayStep(s, 499)).toEqual([]);
     expect(autoplayStep(s, 500)).toEqual([{ lane: 0, judgement: 'perfect', part: 'head', ms: 500 }]);
   });
+  it('기믹 노트는 자동 플레이도 치지 않는다', () => {
+    const c: Chart = { formatVersion: 1, name: 't', level: 1, tracks: [{ id: 'G', kind: 'gimmick' }, { id: 'A' }],
+      notes: [{ tick: 480, track: 'G', type: 'tap' }, { tick: 960, track: 'G', type: 'hold', endTick: 1440 }, { tick: 480, track: 'A', type: 'tap' }] };
+    const state = new PlayState(c, tm, 0);
+    expect(run(state, 3000).map(e => e.lane)).toEqual([1]);
+    expect(state.counts.perfect).toBe(1);
+  });
 });

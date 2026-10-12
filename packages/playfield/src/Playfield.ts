@@ -2,6 +2,7 @@ import { DEFAULT_NOTE_COLOR, ScrollMap, type Chart, type TimingMap } from '@rcm/
 import { HOLD_RELEASE_TOLERANCE, type JudgeEvent, type Judgement, type Timing } from './judge';
 import { HeldKeys, keysLabel, trackForCode, trackForKey, type TrackKeymap } from './keymap';
 import { autoplayStep } from './autoplay';
+import { gimmickNotes, type GimmickNote } from './gimmick';
 import { DEFAULT_LAYOUT, sanitizeLayout, type PlayfieldLayout } from './layout';
 import { PlayState } from './playState';
 import {
@@ -88,6 +89,10 @@ const NOTE_RADIUS = 3;
 const HOLD_BODY_ALPHA = 0.6;
 /** 놓쳤거나 일찍 뗀 롱노트의 남은 부분 */
 const MISSED_HOLD_ALPHA = 0.3;
+/** 기믹 노트: 판정 없이 흐린 테두리로만 그린다 */
+const GIMMICK_ALPHA = 0.5;
+const GIMMICK_BORDER = 2;
+const GIMMICK_LABEL = '⚙';
 const FONT = 'Pretendard, system-ui, sans-serif';
 
 const JUDGEMENT_TEXT: Record<Judgement, string> = {
@@ -117,6 +122,9 @@ export class Playfield {
   private readonly endPos: number[];
   /** 가장 긴 롱노트 길이(스크롤 위치 단위). 머리가 화면 아래로 지나간 롱노트도 그리기 위해 탐색 시작을 이만큼 당긴다. */
   private readonly maxHoldSpanPos: number;
+  /** 판정하지 않는 기믹 노트와 그 스크롤 위치 */
+  private readonly gimmicks: GimmickNote[];
+  private readonly gimmickPos: { startPos: number[]; endPos: number[]; maxHoldSpanPos: number };
   private readonly pressed: boolean[];
   /** 레인별로 눌린 키. 보조 키가 있는 레인은 두 키를 모두 떼야 뗀 것이다 */
   private readonly held = new HeldKeys();
@@ -136,7 +144,7 @@ export class Playfield {
     this.ctx = ctx;
     this.colors = { ...DEFAULT_PLAYFIELD_COLORS, ...opts.colors };
     this.lanes = opts.chart.tracks.length;
-    this.labels = opts.chart.tracks.map(t => keysLabel(opts.keymap.get(t.id)));
+    this.labels = opts.chart.tracks.map(t => (t.kind === 'gimmick' ? GIMMICK_LABEL : keysLabel(opts.keymap.get(t.id))));
     this.noteColors = opts.chart.tracks.map(t => t.color ?? DEFAULT_NOTE_COLOR);
     this.state = new PlayState(opts.chart, opts.tm, opts.fromMs);
     this.scroll = new ScrollMap(opts.chart.speeds, opts.tm);
@@ -144,6 +152,8 @@ export class Playfield {
     this.startPos = pos.startPos;
     this.endPos = pos.endPos;
     this.maxHoldSpanPos = pos.maxHoldSpanPos;
+    this.gimmicks = gimmickNotes(opts.chart, opts.tm, opts.fromMs);
+    this.gimmickPos = notePositions(this.gimmicks, this.scroll);
     this.pressed = Array.from({ length: this.lanes }, () => false);
     this.speed = clampSpeed(opts.speed);
     this.layout = sanitizeLayout(opts.layout ?? DEFAULT_LAYOUT);
@@ -279,6 +289,7 @@ export class Playfield {
     for (const c of cols) ctx.fillRect(c.x, 0, 1, height);
     ctx.fillRect(last.x + last.width, 0, 1, height);
 
+    this.drawGimmicks(now, cols, judgeY, height);
     this.drawNotes(now, cols, judgeY, height);
 
     ctx.fillStyle = colors.judgeLine;
@@ -360,12 +371,52 @@ export class Playfield {
     }
   }
 
+  /** 기믹 노트: 판정 상태 없이 흐린 테두리로 그린다. 판정선을 지나도 그대로 내려가 화면 밖에서 사라진다. */
+  private drawGimmicks(
+    now: number,
+    cols: readonly { x: number; width: number }[],
+    judgeY: number,
+    height: number,
+  ): void {
+    const { ctx } = this;
+    const { startPos, endPos, maxHoldSpanPos } = this.gimmickPos;
+    const pxPerMs = pxPerMsForSpeed(this.speed, judgeY);
+    const pad = noteHalfExtent(this.layout) / pxPerMs;
+    const nowPos = this.scroll.positionAt(now);
+    const { fromPos, toPos } = visibleScrollRange(nowPos, height, judgeY, pxPerMs);
+    const y = (pos: number) => noteY(pos, nowPos, judgeY, pxPerMs);
+    ctx.globalAlpha = GIMMICK_ALPHA;
+    ctx.lineWidth = GIMMICK_BORDER;
+    for (let i = firstAtOrAbove(startPos, fromPos - pad - maxHoldSpanPos); i < this.gimmicks.length; i++) {
+      const n = this.gimmicks[i];
+      if (startPos[i] > toPos + pad) break;
+      if (endPos[i] < fromPos - pad) continue;
+      const { x, width: w } = cols[n.lane];
+      ctx.strokeStyle = this.noteColors[n.lane];
+      const bottom = y(startPos[i]);
+      if (n.endMs !== undefined) {
+        const top = y(endPos[i]);
+        const bw = holdBodyWidth(w);
+        ctx.strokeRect(x + (w - bw) / 2, top, bw, bottom - top);
+      }
+      this.headPath(x, w, bottom);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
   /** 키를 누르고 있거나 자동 플레이가 롱노트를 잡고 있는 레인 (키빔) */
   private lanePressed(lane: number): boolean {
     return this.pressed[lane] || (this.autoplay && this.state.heldNote(lane) >= 0);
   }
 
   private drawHead(laneX: number, laneWidth: number, y: number): void {
+    this.headPath(laneX, laneWidth, y);
+    this.ctx.fill();
+  }
+
+  /** 노트 머리 모양(바 / 동그라미) 경로. 채우기·테두리는 부르는 쪽이 한다 */
+  private headPath(laneX: number, laneWidth: number, y: number): void {
     const { ctx, layout } = this;
     ctx.beginPath();
     if (layout.noteShape === 'circle') {
@@ -379,6 +430,5 @@ export class Playfield {
         NOTE_RADIUS,
       );
     }
-    ctx.fill();
   }
 }

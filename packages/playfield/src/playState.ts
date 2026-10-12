@@ -26,7 +26,8 @@ export class PlayState {
   constructor(chart: Chart, tm: TimingMap, fromMs: number) {
     for (const n of chart.notes) {
       const lane = trackIndex(chart.tracks, n.track);
-      if (lane < 0) continue;
+      // 기믹 트랙 노트는 판정하지 않는다 (그리기는 gimmickNotes)
+      if (lane < 0 || chart.tracks[lane].kind === 'gimmick') continue;
       const startMs = tm.tickToMs(n.tick);
       if (startMs < fromMs) continue;
       this.playNotes.push({

@@ -38,7 +38,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} stagger-children`}>
       <h1 className={styles.title}>설정</h1>
       <div className={styles.columns}>
         <div className={styles.cards}>

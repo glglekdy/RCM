@@ -48,7 +48,7 @@ export function AiGuidePage() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.content}>
+      <div className={`${styles.content} stagger-children`}>
         <h1 className={styles.title}>AI 가이드</h1>
         <p className={styles.lead}>
           이 에디터로 만든 채보를 게임에서 쓰려면, AI(Claude, ChatGPT, Cursor 등)에게 아래 가이드 문서를 함께 주세요.

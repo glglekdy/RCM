@@ -49,7 +49,7 @@ const SHORTCUTS: [string[], string][] = [
 export function UserGuidePage() {
   return (
     <div className={styles.page}>
-      <div className={styles.content}>
+      <div className={`${styles.content} stagger-children`}>
         <div className={styles.disclaimer} role="alert">
           <h2>
             <TriangleAlert size={16} /> 저작권 및 법적 책임 안내

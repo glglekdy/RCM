@@ -31,3 +31,106 @@ body {
   background: var(--bg-input);
   border-radius: 3px;
 }
+
+/*
+ * 등장 애니메이션. 요소가 새로 그려질 때 한 번만 움직인다.
+ * style에 `--i`(ui/motion.ts의 stagger)를 주면 순번만큼 늦게 시작한다.
+ */
+@keyframes rcm-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* 스크롤 목록 안의 줄: 아래로 넘치면 스크롤바가 잠깐 생기므로 위에서 내려온다 */
+@keyframes rcm-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes rcm-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes rcm-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.enter-rise,
+.enter-drop,
+.enter-pop,
+.enter-fade {
+  animation-duration: var(--dur);
+  animation-timing-function: var(--ease-out);
+  animation-fill-mode: backwards;
+  animation-delay: calc(var(--i, 0) * var(--stagger));
+}
+
+.enter-rise {
+  animation-name: rcm-rise;
+}
+
+.enter-drop {
+  animation-name: rcm-drop;
+}
+
+.enter-pop {
+  animation-name: rcm-pop;
+}
+
+.enter-fade {
+  animation-name: rcm-fade;
+  animation-duration: var(--dur-fast);
+}
+
+/* 바로 아래 자식들이 차례로 올라온다 (페이지 제목·카드·목록 덩어리). 페이지가 바뀌어 새로 그려질 때마다 */
+.stagger-children > * {
+  animation: rcm-rise var(--dur) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * var(--stagger) * 2);
+}
+
+.stagger-children > :nth-child(2) {
+  --i: 1;
+}
+
+.stagger-children > :nth-child(3) {
+  --i: 2;
+}
+
+.stagger-children > :nth-child(4) {
+  --i: 3;
+}
+
+.stagger-children > :nth-child(5) {
+  --i: 4;
+}
+
+.stagger-children > :nth-child(6) {
+  --i: 5;
+}
+
+.stagger-children > :nth-child(7) {
+  --i: 6;
+}
+
+.stagger-children > :nth-child(n + 8) {
+  --i: 7;
+}
+
+/* 윈도우 "애니메이션 효과 끄기" */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

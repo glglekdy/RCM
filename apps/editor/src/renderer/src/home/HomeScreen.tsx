@@ -24,6 +24,9 @@ import styles from './HomeScreen.module.css'
 
 type Page = 'home' | 'presets' | 'userGuide' | 'aiGuide' | 'settings'
 
+/** 사이드바 항목 높이 + 간격 (px). 선택 표시가 이만큼씩 움직인다 */
+const NAV_STEP = 34 + 8
+
 const NAV: { page: Page; icon: LucideIcon; label: string }[] = [
   { page: 'home', icon: House, label: '홈' },
   { page: 'presets', icon: SlidersHorizontal, label: '트랙 프리셋' },
@@ -107,17 +110,25 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
           <FolderOpen size={16} /> 프로젝트 열기
         </Button>
         <div className={styles.divider} />
-        {NAV.map(({ page: p, icon: Icon, label }) => (
-          <button
-            key={p}
-            type="button"
-            className={`${styles.navItem} ${page === p ? styles.navActive : ''}`}
-            aria-current={page === p}
-            onClick={() => setPage(p)}
-          >
-            <Icon size={16} /> {label}
-          </button>
-        ))}
+        <nav className={styles.nav}>
+          {/* 선택 표시: 누른 항목으로 미끄러지듯 옮겨 간다 */}
+          <span
+            className={styles.navIndicator}
+            style={{ transform: `translateY(${NAV.findIndex((n) => n.page === page) * NAV_STEP}px)` }}
+            aria-hidden
+          />
+          {NAV.map(({ page: p, icon: Icon, label }) => (
+            <button
+              key={p}
+              type="button"
+              className={`${styles.navItem} ${page === p ? styles.navActive : ''}`}
+              aria-current={page === p}
+              onClick={() => setPage(p)}
+            >
+              <Icon size={16} /> {label}
+            </button>
+          ))}
+        </nav>
         <UpdatePanel />
       </aside>
       <main className={styles.main}>
@@ -130,7 +141,7 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
         ) : page === 'settings' ? (
           <SettingsPage />
         ) : (
-          <>
+          <div className={`${styles.homeContent} stagger-children`}>
             <Greeting />
             {recent !== null && recent.length === 0 ? (
               <div className={styles.empty}>
@@ -165,7 +176,7 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
                 )}
               </>
             )}
-          </>
+          </div>
         )}
       </main>
       <NewProjectDialog

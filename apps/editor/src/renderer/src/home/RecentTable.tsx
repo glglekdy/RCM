@@ -3,6 +3,7 @@ import type { RecentProject } from '../../../shared/api'
 import { ContextMenu } from '../ui'
 import { relativeTime } from './relativeTime'
 import styles from './RecentTable.module.css'
+import { stagger } from '../ui/motion'
 
 interface RecentTableProps {
   projects: RecentProject[]
@@ -26,12 +27,13 @@ export function RecentTable({ projects, onOpen, onShowInExplorer, onRemove }: Re
         </span>
       </div>
       <div className={styles.body}>
-        {projects.map((p) => (
+        {projects.map((p, i) => (
           <div
             key={p.dir}
             role="row"
             tabIndex={0}
-            className={`${styles.row} ${styles.item} ${p.missing ? styles.missing : ''}`}
+            className={`${styles.row} ${styles.item} ${p.missing ? styles.missing : ''} enter-drop`}
+            style={stagger(i)}
             title={p.dir}
             onDoubleClick={() => onOpen(p)}
             onKeyDown={(e) => e.key === 'Enter' && onOpen(p)}

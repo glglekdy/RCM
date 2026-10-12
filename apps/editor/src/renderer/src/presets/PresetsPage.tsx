@@ -13,6 +13,7 @@ import {
   type TrackPreset
 } from '../../../shared/presets'
 import { Button, TextField, useDialogs } from '../ui'
+import { stagger } from '../ui/motion'
 import { moveIndex } from '../ui/reorder'
 import { NewPresetDialog } from './NewPresetDialog'
 import { getPresets, savePresets, usePresets } from './presetStore'
@@ -127,16 +128,17 @@ export function PresetsPage() {
     })
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} stagger-children`}>
       <h1 className={styles.title}>트랙 프리셋</h1>
       <div className={styles.body}>
         <aside className={styles.side}>
           <div className={styles.list}>
-            {presets.map((p) => (
+            {presets.map((p, i) => (
               <button
                 key={p.id}
                 type="button"
-                className={`${styles.item} ${p.id === stored.id ? styles.selected : ''}`}
+                className={`${styles.item} ${p.id === stored.id ? styles.selected : ''} enter-drop`}
+                style={stagger(i)}
                 aria-current={p.id === stored.id}
                 onClick={() => setSelectedId(p.id)}
               >
@@ -186,6 +188,9 @@ export function PresetsPage() {
             </div>
           )}
           <TrackRowsEditor
+            // 다른 프리셋을 고르면 트랙 줄이 다시 차례로 나온다
+            key={stored.id}
+            animateRows
             tracks={shown.tracks}
             showKeys
             issues={issues.tracks}

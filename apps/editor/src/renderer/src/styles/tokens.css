@@ -16,4 +16,9 @@
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  /* 움직임: 차분하고 빠르게. 들어올 때만 움직이고 나갈 때는 즉시 */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-fast: 150ms;
+  --dur: 240ms;
+  --stagger: 30ms;
 }

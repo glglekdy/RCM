@@ -12,6 +12,7 @@ import {
   type TemplateGroup
 } from '../../../shared/presetTemplates'
 import { Button, isSubmitEnter, Modal, TextField } from '../ui'
+import { stagger } from '../ui/motion'
 import { getPresets } from './presetStore'
 import styles from './NewPresetDialog.module.css'
 
@@ -83,12 +84,14 @@ export function NewPresetDialog({ open, onClose, onCreate }: NewPresetDialogProp
           ))}
         </div>
         <div className={styles.main}>
-          <div className={styles.grid}>
-            {group.templates.map((t) => (
+          {/* 탭을 바꿀 때마다 카드가 다시 차례로 펼쳐진다 */}
+          <div key={group.id} className={styles.grid}>
+            {group.templates.map((t, i) => (
               <button
                 key={t.id}
                 type="button"
-                className={`${styles.card} ${t === picked ? styles.cardSelected : ''}`}
+                className={`${styles.card} ${t === picked ? styles.cardSelected : ''} enter-pop`}
+                style={stagger(i + 1)}
                 aria-pressed={t === picked}
                 onClick={() => pick(group, t)}
                 onDoubleClick={() => create(group, t, defaultTemplateName(group, t))}

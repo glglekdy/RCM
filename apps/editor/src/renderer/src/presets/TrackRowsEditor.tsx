@@ -4,6 +4,7 @@ import { DEFAULT_NOTE_COLOR, MAX_TRACKS, TRACK_COLOR_PATTERN, isGimmick, type Tr
 import { keyLabel } from '@rcm/playfield'
 import type { PresetIssues, PresetTrack } from '../../../shared/presets'
 import { Button, IconButton, SegmentedControl, SortableList, TextField } from '../ui'
+import { stagger } from '../ui/motion'
 import styles from './TrackRowsEditor.module.css'
 
 const TRACK_ROW_HEIGHT = 36
@@ -25,6 +26,8 @@ interface TrackRowsEditorProps {
   compact?: boolean
   /** 모든 입력·버튼과 끌기를 막는다 */
   disabled?: boolean
+  /** 처음 그릴 때 줄이 차례로 나타난다 (프리셋 페이지) */
+  animateRows?: boolean
   /** 행별 규칙 위반 메시지 */
   issues?: PresetIssues['tracks']
   onRename(i: number, id: string): void
@@ -48,6 +51,7 @@ export function TrackRowsEditor({
   showKeys,
   compact = false,
   disabled = false,
+  animateRows = false,
   issues,
   onRename,
   onLook,
@@ -75,7 +79,7 @@ export function TrackRowsEditor({
           const color = track.color ?? DEFAULT_NOTE_COLOR
           const kind: TrackKind = isGimmick(track) ? 'gimmick' : 'play'
           return (
-            <div className={styles.row}>
+            <div className={`${styles.row} ${animateRows ? 'enter-rise' : ''}`} style={animateRows ? stagger(i) : undefined}>
               <span
                 className={styles.grip}
                 onPointerDown={disabled ? undefined : handle.onPointerDown}

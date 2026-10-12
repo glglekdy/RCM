@@ -25,7 +25,28 @@
   background: var(--border);
 }
 
+.nav {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.navIndicator {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  box-shadow: inset 3px 0 0 var(--accent);
+  transition: transform var(--dur) var(--ease-out);
+  pointer-events: none;
+}
+
 .navItem {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -51,8 +72,8 @@
 
 .navActive,
 .navActive:hover {
-  background: var(--bg-card);
-  box-shadow: inset 3px 0 0 var(--accent);
+  /* 바탕과 보라 막대는 .navIndicator가 그린다 */
+  background: transparent;
   color: var(--text);
   font-weight: 500;
 }
@@ -63,6 +84,13 @@
   flex: 1;
   min-width: 0;
   padding: 32px 40px 24px;
+}
+
+.homeContent {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .welcome {

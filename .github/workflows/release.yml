@@ -12,11 +12,9 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      # 전체 기록을 받아야 주석 태그(업데이트 내역)가 일반 태그로 바뀌지 않는다
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-          fetch-depth: 0
 
       - name: Secret 확인
         env:
@@ -40,9 +38,17 @@ jobs:
       - name: 태그와 앱 버전 일치 확인
         run: node scripts/check-tag.mjs "$env:GITHUB_REF_NAME"
 
-      # npm run release가 태그 메시지에 적은 업데이트 내역을 Release 본문으로 쓴다
+      # npm run release가 태그 메시지에 적은 업데이트 내역을 Release 본문으로 쓴다.
+      # checkout은 태그 push일 때 태그를 커밋만 가리키는 일반 태그로 만들어 메시지가 빠지므로, 태그를 다시 받아온다
       - name: 태그에서 업데이트 내역 읽기
-        run: node scripts/tag-notes.mjs "$env:GITHUB_REF_NAME" "$env:RUNNER_TEMP/release-notes.md"
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:TOKEN"))
+          git -c "http.extraheader=AUTHORIZATION: basic $auth" fetch --no-tags --force origin "refs/tags/${tag}:refs/tags/${tag}"
+          if ($LASTEXITCODE -ne 0) { Write-Output "::warning::$tag 태그를 다시 받지 못했어요" }
+          node scripts/tag-notes.mjs "$tag" "$env:RUNNER_TEMP/release-notes.md"
 
       - run: npm test
 

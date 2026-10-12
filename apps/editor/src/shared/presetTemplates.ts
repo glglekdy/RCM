@@ -15,7 +15,9 @@ export interface TemplateGroup {
   templates: readonly PresetTemplate[]
 }
 
-const SIDE_COLOR = '#f59e0b'
+/** DJMAX: 사이드는 하늘색, 8B 트리거는 빨강·분홍 */
+const DJMAX_SIDE_COLOR = '#38bdf8'
+const DJMAX_TRIGGER_COLOR = '#f43f5e'
 const GIMMICK_COLOR = '#ef4444'
 
 /** `[주 키, 보조 키?]` 목록을 `Note_1`… 트랙으로 */
@@ -26,12 +28,12 @@ function notes(keys: readonly (string | readonly [string, string])[], from = 1):
   })
 }
 
-/** DJMAX 사이드 트랙(Shift)으로 감싼다 */
+/** DJMAX 사이드 트랙(Shift, 하늘색)으로 감싼다 */
 function withSides(tracks: PresetTrack[]): PresetTrack[] {
   return [
-    { id: 'Side_L', color: SIDE_COLOR, key: 'ShiftLeft' },
+    { id: 'Side_L', color: DJMAX_SIDE_COLOR, key: 'ShiftLeft' },
     ...tracks,
-    { id: 'Side_R', color: SIDE_COLOR, key: 'ShiftRight' }
+    { id: 'Side_R', color: DJMAX_SIDE_COLOR, key: 'ShiftRight' }
   ]
 }
 
@@ -58,8 +60,8 @@ export const TEMPLATE_GROUPS: readonly TemplateGroup[] = Object.freeze([
       '8B',
       withSides([
         ...notes(['KeyA', 'KeyS', 'KeyD']),
-        { id: 'FX_L', key: 'KeyC' },
-        { id: 'FX_R', key: 'Comma' },
+        { id: 'Trigger_L', color: DJMAX_TRIGGER_COLOR, key: 'KeyC' },
+        { id: 'Trigger_R', color: DJMAX_TRIGGER_COLOR, key: 'Comma' },
         ...notes(['KeyL', 'Semicolon', 'Quote'], 4)
       ])
     )

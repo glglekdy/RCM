@@ -62,9 +62,20 @@ describe('presetTemplates', () => {
       'Side_L=ShiftLeft', 'Note_1=KeyA', 'Note_2=KeyS', 'Note_3=Semicolon', 'Note_4=Quote', 'Side_R=ShiftRight'
     ])
     expect(describeTracks(template('djmax', '8b').tracks)).toEqual([
-      'Side_L=ShiftLeft', 'Note_1=KeyA', 'Note_2=KeyS', 'Note_3=KeyD', 'FX_L=KeyC', 'FX_R=Comma',
+      'Side_L=ShiftLeft', 'Note_1=KeyA', 'Note_2=KeyS', 'Note_3=KeyD', 'Trigger_L=KeyC', 'Trigger_R=Comma',
       'Note_4=KeyL', 'Note_5=Semicolon', 'Note_6=Quote', 'Side_R=ShiftRight'
     ])
+  })
+
+  it('DJMAX 색: 사이드는 하늘색, 트리거는 빨강·분홍', () => {
+    const color = (id: string) => template('djmax', '8b').tracks.find((t) => t.id === id)!.color
+    expect(color('Side_L')).toBe('#38bdf8')
+    expect(color('Side_R')).toBe('#38bdf8')
+    expect(color('Trigger_L')).toBe('#f43f5e')
+    expect(color('Trigger_R')).toBe('#f43f5e')
+    expect(template('djmax', '4b').tracks[0].color).toBe('#38bdf8')
+    // 기본 탭의 '6K + 사이드'는 그대로 주황
+    expect(group('basic').templates.find((t) => t.name === '6K + 사이드')!.tracks[0].color).toBe('#f59e0b')
   })
 
   it('EZ2ON · Muse Dash · osu!mania 배치', () => {

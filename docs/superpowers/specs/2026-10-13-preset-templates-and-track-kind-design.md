@@ -103,7 +103,7 @@ export const TEMPLATE_GROUPS: readonly TemplateGroup[]
 
 ### 5.2 템플릿 키 배치 (⚠ 확인 필요 — 사용자 검토 후 확정)
 
-`[X/Y]` = 주 키 X + 보조 키 Y. 트랙 id는 플레이 `Note_n`, 사이드 `Side_L`/`Side_R`.
+`[X/Y]` = 주 키 X + 보조 키 Y. 트랙 id는 플레이 `Note_n`, 사이드 `Side_L`/`Side_R`. DJMAX 색(사용자 지정): 사이드 하늘색 `#38bdf8`, 트리거 빨강·분홍 `#f43f5e`.
 
 | 탭 | 템플릿 | 트랙 (왼쪽→오른쪽) | 근거 |
 |---|---|---|---|
@@ -112,7 +112,7 @@ export const TEMPLATE_GROUPS: readonly TemplateGroup[]
 | DJMAX RESPECT V | 4B | Side_L(L Shift), A S ; ', Side_R(R Shift) | Steam 가이드 (확인 필요) |
 | | 5B | Side_L, A S **[D/L]** ; ', Side_R | Steam 가이드: 가운데 레인을 두 키가 공유 (확인 필요) |
 | | 6B | Side_L, A S D L ; ', Side_R | Steam 가이드 (확인 필요) |
-| | 8B | Side_L, A S D, `FX_L`(C), `FX_R`(,), L ; ', Side_R (FX 레인 위치 확인 필요) | 낮음 |
+| | 8B | Side_L, A S D, `Trigger_L`(C), `Trigger_R`(,), L ; ', Side_R (트리거 위치 확인 필요) | 사용자: 이름 Trigger_L/R |
 | EZ2ON REBOOT : R | 4K / 5K / 6K / 8K | D F J K / D F Space J K / S D F J K L / A S D F J K L ; | 낮음 (5K·8K 보조 키가 기본으로 켜져 있다고 함 — 키 확인 전엔 보조 키 없이) |
 | Muse Dash | 2레인 + 기믹 2 | `Air` [F/D], `Ground` [J/K], 기믹 `Saw_Air`, `Saw_Ground` (키 없음) | 낮음 |
 | osu!mania | 4K / 5K / 6K / 7K | D F J K / D F Space J K / S D F J K L / S D F Space J K L | 중상 |

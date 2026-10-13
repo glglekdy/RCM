@@ -90,20 +90,30 @@ describe('presetTemplates', () => {
     expect(pattern('8k-h')).toBe('WBBWWBBW')
   })
 
-  it('PUMP IT UP: 싱글은 Z Q S E C, 더블 2P는 숫자패드 1 7 5 9 3', () => {
+  it('PUMP IT UP: 싱글은 Z Q S E C, 더블 2P는 키보드(O [ ; . /)나 숫자패드(1 7 5 9 3)', () => {
     expect(group('pump').templates.map((t) => [t.id, t.name])).toEqual([
       ['4k', '4K (방향)'],
       ['5k', '5K (싱글)'],
-      ['8k', '8K (방향 더블)'],
-      ['10k', '10K (더블)']
+      ['8k-keys', '8K (방향 더블 · 키보드)'],
+      ['8k-numpad', '8K (방향 더블 · 숫자패드)'],
+      ['10k-keys', '10K (더블 · 키보드)'],
+      ['10k-numpad', '10K (더블 · 숫자패드)']
     ])
     expect(describeTracks(template('pump', '5k').tracks)).toEqual(['DL=KeyZ', 'UL=KeyQ', 'C=KeyS', 'UR=KeyE', 'DR=KeyC'])
     expect(describeTracks(template('pump', '4k').tracks)).toEqual(['DL=KeyZ', 'UL=KeyQ', 'UR=KeyE', 'DR=KeyC'])
-    expect(describeTracks(template('pump', '10k').tracks)).toEqual([
+    expect(describeTracks(template('pump', '10k-keys').tracks)).toEqual([
+      'P1_DL=KeyZ', 'P1_UL=KeyQ', 'P1_C=KeyS', 'P1_UR=KeyE', 'P1_DR=KeyC',
+      'P2_DL=Period', 'P2_UL=KeyO', 'P2_C=Semicolon', 'P2_UR=BracketLeft', 'P2_DR=Slash'
+    ])
+    expect(describeTracks(template('pump', '10k-numpad').tracks)).toEqual([
       'P1_DL=KeyZ', 'P1_UL=KeyQ', 'P1_C=KeyS', 'P1_UR=KeyE', 'P1_DR=KeyC',
       'P2_DL=Numpad1', 'P2_UL=Numpad7', 'P2_C=Numpad5', 'P2_UR=Numpad9', 'P2_DR=Numpad3'
     ])
-    expect(describeTracks(template('pump', '8k').tracks)).toEqual([
+    expect(describeTracks(template('pump', '8k-keys').tracks)).toEqual([
+      'P1_DL=KeyZ', 'P1_UL=KeyQ', 'P1_UR=KeyE', 'P1_DR=KeyC',
+      'P2_DL=Period', 'P2_UL=KeyO', 'P2_UR=BracketLeft', 'P2_DR=Slash'
+    ])
+    expect(describeTracks(template('pump', '8k-numpad').tracks)).toEqual([
       'P1_DL=KeyZ', 'P1_UL=KeyQ', 'P1_UR=KeyE', 'P1_DR=KeyC',
       'P2_DL=Numpad1', 'P2_UL=Numpad7', 'P2_UR=Numpad9', 'P2_DR=Numpad3'
     ])
@@ -114,8 +124,10 @@ describe('presetTemplates', () => {
       template('pump', id).tracks.map((t) => ({ '#3b82f6': 'B', '#ef4444': 'R', '#facc15': 'Y' })[t.color ?? ''] ?? '?').join('')
     expect(colors('4k')).toBe('BRRB')
     expect(colors('5k')).toBe('BRYRB')
-    expect(colors('8k')).toBe('BRRBBRRB')
-    expect(colors('10k')).toBe('BRYRBBRYRB')
+    expect(colors('8k-keys')).toBe('BRRBBRRB')
+    expect(colors('8k-numpad')).toBe('BRRBBRRB')
+    expect(colors('10k-keys')).toBe('BRYRBBRYRB')
+    expect(colors('10k-numpad')).toBe('BRYRBBRYRB')
   })
 
   it('EZ2ON · Muse Dash · osu!mania 배치', () => {

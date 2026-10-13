@@ -24,19 +24,19 @@ const GIMMICK_COLOR = '#ef4444'
 /** PUMP IT UP 발판 색: 아래 대각선 파랑, 위 대각선 빨강, 가운데 노랑 */
 const PUMP_COLORS = { DL: '#3b82f6', UL: '#ef4444', C: '#facc15', UR: '#ef4444', DR: '#3b82f6' } as const
 type PumpPanel = keyof typeof PUMP_COLORS
-/** 1P 키보드(StepMania·StepF2 기본)와 2P 숫자패드 */
-const PUMP_KEYS: Record<'P1' | 'P2', Record<PumpPanel, string>> = {
-  P1: { DL: 'KeyZ', UL: 'KeyQ', C: 'KeyS', UR: 'KeyE', DR: 'KeyC' },
-  P2: { DL: 'Numpad1', UL: 'Numpad7', C: 'Numpad5', UR: 'Numpad9', DR: 'Numpad3' }
-}
+/** 발판별 키: 1P는 왼손 X자(StepMania·StepF2 기본), 2P는 오른손 X자 키보드나 숫자패드 */
+type PumpKeys = Record<PumpPanel, string>
+const PUMP_P1: PumpKeys = { DL: 'KeyZ', UL: 'KeyQ', C: 'KeyS', UR: 'KeyE', DR: 'KeyC' }
+const PUMP_P2_KEYS: PumpKeys = { DL: 'Period', UL: 'KeyO', C: 'Semicolon', UR: 'BracketLeft', DR: 'Slash' }
+const PUMP_P2_NUMPAD: PumpKeys = { DL: 'Numpad1', UL: 'Numpad7', C: 'Numpad5', UR: 'Numpad9', DR: 'Numpad3' }
 const PUMP_ARROWS: readonly PumpPanel[] = ['DL', 'UL', 'UR', 'DR']
 const PUMP_ALL: readonly PumpPanel[] = ['DL', 'UL', 'C', 'UR', 'DR']
 
-/** PUMP IT UP 발판 트랙. 싱글은 `DL`…, 더블은 `P1_DL`…`P2_DR` */
-function pump(panels: readonly PumpPanel[], double: boolean): PresetTrack[] {
-  const side = (player: 'P1' | 'P2', prefix: string) =>
-    panels.map((p) => ({ id: `${prefix}${p}`, color: PUMP_COLORS[p], key: PUMP_KEYS[player][p] }))
-  return double ? [...side('P1', 'P1_'), ...side('P2', 'P2_')] : side('P1', '')
+/** PUMP IT UP 발판 트랙. 싱글은 `DL`…, 더블(2P 키를 주면)은 `P1_DL`…`P2_DR` */
+function pump(panels: readonly PumpPanel[], p2?: PumpKeys): PresetTrack[] {
+  const side = (keys: PumpKeys, prefix: string) =>
+    panels.map((p) => ({ id: `${prefix}${p}`, color: PUMP_COLORS[p], key: keys[p] }))
+  return p2 ? [...side(PUMP_P1, 'P1_'), ...side(p2, 'P2_')] : side(PUMP_P1, '')
 }
 
 /** `[주 키, 보조 키?]` 목록을 `Note_1`… 트랙으로 */
@@ -116,10 +116,12 @@ export const TEMPLATE_GROUPS: readonly TemplateGroup[] = Object.freeze([
     template('7k', '7K', notes(['KeyS', 'KeyD', 'KeyF', 'Space', 'KeyJ', 'KeyK', 'KeyL']))
   ]),
   group('pump', 'PUMP IT UP', 'PUMP', [
-    template('4k', '4K (방향)', pump(PUMP_ARROWS, false)),
-    template('5k', '5K (싱글)', pump(PUMP_ALL, false)),
-    template('8k', '8K (방향 더블)', pump(PUMP_ARROWS, true)),
-    template('10k', '10K (더블)', pump(PUMP_ALL, true))
+    template('4k', '4K (방향)', pump(PUMP_ARROWS)),
+    template('5k', '5K (싱글)', pump(PUMP_ALL)),
+    template('8k-keys', '8K (방향 더블 · 키보드)', pump(PUMP_ARROWS, PUMP_P2_KEYS)),
+    template('8k-numpad', '8K (방향 더블 · 숫자패드)', pump(PUMP_ARROWS, PUMP_P2_NUMPAD)),
+    template('10k-keys', '10K (더블 · 키보드)', pump(PUMP_ALL, PUMP_P2_KEYS)),
+    template('10k-numpad', '10K (더블 · 숫자패드)', pump(PUMP_ALL, PUMP_P2_NUMPAD))
   ])
 ])
 

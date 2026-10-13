@@ -21,6 +21,23 @@ const DJMAX_TRIGGER_COLOR = '#f43f5e'
 /** EZ2ON 파랑 노트 (흰 노트는 기본 색) */
 const EZ2ON_BLUE = '#2f80ff'
 const GIMMICK_COLOR = '#ef4444'
+/** PUMP IT UP 발판 색: 아래 대각선 파랑, 위 대각선 빨강, 가운데 노랑 */
+const PUMP_COLORS = { DL: '#3b82f6', UL: '#ef4444', C: '#facc15', UR: '#ef4444', DR: '#3b82f6' } as const
+type PumpPanel = keyof typeof PUMP_COLORS
+/** 1P 키보드(StepMania·StepF2 기본)와 2P 숫자패드 */
+const PUMP_KEYS: Record<'P1' | 'P2', Record<PumpPanel, string>> = {
+  P1: { DL: 'KeyZ', UL: 'KeyQ', C: 'KeyS', UR: 'KeyE', DR: 'KeyC' },
+  P2: { DL: 'Numpad1', UL: 'Numpad7', C: 'Numpad5', UR: 'Numpad9', DR: 'Numpad3' }
+}
+const PUMP_ARROWS: readonly PumpPanel[] = ['DL', 'UL', 'UR', 'DR']
+const PUMP_ALL: readonly PumpPanel[] = ['DL', 'UL', 'C', 'UR', 'DR']
+
+/** PUMP IT UP 발판 트랙. 싱글은 `DL`…, 더블은 `P1_DL`…`P2_DR` */
+function pump(panels: readonly PumpPanel[], double: boolean): PresetTrack[] {
+  const side = (player: 'P1' | 'P2', prefix: string) =>
+    panels.map((p) => ({ id: `${prefix}${p}`, color: PUMP_COLORS[p], key: PUMP_KEYS[player][p] }))
+  return double ? [...side('P1', 'P1_'), ...side('P2', 'P2_')] : side('P1', '')
+}
 
 /** `[주 키, 보조 키?]` 목록을 `Note_1`… 트랙으로 */
 function notes(keys: readonly (string | readonly [string, string])[], from = 1): PresetTrack[] {
@@ -97,6 +114,12 @@ export const TEMPLATE_GROUPS: readonly TemplateGroup[] = Object.freeze([
     template('5k', '5K', notes(['KeyD', 'KeyF', 'Space', 'KeyJ', 'KeyK'])),
     template('6k', '6K', notes(['KeyS', 'KeyD', 'KeyF', 'KeyJ', 'KeyK', 'KeyL'])),
     template('7k', '7K', notes(['KeyS', 'KeyD', 'KeyF', 'Space', 'KeyJ', 'KeyK', 'KeyL']))
+  ]),
+  group('pump', 'PUMP IT UP', 'PUMP', [
+    template('4k', '4K (방향)', pump(PUMP_ARROWS, false)),
+    template('5k', '5K (싱글)', pump(PUMP_ALL, false)),
+    template('8k', '8K (방향 더블)', pump(PUMP_ARROWS, true)),
+    template('10k', '10K (더블)', pump(PUMP_ALL, true))
   ])
 ])
 

@@ -18,6 +18,7 @@ describe('track keymap', () => {
     expect(['KeyD', 'Semicolon', 'ShiftLeft', 'ShiftRight', 'Space'].map(keyLabel)).toEqual(['D', ';', 'L Shift', 'R Shift', 'Space']);
     expect(['Digit1', 'ArrowUp'].map(keyLabel)).toEqual(['1', 'ArrowUp']);
     expect(['Quote', 'Comma', 'Period', 'Slash'].map(keyLabel)).toEqual(["'", ',', '.', '/']);
+    expect(['Numpad1', 'Numpad7'].map(keyLabel)).toEqual(['Num1', 'Num7']);
     expect([['Space', 'KeyB'], ['KeyD'], [], undefined].map(keysLabel)).toEqual(['Space/B', 'D', '-', '-']);
   });
   it('두 키로 누른 트랙은 둘 다 떼야 뗀다', () => {

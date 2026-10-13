@@ -19,13 +19,14 @@ const describeTracks = (tracks: readonly PresetTrack[]) =>
 
 describe('presetTemplates', () => {
   it('그룹 순서와 이름', () => {
-    expect(TEMPLATE_GROUPS.map((g) => g.id)).toEqual(['basic', 'djmax', 'ez2on', 'musedash', 'osu'])
+    expect(TEMPLATE_GROUPS.map((g) => g.id)).toEqual(['basic', 'djmax', 'ez2on', 'musedash', 'osu', 'pump'])
     expect(TEMPLATE_GROUPS.map((g) => g.name)).toEqual([
       '기본',
       'DJMAX RESPECT V',
       'EZ2ON REBOOT : R',
       'Muse Dash',
-      'osu!mania'
+      'osu!mania',
+      'PUMP IT UP'
     ])
   })
 
@@ -87,6 +88,34 @@ describe('presetTemplates', () => {
     expect(pattern('8k-a')).toBe('WBWBBWBW')
     expect(pattern('8k-b')).toBe('WBWBWBWB')
     expect(pattern('8k-h')).toBe('WBBWWBBW')
+  })
+
+  it('PUMP IT UP: 싱글은 Z Q S E C, 더블 2P는 숫자패드 1 7 5 9 3', () => {
+    expect(group('pump').templates.map((t) => [t.id, t.name])).toEqual([
+      ['4k', '4K (방향)'],
+      ['5k', '5K (싱글)'],
+      ['8k', '8K (방향 더블)'],
+      ['10k', '10K (더블)']
+    ])
+    expect(describeTracks(template('pump', '5k').tracks)).toEqual(['DL=KeyZ', 'UL=KeyQ', 'C=KeyS', 'UR=KeyE', 'DR=KeyC'])
+    expect(describeTracks(template('pump', '4k').tracks)).toEqual(['DL=KeyZ', 'UL=KeyQ', 'UR=KeyE', 'DR=KeyC'])
+    expect(describeTracks(template('pump', '10k').tracks)).toEqual([
+      'P1_DL=KeyZ', 'P1_UL=KeyQ', 'P1_C=KeyS', 'P1_UR=KeyE', 'P1_DR=KeyC',
+      'P2_DL=Numpad1', 'P2_UL=Numpad7', 'P2_C=Numpad5', 'P2_UR=Numpad9', 'P2_DR=Numpad3'
+    ])
+    expect(describeTracks(template('pump', '8k').tracks)).toEqual([
+      'P1_DL=KeyZ', 'P1_UL=KeyQ', 'P1_UR=KeyE', 'P1_DR=KeyC',
+      'P2_DL=Numpad1', 'P2_UL=Numpad7', 'P2_UR=Numpad9', 'P2_DR=Numpad3'
+    ])
+  })
+
+  it('PUMP IT UP 색: 아래 대각선 파랑, 위 대각선 빨강, 가운데 노랑', () => {
+    const colors = (id: string) =>
+      template('pump', id).tracks.map((t) => ({ '#3b82f6': 'B', '#ef4444': 'R', '#facc15': 'Y' })[t.color ?? ''] ?? '?').join('')
+    expect(colors('4k')).toBe('BRRB')
+    expect(colors('5k')).toBe('BRYRB')
+    expect(colors('8k')).toBe('BRRBBRRB')
+    expect(colors('10k')).toBe('BRYRBBRYRB')
   })
 
   it('EZ2ON · Muse Dash · osu!mania 배치', () => {

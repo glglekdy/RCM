@@ -17,6 +17,7 @@ export function keyLabel(code: string): string {
   if (code in SYMBOLS) return SYMBOLS[code];
   if (/^Key[A-Z]$/.test(code)) return code.slice(3);
   if (/^Digit[0-9]$/.test(code)) return code.slice(5);
+  if (/^Numpad[0-9]$/.test(code)) return `Num${code.slice(6)}`;
   return code;
 }
 

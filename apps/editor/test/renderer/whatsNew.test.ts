@@ -39,7 +39,8 @@ describe('whatsNewVersions', () => {
 
 describe('RELEASE_NOTES', () => {
   it('notes 폴더의 내역을 버전별로 읽는다', () => {
-    expect(RELEASE_NOTES.get('0.5.1')).toMatch(/^## 새 기능\n/)
+    // CI(Windows)는 CRLF로 받는다
+    expect(RELEASE_NOTES.get('0.5.1')).toMatch(/^## 새 기능\r?\n/)
     expect([...RELEASE_NOTES.keys()].every((v) => /^\d+\.\d+\.\d+$/.test(v))).toBe(true)
   })
 })

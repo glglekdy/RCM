@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { RcmApi, UpdateState } from '../shared/api'
 
 const api: RcmApi = {
@@ -8,6 +8,8 @@ const api: RcmApi = {
   resolveProjectDir: (parentDir, title) => ipcRenderer.invoke('rcm:resolve-project-dir', parentDir, title),
   createProject: (opts) => ipcRenderer.invoke('rcm:create-project', opts),
   openProject: (dir) => ipcRenderer.invoke('rcm:open-project', dir),
+  importProjectZip: (zipPath) => ipcRenderer.invoke('rcm:import-project-zip', zipPath),
+  pathForFile: (file) => webUtils.getPathForFile(file),
   readAudio: (path) => ipcRenderer.invoke('rcm:read-audio', path),
   importProjectAudio: (dir, source) => ipcRenderer.invoke('rcm:import-project-audio', dir, source),
   writeProjectFiles: (dir, files) => ipcRenderer.invoke('rcm:write-project-files', dir, files),

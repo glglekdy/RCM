@@ -22,7 +22,7 @@ export function resolveProjectDir(parentDir: string, title: string): string {
 
 const AUDIO_EXTENSIONS = ['.ogg', '.mp3', '.wav']
 
-const isAudioFile = (file: string): boolean => AUDIO_EXTENSIONS.includes(path.extname(file).toLowerCase())
+export const isAudioFile = (file: string): boolean => AUDIO_EXTENSIONS.includes(path.extname(file).toLowerCase())
 
 const isAudioPath = (v: unknown): v is string => typeof v === 'string' && path.isAbsolute(v) && isAudioFile(v)
 
@@ -79,20 +79,27 @@ export function validateCreateProjectOptions(raw: unknown): CreateProjectOptions
   return { parentDir, title, artist, audioPath, bpm, chartName, tracks }
 }
 
-export async function createProject(raw: CreateProjectOptions): Promise<string> {
-  const opts = validateCreateProjectOptions(raw)
-  await fs.mkdir(opts.parentDir, { recursive: true })
-  // mkdir is non-recursive and outside the try: only a directory this call created is ever cleaned up.
-  let dir: string
+/**
+ * `parentDir` 아래에 곡 제목으로 새 프로젝트 폴더를 만들고 그 경로를 돌려준다 (이미 있으면 `제목 (2)`…).
+ * 폴더 자체는 재귀 없이 만들므로, 실패했을 때 호출한 쪽은 이 폴더만 지우면 된다.
+ */
+export async function makeProjectDir(parentDir: string, title: string): Promise<string> {
+  await fs.mkdir(parentDir, { recursive: true })
   for (;;) {
-    dir = resolveProjectDir(opts.parentDir, opts.title)
+    const dir = resolveProjectDir(parentDir, title)
     try {
       await fs.mkdir(dir)
-      break
+      return dir
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e
     }
   }
+}
+
+export async function createProject(raw: CreateProjectOptions): Promise<string> {
+  const opts = validateCreateProjectOptions(raw)
+  // outside the try: only a directory this call created is ever cleaned up.
+  const dir = await makeProjectDir(opts.parentDir, opts.title)
   try {
     let audio = ''
     if (opts.audioPath !== null) {
@@ -149,7 +156,7 @@ export async function openProjectFiles(dir: string): Promise<ProjectFiles> {
   }
 }
 
-const isChartFileName = (name: string): boolean => name.toLowerCase().endsWith('.chart.json')
+export const isChartFileName = (name: string): boolean => name.toLowerCase().endsWith('.chart.json')
 
 function isAllowedFileName(name: string): boolean {
   return name === 'song.json' || name === 'editor.json' || isChartFileName(name)

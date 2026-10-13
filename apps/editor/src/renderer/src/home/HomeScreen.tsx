@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import {
   BookOpen,
   Bot,
+  FileArchive,
   FolderOpen,
   House,
   Plus,
@@ -16,8 +17,9 @@ import { UserGuidePage } from '../guide/UserGuidePage'
 import { PresetsPage } from '../presets/PresetsPage'
 import { SettingsPage } from '../settings/SettingsPage'
 import { UpdatePanel } from '../update/UpdatePanel'
-import { Button, TextField, useDialogs } from '../ui'
+import { Button, TextField, useDialogs, useToast } from '../ui'
 import { nextGreeting } from './greeting'
+import { importZips } from './importZips'
 import { NewProjectDialog } from './NewProjectDialog'
 import { RecentTable } from './RecentTable'
 import styles from './HomeScreen.module.css'
@@ -41,10 +43,14 @@ interface HomeScreenProps {
 
 export function HomeScreen({ onOpened }: HomeScreenProps) {
   const dialogs = useDialogs()
+  const toast = useToast()
   const [recent, setRecent] = useState<RecentProject[] | null>(null)
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
   const [page, setPage] = useState<Page>('home')
+  const [drop, setDrop] = useState<'none' | 'over' | 'importing'>('none')
+  // 자식 요소를 지날 때도 dragenter/dragleave가 오므로 깊이를 센다
+  const dragDepth = useRef(0)
 
   const refresh = useCallback(async () => {
     const list = await window.rcm.getRecentProjects()
@@ -94,6 +100,47 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
     if (dir) await openDir(dir)
   }
 
+  const hasFiles = (e: DragEvent) => e.dataTransfer.types.includes('Files')
+
+  const onDragEnter = (e: DragEvent) => {
+    if (!hasFiles(e) || drop === 'importing') return
+    dragDepth.current++
+    setDrop('over')
+  }
+
+  const onDragLeave = (e: DragEvent) => {
+    if (!hasFiles(e) || drop === 'importing') return
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDrop('none')
+  }
+
+  /** 끌어다 놓은 프로젝트 ZIP을 풀어 최근 목록에 등록한다 (열지는 않는다) */
+  const onDrop = async (e: DragEvent) => {
+    dragDepth.current = 0
+    if (drop === 'importing') return
+    const files = [...e.dataTransfer.files]
+    if (files.length === 0) {
+      setDrop('none')
+      return
+    }
+    setDrop('importing')
+    const result = await importZips(files, window.rcm)
+    setDrop('none')
+    setPage('home')
+    setQuery('')
+    await refresh()
+    if (result.failed.length > 0) {
+      await dialogs.alert(
+        result.imported > 0
+          ? `프로젝트 ${result.imported}개를 가져왔지만, 가져오지 못한 파일이 있어요`
+          : '프로젝트를 가져오지 못했어요',
+        result.failed
+      )
+    } else {
+      toast(`프로젝트 ${result.imported}개를 가져왔어요`)
+    }
+  }
+
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!recent || !q) return recent ?? []
@@ -101,7 +148,12 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
   }, [recent, query])
 
   return (
-    <div className={styles.home}>
+    <div
+      className={styles.home}
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      onDrop={(e) => void onDrop(e)}
+    >
       <aside className={styles.sidebar}>
         <Button variant="primary" onClick={() => setCreating(true)}>
           <Plus size={16} /> 새 프로젝트
@@ -179,6 +231,17 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
           </div>
         )}
       </main>
+      {drop !== 'none' && (
+        <div className={`${styles.dropOverlay} enter-fade`} aria-live="polite">
+          <div className={`${styles.dropBox} enter-pop`}>
+            <FileArchive size={36} />
+            <p className={styles.dropTitle}>
+              {drop === 'importing' ? '프로젝트를 가져오는 중…' : '놓으면 프로젝트를 가져와요'}
+            </p>
+            <p className={styles.dropHint}>프로젝트 폴더를 압축한 ZIP 파일 · 여러 개도 돼요</p>
+          </div>
+        </div>
+      )}
       <NewProjectDialog
         open={creating}
         onClose={() => setCreating(false)}

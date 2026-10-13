@@ -3,6 +3,7 @@ import { DEFAULT_LAYOUT, sanitizeLayout } from '@rcm/playfield'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { CreateProjectOptions, RecentProject } from '../shared/api'
 import { writeFileAtomic } from './project/atomicWrite'
+import { importProjectZip } from './project/importZip'
 import {
   assertDirectory,
   createProject,
@@ -84,6 +85,14 @@ export function registerProjectIpc(): void {
       throw new Error(`프로젝트를 만들 수 없어요: ${reason}`)
     }
     await touch(dir, { defaultProjectDir: opts.parentDir })
+    return { dir }
+  })
+
+  // 끌어다 놓은 프로젝트 ZIP을 기본 저장 위치에 풀고 최근 목록에 등록한다 (열지는 않는다)
+  ipcMain.handle('rcm:import-project-zip', async (_e, zipPath: string) => {
+    const settings = await loadSettings(settingsFile())
+    const dir = await importProjectZip(zipPath, settings.defaultProjectDir ?? defaultProjectDir())
+    await touch(dir)
     return { dir }
   })
 

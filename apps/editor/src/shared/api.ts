@@ -40,6 +40,10 @@ export interface RcmApi {
   resolveProjectDir(parentDir: string, title: string): Promise<string>
   createProject(opts: CreateProjectOptions): Promise<{ dir: string }>
   openProject(dir: string): Promise<ProjectFiles>
+  /** 프로젝트 ZIP을 기본 저장 위치에 풀고 최근 목록에 등록한다. 잘못된 ZIP이면 이유를 담아 reject. */
+  importProjectZip(zipPath: string): Promise<{ dir: string }>
+  /** 끌어다 놓은 파일의 디스크 경로. 디스크 파일이 아니면 빈 문자열. */
+  pathForFile(file: File): string
   readAudio(path: string): Promise<ArrayBuffer>
   /** 음악 파일을 프로젝트 폴더에 새 이름으로 복사하고 그 파일 이름(song.json의 `audio` 값)을 돌려준다. */
   importProjectAudio(dir: string, source: string): Promise<string>

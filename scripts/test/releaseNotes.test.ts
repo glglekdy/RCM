@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { buildReleaseNotes, tagMessage } from '../releaseNotes.mjs'
+import { existsSync } from 'node:fs'
+import { buildReleaseNotes, notesFileFor, tagMessage } from '../releaseNotes.mjs'
 
 describe('releaseNotes', () => {
+  it('앱에 넣는 업데이트 내역 파일 경로', () => {
+    expect(notesFileFor('0.5.2')).toBe('apps/editor/src/renderer/src/whatsNew/notes/0.5.2.md')
+    // 지난 배포의 내역이 같은 폴더에 있다
+    expect(existsSync(new URL(`../../${notesFileFor('0.5.1')}`, import.meta.url))).toBe(true)
+  })
   it('feat·fix·perf만 종류별로 모은다', () => {
     const notes = buildReleaseNotes([
       'fix(editor): install updates only via restart, not on quit',

@@ -20,6 +20,11 @@ export function buildReleaseNotes(subjects) {
   return parts.length > 0 ? parts.join('\n\n') : '- 내부 정리 (화면에 보이는 변경 없음)'
 }
 
+/** 앱에 함께 넣는 업데이트 내역 파일 (저장소 루트 기준). 업데이트 뒤 첫 실행에 보여 준다. */
+export function notesFileFor(version) {
+  return `apps/editor/src/renderer/src/whatsNew/notes/${version}.md`
+}
+
 /** 주석 태그 메시지: 첫 줄은 태그 이름, 빈 줄 다음에 업데이트 내역. */
 export function tagMessage(tag, notes) {
   return `${tag}\n\n${notes.trim()}\n`

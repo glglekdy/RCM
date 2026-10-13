@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button } from '../ui'
+import { hasNotesFor, openWhatsNew } from '../whatsNew/whatsNewStore'
 import { useUpdateState } from './updateStore'
 import { updateStatusText } from './updateText'
 import styles from './UpdatePanel.module.css'
@@ -25,9 +26,16 @@ export function UpdatePanel() {
 
   return (
     <div className={styles.panel}>
-      <div className={styles.version}>
-        {version && `v${version}`}
-        {packaged === false && ' (개발 모드 · 업데이트 꺼짐)'}
+      <div className={styles.versionRow}>
+        <div className={styles.version}>
+          {version && `v${version}`}
+          {packaged === false && ' (개발 모드 · 업데이트 꺼짐)'}
+        </div>
+        {version && hasNotesFor(version) && (
+          <button type="button" className={styles.notesLink} onClick={() => openWhatsNew(version)}>
+            업데이트 내역
+          </button>
+        )}
       </div>
       <Button
         disabled={!packaged || busy}

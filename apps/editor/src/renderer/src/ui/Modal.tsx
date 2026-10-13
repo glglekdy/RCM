@@ -10,9 +10,11 @@ interface ModalProps {
   footer?: ReactNode
   /** 넓은 창 (템플릿 고르기 등) */
   wide?: boolean
+  /** 창 폭 (px). `wide`보다 우선 */
+  width?: number
 }
 
-export function Modal({ open, title, onClose, children, footer, wide = false }: ModalProps) {
+export function Modal({ open, title, onClose, children, footer, wide = false, width }: ModalProps) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -29,7 +31,13 @@ export function Modal({ open, title, onClose, children, footer, wide = false }: 
   // body에 그린다: 등장 애니메이션 중인 페이지(transform) 안에 있어도 화면 전체를 덮도록
   return createPortal(
     <div className={`${styles.overlay} enter-fade`} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={`${styles.box} ${wide ? styles.wide : ''} enter-pop`} role="dialog" aria-modal="true" aria-label={title}>
+      <div
+        className={`${styles.box} ${wide ? styles.wide : ''} enter-pop`}
+        style={width !== undefined ? { width } : undefined}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
         <h2 className={styles.title}>{title}</h2>
         <div className={styles.body}>{children}</div>
         {footer && <div className={styles.footer}>{footer}</div>}

@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { DEFAULT_LAYOUT, sanitizeLayout } from '@rcm/playfield'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
@@ -22,6 +23,7 @@ import {
   touchRecent,
   updateSettings,
   validateLastPresetId,
+  validateLastSeenVersion,
   validatePlaytestSpeed,
   validatePresets
 } from './project/settings'
@@ -150,6 +152,19 @@ export function registerProjectIpc(): void {
     const id = validateLastPresetId(raw)
     return updateSettings(settingsFile(), (settings) => {
       settings.lastPresetId = id
+    })
+  })
+
+  // 설정 파일이 없으면 처음 설치: 업데이트 내역을 띄우지 않는다
+  ipcMain.handle('rcm:get-whats-new-state', async () => ({
+    lastSeenVersion: (await loadSettings(settingsFile())).lastSeenVersion ?? null,
+    firstRun: !existsSync(settingsFile())
+  }))
+
+  ipcMain.handle('rcm:set-last-seen-version', async (_e, raw: unknown) => {
+    const version = validateLastSeenVersion(raw)
+    return updateSettings(settingsFile(), (settings) => {
+      settings.lastSeenVersion = version
     })
   })
 

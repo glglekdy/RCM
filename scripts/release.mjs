@@ -2,7 +2,8 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { buildReleaseNotes, tagMessage } from './releaseNotes.mjs'
+import { fileURLToPath } from 'node:url'
+import { buildReleaseNotes, notesFileFor, tagMessage } from './releaseNotes.mjs'
 import { compareVersions, isValidVersion, tagFor } from './version.mjs'
 
 const fail = (msg) => {
@@ -66,7 +67,10 @@ try {
     stdio: 'inherit',
     shell: process.platform === 'win32',
   })
-  git('add', 'apps/editor/package.json', 'package-lock.json')
+  // 앱 안에도 넣어서 업데이트 뒤 첫 실행에 보여 준다
+  const appNotes = notesFileFor(next)
+  writeFileSync(fileURLToPath(new URL(`../${appNotes}`, import.meta.url)), `${notes}\n`)
+  git('add', 'apps/editor/package.json', 'package-lock.json', appNotes)
   git('commit', '-m', `chore: release ${tag}`)
   committed = true
   // '## 제목'이 주석으로 지워지지 않게 메시지를 그대로 둔다
@@ -83,7 +87,9 @@ try {
   if (committed) {
     console.error('커밋은 이미 만들어졌어요. 되돌리려면: git reset --soft HEAD~1')
   }
-  console.error('버전 변경을 되돌리려면: git checkout -- apps/editor/package.json package-lock.json')
+  console.error(
+    `버전 변경을 되돌리려면: git checkout -- apps/editor/package.json package-lock.json 그리고 ${notesFileFor(next)} 삭제`
+  )
   process.exit(1)
 }
 

@@ -8,6 +8,8 @@ import { loadPresets } from './presets/presetStore'
 import { DialogProvider, TitleBar, ToastProvider } from './ui'
 import { UpdateNotice } from './update/UpdateNotice'
 import { startUpdateStore } from './update/updateStore'
+import { WhatsNewDialog } from './whatsNew/WhatsNewDialog'
+import { checkWhatsNew } from './whatsNew/whatsNewStore'
 
 /** `id`는 같은 폴더를 다시 열어도 편집 화면을 새로 만들기 위한 값이다. */
 type Screen = { screen: 'home' } | { screen: 'editor'; files: ProjectFiles; id: number }
@@ -26,6 +28,9 @@ export function App() {
     })
     loadLayout().catch(() => {
       // 설정을 못 읽으면 기본 레이아웃으로 계속한다
+    })
+    checkWhatsNew().catch(() => {
+      // 업데이트 내역을 못 띄워도 앱은 그대로 쓴다
     })
   }, [])
 
@@ -56,6 +61,7 @@ export function App() {
           />
         )}
         <UpdateNotice />
+        <WhatsNewDialog />
       </ToastProvider>
     </DialogProvider>
   )

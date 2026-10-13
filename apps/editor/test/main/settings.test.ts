@@ -11,6 +11,7 @@ import {
   touchRecent,
   updateSettings,
   validateLastPresetId,
+  validateLastSeenVersion,
   validatePlaytestSpeed,
   validatePresets
 } from '../../src/main/project/settings'
@@ -77,6 +78,26 @@ describe('settings', () => {
     expect(loaded.recent).toEqual([{ dir: 'd', lastOpened: 1 }])
     await fs.writeFile(file, JSON.stringify({ recent: [] }))
     expect((await loadSettings(file)).gameplay).toBeUndefined()
+  })
+
+  it('lastSeenVersion: X.Y.Z 형식만 읽음', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
+    const file = path.join(tmp, 'settings.json')
+    for (const [raw, expected] of [
+      ['0.5.2', '0.5.2'],
+      ['v0.5.2', undefined],
+      [5, undefined]
+    ] as const) {
+      await fs.writeFile(file, JSON.stringify({ recent: [], lastSeenVersion: raw }))
+      expect((await loadSettings(file)).lastSeenVersion, String(raw)).toBe(expected)
+    }
+  })
+
+  it('lastSeenVersion 저장 입력 검사', () => {
+    expect(validateLastSeenVersion('10.0.1')).toBe('10.0.1')
+    for (const bad of ['1.2', '0.5.2-beta', '', null, 1]) {
+      expect(() => validateLastSeenVersion(bad), String(bad)).toThrow('버전 값이 올바르지 않아요')
+    }
   })
 
   it('playtestSpeed 저장 입력 검사', () => {

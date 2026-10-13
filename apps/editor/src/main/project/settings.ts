@@ -20,6 +20,8 @@ export interface Settings {
   playtestSpeed?: number
   /** 게임플레이 레이아웃. 없으면 기본값을 쓴다 */
   gameplay?: PlayfieldLayout
+  /** 업데이트 내역을 마지막으로 확인한 앱 버전 (X.Y.Z) */
+  lastSeenVersion?: string
 }
 
 const MAX_RECENT = 20
@@ -33,6 +35,14 @@ class SettingsFormatError extends Error {}
 
 function isPlaytestSpeed(raw: unknown): raw is number {
   return typeof raw === 'number' && Number.isFinite(raw) && raw >= MIN_SPEED && raw <= MAX_SPEED
+}
+
+const isVersion = (raw: unknown): raw is string => typeof raw === 'string' && /^\d+\.\d+\.\d+$/.test(raw)
+
+/** renderer가 보낸 버전 검사. `X.Y.Z`가 아니면 throw. */
+export function validateLastSeenVersion(raw: unknown): string {
+  if (!isVersion(raw)) throw new Error('버전 값이 올바르지 않아요')
+  return raw
 }
 
 /** renderer가 보낸 배속 검사. 범위 밖이거나 숫자가 아니면 throw. */
@@ -53,6 +63,7 @@ function parseSettings(raw: unknown): Settings {
     discordPresence?: unknown
     playtestSpeed?: unknown
     gameplay?: unknown
+    lastSeenVersion?: unknown
   }
   const recent = Array.isArray(obj.recent)
     ? obj.recent.filter(
@@ -71,6 +82,7 @@ function parseSettings(raw: unknown): Settings {
   if (typeof obj.discordPresence === 'boolean') settings.discordPresence = obj.discordPresence
   if (isPlaytestSpeed(obj.playtestSpeed)) settings.playtestSpeed = obj.playtestSpeed
   if (obj.gameplay !== undefined) settings.gameplay = sanitizeLayout(obj.gameplay)
+  if (isVersion(obj.lastSeenVersion)) settings.lastSeenVersion = obj.lastSeenVersion
   return settings
 }
 

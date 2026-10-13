@@ -7,6 +7,28 @@
   border-top: 1px solid var(--border);
 }
 
+.versionRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.notesLink {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.notesLink:hover {
+  text-decoration: underline;
+}
+
 .version {
   color: var(--text-muted);
   font-size: 12px;

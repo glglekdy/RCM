@@ -5,6 +5,7 @@ import {
   FileArchive,
   FolderOpen,
   House,
+  Megaphone,
   Plus,
   Search,
   Settings,
@@ -194,6 +195,7 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
           <SettingsPage />
         ) : (
           <div className={`${styles.homeContent} stagger-children`}>
+            <RuleNotice />
             <Greeting />
             {recent !== null && recent.length === 0 ? (
               <div className={styles.empty}>
@@ -258,4 +260,19 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
 function Greeting() {
   const [text] = useState(nextGreeting)
   return <h1 className={styles.welcome}>{text}</h1>
+}
+
+/** 홈 맨 위에 늘 보이는 사용 규정 안내 */
+function RuleNotice() {
+  return (
+    <section className={styles.notice}>
+      <h2 className={styles.noticeTitle}>
+        <Megaphone size={16} /> 새로운 규정!
+      </h2>
+      <p className={styles.noticeText}>
+        만약 RCM 채보 프로그램을 통해서 새로운 게임을 만드실 예정 혹은 만드셨다면 크레딧에{' '}
+        <b>Made with RCM</b>를 넣어주세요
+      </p>
+    </section>
+  )
 }

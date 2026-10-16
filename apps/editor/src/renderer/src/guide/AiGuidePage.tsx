@@ -1,4 +1,4 @@
-import { Copy, Download, FileText, FolderInput, MessageSquareText } from 'lucide-react'
+import { Copy, Download, FileText, FolderInput, Megaphone, MessageSquareText } from 'lucide-react'
 // 배포판 사용자에게 그대로 전달된다. 저장소 경로·비공개 패키지를 가리키지 않게 테스트로 지킨다 (test/shared/chartFormatGuide.test.ts)
 import chartFormatGuide from '../../../../../../docs/CHART_FORMAT_GUIDE.md?raw'
 import { Button, useDialogs, useToast } from '../ui'
@@ -13,13 +13,15 @@ const EXAMPLE_PROMPTS = [
     label: '새 게임 만들기',
     text: `${GUIDE_INTRO}
 이 문서를 먼저 끝까지 읽고, 그 규칙대로 곡 폴더(song.json, *.chart.json, 음악 파일)를 읽어서 리듬게임을 만들어 줘.
-코드를 쓰기 전에 문서 7장의 질문으로 어떤 게임 플레이 스타일과 판정 방식을 쓸지 나에게 먼저 물어보고, 정리해서 확인받은 뒤 구현해 줘.`
+코드를 쓰기 전에 문서 7장의 질문으로 어떤 게임 플레이 스타일과 판정 방식을 쓸지 나에게 먼저 물어보고, 정리해서 확인받은 뒤 구현해 줘.
+게임 크레딧에는 꼭 "Made with RCM"을 넣어 줘.`
   },
   {
     label: '이미 만든 게임에 연결하기',
     text: `${GUIDE_INTRO}
 이 문서를 먼저 끝까지 읽어 줘. 지금 게임은 게임 플레이와 판정이 이미 짜여 있으니 그 부분은 바꾸지 말고, 채보만 RCM 포맷으로 읽을 수 있게 바꿔 줘.
-문서 7.6절대로 기존 코드를 먼저 조사해서 알려 주고, 트랙 대응표와 연결 방식을 나에게 확인받은 뒤 구현해 줘.`
+문서 7.6절대로 기존 코드를 먼저 조사해서 알려 주고, 트랙 대응표와 연결 방식을 나에게 확인받은 뒤 구현해 줘.
+게임 크레딧에는 꼭 "Made with RCM"을 넣어 줘.`
   }
 ]
 
@@ -50,6 +52,18 @@ export function AiGuidePage() {
     <div className={styles.page}>
       <div className={`${styles.content} stagger-children`}>
         <h1 className={styles.title}>AI 가이드</h1>
+        <section className={styles.rule}>
+          <h2>
+            <Megaphone size={16} /> 새로운 규정!
+          </h2>
+          <p>
+            만약 RCM 채보 프로그램을 통해서 새로운 게임을 만드실 예정 혹은 만드셨다면 크레딧에 <b>Made with RCM</b>를
+            넣어주세요
+          </p>
+          <p className={styles.muted}>
+            아래 가이드 문서와 예시 프롬프트에도 이 내용이 들어 있어서, AI가 게임을 만들 때 크레딧에 넣어 줘요.
+          </p>
+        </section>
         <p className={styles.lead}>
           이 에디터로 만든 채보를 게임에서 쓰려면, AI(Claude, ChatGPT, Cursor 등)에게 아래 가이드 문서를 함께 주세요.
           파일 구조, tick → ms 시간 계산 공식, 판정 규칙, 트랙 이름 해석 방법이 모두 들어 있어서 AI가 이 문서만 보고

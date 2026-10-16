@@ -135,6 +135,33 @@
   min-height: 0;
 }
 
+.notice {
+  margin: 0 0 24px;
+  padding: 14px 16px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  line-height: 1.6;
+}
+
+.noticeTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.noticeText {
+  margin: 0;
+}
+
+.noticeText b {
+  color: var(--accent);
+}
+
 .welcome {
   margin: 0 0 32px;
   font-size: 22px;

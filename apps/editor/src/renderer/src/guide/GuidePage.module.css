@@ -79,6 +79,16 @@
   margin-bottom: 0;
 }
 
+.rule code {
+  padding: 1px 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  user-select: text;
+}
+
 .rule b {
   color: var(--accent);
 }

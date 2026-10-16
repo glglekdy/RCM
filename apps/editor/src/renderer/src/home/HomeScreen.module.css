@@ -158,6 +158,20 @@
   margin: 0;
 }
 
+.noticeText + .noticeText {
+  margin-top: 4px;
+}
+
+.noticeText code {
+  padding: 1px 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  user-select: text;
+}
+
 .noticeText b {
   color: var(--accent);
 }

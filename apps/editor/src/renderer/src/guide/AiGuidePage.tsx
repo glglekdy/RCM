@@ -1,9 +1,15 @@
-import { Copy, Download, FileText, FolderInput, Megaphone, MessageSquareText } from 'lucide-react'
+import { Clock, Copy, Download, FileText, FolderInput, Megaphone, MessageSquareText } from 'lucide-react'
 import { Button, useDialogs, useToast } from '../ui'
 import { chartFormatGuide } from './chartFormatGuide'
 import styles from './GuidePage.module.css'
 
 const GUIDE_FILE_NAME = 'CHART_FORMAT_GUIDE.md'
+
+/** 예: 2026년 10월 17일 오전 1:30 (보는 사람의 시간대) */
+const GUIDE_UPDATED_AT = new Date(__AI_GUIDE_UPDATED_AT__).toLocaleString('ko-KR', {
+  dateStyle: 'long',
+  timeStyle: 'short'
+})
 
 const GUIDE_INTRO = `첨부한 ${GUIDE_FILE_NAME}는 RCM 채보 에디터가 만든 채보 파일 포맷과 타이밍 계산, 판정 규칙을 정리한 문서야.`
 
@@ -51,6 +57,9 @@ export function AiGuidePage() {
     <div className={styles.page}>
       <div className={`${styles.content} stagger-children`}>
         <h1 className={styles.title}>AI 가이드</h1>
+        <p className={styles.updated}>
+          <Clock size={14} /> 최근 문서 수정: <time dateTime={__AI_GUIDE_UPDATED_AT__}>{GUIDE_UPDATED_AT}</time>
+        </p>
         <section className={styles.rule}>
           <h2>
             <Megaphone size={16} /> 새로운 규정!

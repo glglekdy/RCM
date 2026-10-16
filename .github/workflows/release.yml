@@ -16,6 +16,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          # AI 가이드에 보이는 문서 수정 시각을 git 기록에서 읽는다 (얕은 checkout이면 릴리스 커밋 시각이 된다)
+          fetch-depth: 0
 
       - name: Secret 확인
         env:

@@ -87,6 +87,10 @@ export interface RcmApi {
   getWhatsNewState(): Promise<{ lastSeenVersion: string | null; firstRun: boolean }>
   /** `X.Y.Z`가 아니면 reject. */
   setLastSeenVersion(version: string): Promise<void>
+  /** 홈에서 닫은 공지 id 목록. */
+  getDismissedNotices(): Promise<string[]>
+  /** 공지를 닫은 것으로 저장한다. id 형식이 틀리면 reject. */
+  dismissNotice(id: string): Promise<void>
   /** 테스트 플레이에서 마지막으로 쓴 배속. 저장된 값이 없으면 null. */
   getPlaytestSpeed(): Promise<number | null>
   /** 범위(1.0~9.0) 밖이면 reject. */

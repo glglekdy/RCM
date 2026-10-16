@@ -24,6 +24,7 @@ import {
   updateSettings,
   validateLastPresetId,
   validateLastSeenVersion,
+  validateNoticeId,
   validatePlaytestSpeed,
   validatePresets
 } from './project/settings'
@@ -165,6 +166,19 @@ export function registerProjectIpc(): void {
     const version = validateLastSeenVersion(raw)
     return updateSettings(settingsFile(), (settings) => {
       settings.lastSeenVersion = version
+    })
+  })
+
+  ipcMain.handle(
+    'rcm:get-dismissed-notices',
+    async () => (await loadSettings(settingsFile())).dismissedNotices ?? []
+  )
+
+  ipcMain.handle('rcm:dismiss-notice', async (_e, raw: unknown) => {
+    const id = validateNoticeId(raw)
+    return updateSettings(settingsFile(), (settings) => {
+      const dismissed = settings.dismissedNotices ?? []
+      if (!dismissed.includes(id)) settings.dismissedNotices = [...dismissed, id]
     })
   })
 

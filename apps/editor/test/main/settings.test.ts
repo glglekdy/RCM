@@ -12,6 +12,7 @@ import {
   updateSettings,
   validateLastPresetId,
   validateLastSeenVersion,
+  validateNoticeId,
   validatePlaytestSpeed,
   validatePresets
 } from '../../src/main/project/settings'
@@ -97,6 +98,22 @@ describe('settings', () => {
     expect(validateLastSeenVersion('10.0.1')).toBe('10.0.1')
     for (const bad of ['1.2', '0.5.2-beta', '', null, 1]) {
       expect(() => validateLastSeenVersion(bad), String(bad)).toThrow('버전 값이 올바르지 않아요')
+    }
+  })
+
+  it('dismissedNotices: 형식이 맞는 id만 읽음', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
+    const file = path.join(tmp, 'settings.json')
+    await fs.writeFile(file, JSON.stringify({ recent: [], dismissedNotices: ['made-with-rcm', 'Bad Id', 3] }))
+    expect((await loadSettings(file)).dismissedNotices).toEqual(['made-with-rcm'])
+    await fs.writeFile(file, JSON.stringify({ recent: [], dismissedNotices: 'made-with-rcm' }))
+    expect((await loadSettings(file)).dismissedNotices).toBeUndefined()
+  })
+
+  it('공지 id 저장 입력 검사', () => {
+    expect(validateNoticeId('made-with-rcm')).toBe('made-with-rcm')
+    for (const bad of ['', 'Made With RCM', 'a'.repeat(65), null, 1]) {
+      expect(() => validateNoticeId(bad), String(bad)).toThrow('공지 id가 올바르지 않아요')
     }
   })
 

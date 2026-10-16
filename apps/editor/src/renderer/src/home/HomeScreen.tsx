@@ -10,15 +10,17 @@ import {
   Search,
   Settings,
   SlidersHorizontal,
+  X,
   type LucideIcon
 } from 'lucide-react'
 import type { ProjectFiles, RecentProject } from '../../../shared/api'
 import { AiGuidePage } from '../guide/AiGuidePage'
+import { AI_GUIDE_NOTICE_ID } from '../guide/chartFormatGuide'
 import { UserGuidePage } from '../guide/UserGuidePage'
 import { PresetsPage } from '../presets/PresetsPage'
 import { SettingsPage } from '../settings/SettingsPage'
 import { UpdatePanel } from '../update/UpdatePanel'
-import { Button, TextField, useDialogs, useToast } from '../ui'
+import { Button, IconButton, TextField, useDialogs, useToast } from '../ui'
 import { nextGreeting } from './greeting'
 import { importZips } from './importZips'
 import { NewProjectDialog } from './NewProjectDialog'
@@ -50,6 +52,8 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
   const [creating, setCreating] = useState(false)
   const [page, setPage] = useState<Page>('home')
   const [drop, setDrop] = useState<'none' | 'over' | 'importing'>('none')
+  // 닫은 공지 id 목록. 읽기 전(null)에는 공지도 알림도 그리지 않는다: 닫아 둔 것이 잠깐 보였다 사라지지 않게
+  const [dismissed, setDismissed] = useState<string[] | null>(null)
   // 자식 요소를 지날 때도 dragenter/dragleave가 오므로 깊이를 센다
   const dragDepth = useRef(0)
 
@@ -61,6 +65,29 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
   useEffect(() => {
     void refresh()
   }, [refresh])
+
+  useEffect(() => {
+    let alive = true
+    void window.rcm
+      .getDismissedNotices()
+      .catch(() => [])
+      .then((ids) => alive && setDismissed(ids))
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const isNew = (id: string) => dismissed !== null && !dismissed.includes(id)
+
+  const dismiss = (id: string) => {
+    setDismissed((list) => (list === null || list.includes(id) ? list : [...list, id]))
+    void window.rcm.dismissNotice(id).catch(() => {})
+  }
+
+  const goTo = (p: Page) => {
+    setPage(p)
+    if (p === 'aiGuide' && isNew(AI_GUIDE_NOTICE_ID)) dismiss(AI_GUIDE_NOTICE_ID)
+  }
 
   const openDir = useCallback(
     async (dir: string) => {
@@ -176,9 +203,12 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
               type="button"
               className={`${styles.navItem} ${page === p ? styles.navActive : ''}`}
               aria-current={page === p}
-              onClick={() => setPage(p)}
+              onClick={() => goTo(p)}
             >
               <Icon size={16} /> {label}
+              {p === 'aiGuide' && isNew(AI_GUIDE_NOTICE_ID) && (
+                <span className={`${styles.navBadge} enter-fade`} title="가이드가 바뀌었어요" aria-label="새 내용" />
+              )}
             </button>
           ))}
         </nav>
@@ -195,7 +225,7 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
           <SettingsPage />
         ) : (
           <div className={`${styles.homeContent} stagger-children`}>
-            <RuleNotice />
+            {isNew(RULE_NOTICE_ID) && <RuleNotice onClose={() => dismiss(RULE_NOTICE_ID)} />}
             <Greeting />
             {recent !== null && recent.length === 0 ? (
               <div className={styles.empty}>
@@ -262,10 +292,16 @@ function Greeting() {
   return <h1 className={styles.welcome}>{text}</h1>
 }
 
-/** 홈 맨 위에 늘 보이는 사용 규정 안내 */
-function RuleNotice() {
+/** 닫으면 설정에 저장한다. 새 규정을 다시 띄우려면 id를 바꾼다 */
+const RULE_NOTICE_ID = 'made-with-rcm'
+
+/** 홈 맨 위의 사용 규정 안내. 닫으면 다시 보이지 않는다 (AI 가이드에는 늘 보인다) */
+function RuleNotice({ onClose }: { onClose: () => void }) {
   return (
-    <section className={styles.notice}>
+    <section className={`${styles.notice} enter-fade`}>
+      <div className={styles.noticeClose}>
+        <IconButton icon={X} label="공지 닫기" onClick={onClose} />
+      </div>
       <h2 className={styles.noticeTitle}>
         <Megaphone size={16} /> 새로운 규정!
       </h2>

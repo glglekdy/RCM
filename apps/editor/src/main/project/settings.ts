@@ -22,6 +22,8 @@ export interface Settings {
   gameplay?: PlayfieldLayout
   /** 업데이트 내역을 마지막으로 확인한 앱 버전 (X.Y.Z) */
   lastSeenVersion?: string
+  /** 홈에서 닫은 공지 id 목록 */
+  dismissedNotices?: string[]
 }
 
 const MAX_RECENT = 20
@@ -45,6 +47,14 @@ export function validateLastSeenVersion(raw: unknown): string {
   return raw
 }
 
+const isNoticeId = (raw: unknown): raw is string => typeof raw === 'string' && /^[a-z0-9-]{1,64}$/.test(raw)
+
+/** renderer가 보낸 공지 id 검사. 소문자·숫자·하이픈 1~64자가 아니면 throw. */
+export function validateNoticeId(raw: unknown): string {
+  if (!isNoticeId(raw)) throw new Error('공지 id가 올바르지 않아요')
+  return raw
+}
+
 /** renderer가 보낸 배속 검사. 범위 밖이거나 숫자가 아니면 throw. */
 export function validatePlaytestSpeed(raw: unknown): number {
   if (!isPlaytestSpeed(raw)) throw new Error('배속 값이 올바르지 않아요')
@@ -64,6 +74,7 @@ function parseSettings(raw: unknown): Settings {
     playtestSpeed?: unknown
     gameplay?: unknown
     lastSeenVersion?: unknown
+    dismissedNotices?: unknown
   }
   const recent = Array.isArray(obj.recent)
     ? obj.recent.filter(
@@ -83,6 +94,7 @@ function parseSettings(raw: unknown): Settings {
   if (isPlaytestSpeed(obj.playtestSpeed)) settings.playtestSpeed = obj.playtestSpeed
   if (obj.gameplay !== undefined) settings.gameplay = sanitizeLayout(obj.gameplay)
   if (isVersion(obj.lastSeenVersion)) settings.lastSeenVersion = obj.lastSeenVersion
+  if (Array.isArray(obj.dismissedNotices)) settings.dismissedNotices = obj.dismissedNotices.filter(isNoticeId)
   return settings
 }
 

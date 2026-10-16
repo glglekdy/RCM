@@ -1,7 +1,6 @@
 import { Copy, Download, FileText, FolderInput, Megaphone, MessageSquareText } from 'lucide-react'
-// 배포판 사용자에게 그대로 전달된다. 저장소 경로·비공개 패키지를 가리키지 않게 테스트로 지킨다 (test/shared/chartFormatGuide.test.ts)
-import chartFormatGuide from '../../../../../../docs/CHART_FORMAT_GUIDE.md?raw'
 import { Button, useDialogs, useToast } from '../ui'
+import { chartFormatGuide } from './chartFormatGuide'
 import styles from './GuidePage.module.css'
 
 const GUIDE_FILE_NAME = 'CHART_FORMAT_GUIDE.md'

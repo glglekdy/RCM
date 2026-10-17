@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, ipcMain, Menu, session } from 'electron'
 import { startDiscordPresence } from './discord/register'
-import { registerProjectIpc, settingsFile } from './ipc'
+import { registerProjectIpc, settingsFile, syncGuideFilesOnStartup } from './ipc'
 import { isAllowedNavigation } from './navigation'
 import { quitOrInstall, startUpdater } from './update/updater'
 
@@ -110,6 +110,8 @@ app.whenReady().then(() => {
     win.close()
   })
   registerProjectIpc()
+  // 앱이 업데이트돼 AI 가이드가 바뀌었으면 사용자가 넣어 둔 파일도 바꾼다
+  void syncGuideFilesOnStartup()
   const stopDiscord = startDiscordPresence(settingsFile())
   app.on('will-quit', stopDiscord)
   startUpdater(() => BrowserWindow.getAllWindows())

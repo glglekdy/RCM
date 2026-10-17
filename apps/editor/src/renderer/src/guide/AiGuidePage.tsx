@@ -1,6 +1,7 @@
 import { Clock, Copy, Download, FileText, FolderInput, Megaphone, MessageSquareText } from 'lucide-react'
 import { Button, useDialogs, useToast } from '../ui'
 import { chartFormatGuide } from './chartFormatGuide'
+import { GuideAutoUpdate } from './GuideAutoUpdate'
 import styles from './GuidePage.module.css'
 
 const GUIDE_FILE_NAME = 'CHART_FORMAT_GUIDE.md'
@@ -60,6 +61,7 @@ export function AiGuidePage() {
         <p className={styles.updated}>
           <Clock size={14} /> 최근 문서 수정: <time dateTime={__AI_GUIDE_UPDATED_AT__}>{GUIDE_UPDATED_AT}</time>
         </p>
+        <GuideAutoUpdate fileName={GUIDE_FILE_NAME} />
         <section className={styles.rule}>
           <h2>
             <Megaphone size={16} /> 새로운 규정!
@@ -146,7 +148,10 @@ export function AiGuidePage() {
               따른다&rdquo;라고 한 줄 적어 두면, 매번 첨부하지 않아도 AI가 알아서 참고해요.
             </li>
           </ol>
-          <p className={styles.muted}>에디터를 업데이트하면 가이드도 바뀔 수 있으니, 새 버전에서 다시 받아 덮어써 주세요.</p>
+          <p className={styles.muted}>
+            에디터를 업데이트하면 가이드도 바뀔 수 있어요. 맨 위의 <b>자동 문서 업데이트</b>에 그 파일을 추가해 두면
+            업데이트할 때마다 알아서 새 내용으로 바뀌어요.
+          </p>
         </section>
 
         <section className={styles.section}>

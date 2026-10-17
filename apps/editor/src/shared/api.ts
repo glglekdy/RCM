@@ -24,6 +24,14 @@ export interface ProjectFiles {
   editorText: string | null
 }
 
+/** 자동 문서 업데이트에 넣은 파일과 마지막으로 맞춘 결과 */
+export interface GuideFile {
+  path: string
+  /** current = 이미 최신, updated = 방금 새 가이드로 바꿈, missing = 파일이 없음 (다시 만들지 않는다) */
+  status: 'current' | 'updated' | 'missing' | 'error'
+  error?: string
+}
+
 export interface RecentProject {
   dir: string
   lastOpened: number
@@ -55,6 +63,12 @@ export interface RcmApi {
   showInExplorer(dir: string): Promise<void>
   /** 저장 대화상자(기본 위치: 다운로드 폴더)로 텍스트 파일을 저장한다. 취소하면 null, 저장하면 그 경로. */
   saveTextFile(defaultName: string, text: string): Promise<string | null>
+  /** 자동 문서 업데이트 목록. 돌려주기 전에 각 파일을 앱의 AI 가이드로 맞춘다. */
+  getGuideFiles(): Promise<GuideFile[]>
+  /** 저장 대화상자로 고른 위치에 AI 가이드를 저장하고 자동 업데이트에 넣는다. 취소하면 null. */
+  addGuideFile(): Promise<GuideFile[] | null>
+  /** 자동 업데이트에서 뺀다 (파일은 지우지 않는다). */
+  removeGuideFile(path: string): Promise<GuideFile[]>
   /** 저장된 트랙 프리셋 (없거나 잘못됐으면 기본 프리셋)과 마지막으로 고른 프리셋 id. */
   getPresets(): Promise<{ presets: TrackPreset[]; lastPresetId: string | null }>
   /** 프리셋 목록 전체를 저장한다. 잘못된 값이 하나라도 있으면 reject. */

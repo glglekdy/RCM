@@ -231,6 +231,17 @@ describe('settings', () => {
     })
     expect((await loadSettings(file)).lastPresetId).toBe('p1')
   })
+  it('자동 문서 업데이트 목록은 .md 절대 경로만 남김', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
+    const file = path.join(tmp, 'settings.json')
+    const guide = path.join(tmp, 'game', 'CHART_FORMAT_GUIDE.md')
+    await fs.writeFile(file, JSON.stringify({ recent: [], guideFiles: [guide, 'rel.md', path.join(tmp, 'x.ts')] }))
+    expect((await loadSettings(file)).guideFiles).toEqual([guide])
+    await updateSettings(file, (s) => {
+      s.lastPresetId = 'p1'
+    })
+    expect((await loadSettings(file)).guideFiles).toEqual([guide])
+  })
 
   it('고칠 때 내용이 깨졌으면 broken 파일로 옮겨 두고 빈 설정에서 새로 저장', async () => {
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {})

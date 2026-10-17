@@ -1,8 +1,10 @@
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { DEFAULT_LAYOUT, sanitizeLayout } from '@rcm/playfield'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { CreateProjectOptions, RecentProject } from '../shared/api'
+import { addGuidePath, sameGuidePath, syncGuideFiles } from './guide/guideFiles'
+import { chartFormatGuide } from './guide/guideText'
 import { writeFileAtomic } from './project/atomicWrite'
 import { importProjectZip } from './project/importZip'
 import {
@@ -41,6 +43,18 @@ async function touch(dir: string, extra?: { defaultProjectDir: string }): Promis
     })
   } catch (err) {
     console.error('최근 프로젝트 목록을 저장하지 못했어요', err)
+  }
+}
+
+/** 자동 문서 업데이트에 넣은 파일들을 앱의 AI 가이드로 맞춘다. 앱을 켤 때 부른다 (실패해도 앱은 뜬다). */
+export async function syncGuideFilesOnStartup(): Promise<void> {
+  try {
+    const { guideFiles = [] } = await loadSettings(settingsFile())
+    for (const r of await syncGuideFiles(guideFiles, chartFormatGuide)) {
+      if (r.status === 'error') console.error(`AI 가이드를 업데이트하지 못했어요: ${r.path}`, r.error)
+    }
+  } catch (err) {
+    console.error('AI 가이드 자동 업데이트를 하지 못했어요', err)
   }
 }
 
@@ -217,6 +231,40 @@ export function registerProjectIpc(): void {
     if (r.canceled || !r.filePath) return null
     await writeFileAtomic(r.filePath, text)
     return r.filePath
+  })
+
+  const guideFilesNow = async () =>
+    syncGuideFiles((await loadSettings(settingsFile())).guideFiles ?? [], chartFormatGuide)
+
+  ipcMain.handle('rcm:get-guide-files', guideFilesNow)
+
+  ipcMain.handle('rcm:add-guide-file', async (e) => {
+    const { guideFiles = [] } = await loadSettings(settingsFile())
+    const last = guideFiles.at(-1)
+    const options: Electron.SaveDialogOptions = {
+      title: '자동 업데이트할 가이드 파일 위치',
+      defaultPath: join(last ? dirname(last) : app.getPath('documents'), 'CHART_FORMAT_GUIDE.md'),
+      filters: [{ name: 'Markdown', extensions: ['md'] }]
+    }
+    const win = parentOf(e)
+    const r = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
+    if (r.canceled || !r.filePath) return null
+    const file = r.filePath
+    // 경로부터 검사하고(.md만), 파일을 쓴 뒤에 목록에 넣는다
+    addGuidePath(guideFiles, file)
+    await writeFileAtomic(file, chartFormatGuide)
+    await updateSettings(settingsFile(), (settings) => {
+      settings.guideFiles = addGuidePath(settings.guideFiles ?? [], file)
+    })
+    return guideFilesNow()
+  })
+
+  ipcMain.handle('rcm:remove-guide-file', async (_e, file: unknown) => {
+    if (typeof file !== 'string') throw new Error('파일 경로가 올바르지 않아요')
+    await updateSettings(settingsFile(), (settings) => {
+      settings.guideFiles = (settings.guideFiles ?? []).filter((p) => !sameGuidePath(p, file))
+    })
+    return guideFilesNow()
   })
 
   ipcMain.handle('rcm:show-in-explorer', async (_e, dir: string) => {

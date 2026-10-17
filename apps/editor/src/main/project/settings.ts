@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import { MAX_SPEED, MIN_SPEED, sanitizeLayout, type PlayfieldLayout } from '@rcm/playfield'
 import { MAX_PRESET_ID_LENGTH, sanitizePresets, type TrackPreset } from '../../shared/presets'
+import { sanitizeGuidePaths } from '../guide/guideFiles'
 import { writeFileAtomic } from './atomicWrite'
 
 export interface RecentEntry {
@@ -24,6 +25,8 @@ export interface Settings {
   lastSeenVersion?: string
   /** 홈에서 닫은 공지 id 목록 */
   dismissedNotices?: string[]
+  /** 자동 문서 업데이트: 앱의 AI 가이드로 맞춰 둘 파일들 (사용자가 직접 넣은 `.md` 절대 경로) */
+  guideFiles?: string[]
 }
 
 const MAX_RECENT = 20
@@ -75,6 +78,7 @@ function parseSettings(raw: unknown): Settings {
     gameplay?: unknown
     lastSeenVersion?: unknown
     dismissedNotices?: unknown
+    guideFiles?: unknown
   }
   const recent = Array.isArray(obj.recent)
     ? obj.recent.filter(
@@ -95,6 +99,7 @@ function parseSettings(raw: unknown): Settings {
   if (obj.gameplay !== undefined) settings.gameplay = sanitizeLayout(obj.gameplay)
   if (isVersion(obj.lastSeenVersion)) settings.lastSeenVersion = obj.lastSeenVersion
   if (Array.isArray(obj.dismissedNotices)) settings.dismissedNotices = obj.dismissedNotices.filter(isNoticeId)
+  if (obj.guideFiles !== undefined) settings.guideFiles = sanitizeGuidePaths(obj.guideFiles)
   return settings
 }
 

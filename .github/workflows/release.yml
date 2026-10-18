@@ -4,7 +4,7 @@ on:
   push:
     tags: ['v*.*.*']
 
-# contents: write = 이 저장소(RCM-Dev)에 모든 버전을 Release로 보관한다
+# contents: write = 이 저장소(RCM)에 설치 파일을 Release로 올리고 이전 Release를 지운다
 permissions:
   contents: write
 
@@ -21,10 +21,10 @@ jobs:
 
       - name: Secret 확인
         env:
-          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          ARCHIVE_TOKEN: ${{ secrets.ARCHIVE_TOKEN }}
         run: |
-          if ([string]::IsNullOrEmpty($env:RELEASE_TOKEN)) {
-            Write-Output "::error::RELEASE_TOKEN Secret이 없어요"
+          if ([string]::IsNullOrEmpty($env:ARCHIVE_TOKEN)) {
+            Write-Output "::error::ARCHIVE_TOKEN Secret이 없어요"
             exit 1
           }
 
@@ -59,41 +59,41 @@ jobs:
 
       # electron-builder는 파일마다 동시에 릴리스를 찾다가 초안을 두 개 만들 수 있으므로,
       # 초안을 먼저 하나만 만들어 두고 electron-builder가 그 초안에 올리게 한다 (재실행이면 있는 초안을 쓴다)
-      - name: RCM 저장소에 초안 릴리스 준비
+      - name: 초안 릴리스 준비
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          $ids = @(gh api repos/glglekdy/RCM/releases --paginate --jq '.[] | select(.tag_name == env.TAG) | .id')
+          $ids = @(gh api "repos/$env:GITHUB_REPOSITORY/releases" --paginate --jq '.[] | select(.tag_name == env.TAG) | .id')
           if ($LASTEXITCODE -ne 0) { exit 1 }
           if ($ids.Count -gt 1) {
-            Write-Output "::error::RCM 저장소에 $env:TAG 릴리스가 $($ids.Count)개 있어요. 하나만 남기고 지운 뒤 다시 실행하세요"
+            Write-Output "::error::$env:TAG 릴리스가 $($ids.Count)개 있어요. 하나만 남기고 지운 뒤 다시 실행하세요"
             exit 1
           }
           if ($ids.Count -eq 0) {
-            gh release create "$env:TAG" --repo glglekdy/RCM --draft --title "$env:TAG" --notes ' '
+            gh release create "$env:TAG" --repo "$env:GITHUB_REPOSITORY" --verify-tag --draft --title "$env:TAG" --notes ' '
             if ($LASTEXITCODE -ne 0) { exit 1 }
           }
 
       # releaseInfo.releaseName은 ${version} 매크로를 풀지 않으므로 태그 이름을 직접 넘긴다
-      - name: 빌드하고 RCM 저장소에 초안 릴리스 올리기
+      - name: 빌드하고 초안 릴리스에 올리기
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           EP_GH_IGNORE_TIME: 'true'
         run: npm -w @rcm/editor run dist:publish -- "-c.releaseInfo.releaseName=$env:GITHUB_REF_NAME"
 
       - name: 초안에 업데이트 파일이 모두 있는지 확인
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          $ids = @(gh api repos/glglekdy/RCM/releases --paginate --jq '.[] | select(.tag_name == env.TAG) | .id')
+          $ids = @(gh api "repos/$env:GITHUB_REPOSITORY/releases" --paginate --jq '.[] | select(.tag_name == env.TAG) | .id')
           if ($LASTEXITCODE -ne 0) { exit 1 }
           if ($ids.Count -ne 1) {
-            Write-Output "::error::RCM 저장소의 $env:TAG 릴리스가 하나가 아니에요 ($($ids.Count)개)"
+            Write-Output "::error::$env:TAG 릴리스가 하나가 아니에요 ($($ids.Count)개)"
             exit 1
           }
-          $assets = @(gh api "repos/glglekdy/RCM/releases/$($ids[0])" --jq '.assets[].name')
+          $assets = @(gh api "repos/$env:GITHUB_REPOSITORY/releases/$($ids[0])" --jq '.assets[].name')
           if ($LASTEXITCODE -ne 0) { exit 1 }
           $version = $env:TAG.Substring(1)
           foreach ($name in @('latest.yml', "RCM-Setup-$version.exe", "RCM-Setup-$version.exe.blockmap")) {
@@ -106,15 +106,15 @@ jobs:
 
       - name: 업데이트 내역을 넣고 정식 릴리스로 공개
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          gh api -X PATCH "repos/glglekdy/RCM/releases/$env:RELEASE_ID" -F draft=false -F "body=@$env:RUNNER_TEMP/release-notes.md" --silent
+          gh api -X PATCH "repos/$env:GITHUB_REPOSITORY/releases/$env:RELEASE_ID" -F draft=false -f make_latest=true -F "body=@$env:RUNNER_TEMP/release-notes.md" --silent
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
-      # 공개 저장소(RCM)에는 최신 버전만 둔다: 모든 버전의 설치 파일과 업데이트 내역은 이 저장소(비공개)의 같은 태그 Release로 보관한다
-      - name: RCM-Dev에 이번 버전 보관
+      # 이 저장소(RCM)의 Releases에는 최신 버전만 둔다: 모든 버전의 설치 파일과 업데이트 내역은 비공개 RCM-Archive에 같은 태그 이름으로 보관한다
+      - name: RCM-Archive에 이번 버전 보관
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.ARCHIVE_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: |
           $version = $env:TAG.Substring(1)
@@ -123,36 +123,37 @@ jobs:
           foreach ($f in $files) {
             if (-not (Test-Path $f)) { Write-Output "::error::보관할 $f 파일이 없어요"; exit 1 }
           }
-          gh release view "$env:TAG" --repo "$env:GITHUB_REPOSITORY" --json id --jq .id 2>$null | Out-Null
+          gh release view "$env:TAG" --repo glglekdy/RCM-Archive --json id --jq .id 2>$null | Out-Null
           if ($LASTEXITCODE -eq 0) {
             # 다시 실행한 경우: 파일만 바꿔 올린다
-            gh release upload "$env:TAG" --repo "$env:GITHUB_REPOSITORY" --clobber @files
+            gh release upload "$env:TAG" --repo glglekdy/RCM-Archive --clobber @files
           } else {
-            gh release create "$env:TAG" --repo "$env:GITHUB_REPOSITORY" --verify-tag --latest=false --title "$env:TAG" --notes-file "$env:RUNNER_TEMP/release-notes.md" @files
+            # 보관소에는 소스가 없으므로 태그는 보관소의 main에 만든다
+            gh release create "$env:TAG" --repo glglekdy/RCM-Archive --target main --title "$env:TAG" --notes-file "$env:RUNNER_TEMP/release-notes.md" @files
           }
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
-      # RCM-Dev에 설치 파일이 보관된 버전만 지운다 (유일한 사본을 지우지 않게)
-      - name: RCM에서 이전 버전 지우기
+      # RCM-Archive에 설치 파일이 보관된 버전만 지운다 (유일한 사본을 지우지 않게). 소스 태그는 남기고 Release만 지운다
+      - name: 이전 버전 Release 지우기
         env:
-          DEV_TOKEN: ${{ github.token }}
-          PUBLIC_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          REPO_TOKEN: ${{ github.token }}
+          ARCHIVE_TOKEN: ${{ secrets.ARCHIVE_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: |
-          $env:GH_TOKEN = $env:PUBLIC_TOKEN
-          $old = @(gh api repos/glglekdy/RCM/releases --paginate --jq '.[] | select(.draft == false and .tag_name != env.TAG) | .tag_name')
+          $env:GH_TOKEN = $env:REPO_TOKEN
+          $old = @(gh api "repos/$env:GITHUB_REPOSITORY/releases" --paginate --jq '.[] | select(.draft == false and .tag_name != env.TAG) | .tag_name')
           if ($LASTEXITCODE -ne 0) { exit 1 }
           $failed = $false
           foreach ($tag in $old) {
-            $env:GH_TOKEN = $env:DEV_TOKEN
-            $archived = @(gh release view "$tag" --repo "$env:GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>$null)
+            $env:GH_TOKEN = $env:ARCHIVE_TOKEN
+            $archived = @(gh release view "$tag" --repo glglekdy/RCM-Archive --json assets --jq '.assets[].name' 2>$null)
             if ($LASTEXITCODE -ne 0 -or $archived -notcontains "RCM-Setup-$($tag.Substring(1)).exe") {
-              Write-Output "::warning::$tag 설치 파일이 RCM-Dev에 보관되지 않아 RCM에서 지우지 않았어요"
+              Write-Output "::warning::$tag 설치 파일이 RCM-Archive에 보관되지 않아 지우지 않았어요"
               continue
             }
-            $env:GH_TOKEN = $env:PUBLIC_TOKEN
-            gh release delete "$tag" --repo glglekdy/RCM --cleanup-tag --yes
-            if ($LASTEXITCODE -ne 0) { Write-Output "::error::RCM의 $tag 릴리스를 지우지 못했어요"; $failed = $true }
-            else { Write-Output "RCM에서 $tag 지움 (RCM-Dev에 보관됨)" }
+            $env:GH_TOKEN = $env:REPO_TOKEN
+            gh release delete "$tag" --repo "$env:GITHUB_REPOSITORY" --yes
+            if ($LASTEXITCODE -ne 0) { Write-Output "::error::$tag 릴리스를 지우지 못했어요"; $failed = $true }
+            else { Write-Output "$tag Release 지움 (RCM-Archive에 보관됨, 태그는 남김)" }
           }
           if ($failed) { exit 1 }

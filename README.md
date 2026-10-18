@@ -35,14 +35,11 @@ Windows용 NSIS 설치 파일이 `apps/editor/dist/RCM-Setup-<버전>.exe`로 �
 
 ## 배포
 
-소스와 Actions는 비공개 저장소 `glglekdy/RCM-Dev`에 있고, 설치 파일은 공개 저장소 `glglekdy/RCM`의 Releases에 올라갑니다. 설치된 앱은 이 공개 저장소에서 새 버전을 확인합니다. 아래 1~3은 한 번만 하면 되는 준비입니다. 이미 끝났다면 하나씩 맞는지 확인만 하세요.
+소스, Actions, 설치 파일 Release가 모두 공개 저장소 `glglekdy/RCM` 하나에 있습니다. 설치된 앱은 이 저장소의 최신 Release에서 새 버전을 확인합니다. Release에는 최신 버전만 남기고, 모든 버전의 설치 파일과 업데이트 내역은 비공개 저장소 `glglekdy/RCM-Archive`에 같은 태그 이름의 Release로 보관합니다. 아래 1~3은 한 번만 하면 되는 준비입니다. 이미 끝났다면 하나씩 맞는지 확인만 하세요.
 
-1. 저장소: `glglekdy/RCM`은 공개, `glglekdy/RCM-Dev`는 비공개이고, 로컬 `origin`이 `RCM-Dev`를 가리킵니다 (`git remote -v`로 확인).
-2. 토큰: GitHub → Settings → Developer settings → Fine-grained tokens에서 저장소는 `RCM`만 선택하고 권한은 `Contents: Read and write`로 만듭니다.
-3. Secret: `RCM-Dev` 저장소 → Settings → Secrets and variables → Actions에 위 토큰을 `RELEASE_TOKEN`이라는 이름으로 등록합니다. 토큰 값은 저장소나 파일에 적지 않습니다.
-4. 코드 올리기: main 브랜치를 `RCM-Dev`에 push합니다.
-5. 첫 배포: `npm run release -- 0.1.0` 다음 `git push --follow-tags`. Actions가 성공하면 `RCM` 저장소의 Release `v0.1.0`에서 설치 파일을 받아 설치합니다.
-6. 업데이트 확인: `npm run release -- 0.1.1` 다음 `git push --follow-tags`. 설치해 둔 0.1.0 앱을 켜면 새 버전 알림이 뜹니다.
+1. 저장소: `glglekdy/RCM`은 공개, `glglekdy/RCM-Archive`는 비공개이고, 로컬 `origin`이 `RCM`을 가리킵니다 (`git remote -v`로 확인).
+2. 토큰: GitHub → Settings → Developer settings → Fine-grained tokens에서 저장소는 `RCM-Archive`만 선택하고 권한은 `Contents: Read and write`로 만듭니다. `RCM` 자신의 Release는 Actions 기본 토큰으로 올리므로 따로 토큰이 필요 없습니다.
+3. Secret: `RCM` 저장소 → Settings → Secrets and variables → Actions에 위 토큰을 `ARCHIVE_TOKEN`이라는 이름으로 등록합니다. 토큰 값은 저장소나 파일에 적지 않습니다.
 
 ### 평소 배포
 
@@ -51,15 +48,15 @@ npm run release -- X.Y.Z
 git push --follow-tags
 ```
 
-`npm run release`는 `apps/editor`의 버전을 올리고 `chore: release vX.Y.Z` 커밋과 `vX.Y.Z` 태그를 만들 뿐 push는 하지 않습니다. 태그 메시지에는 업데이트 내역이 들어가고, 같은 내용이 `RCM` 저장소 Release 본문에도 올라갑니다. 내역은 지난 태그 뒤의 커밋 중 `feat`(새 기능), `fix`(버그 수정), `perf`(성능 개선)를 종류별로 모아 자동으로 만들고, 실행할 때 화면에 보여 줍니다. 직접 쓴 내역을 쓰려면 Markdown 파일을 저장소 밖에 만들어 `npm run release -- X.Y.Z --notes <파일 경로>`로 넘기세요 (저장소 안에 두면 커밋 안 된 변경으로 보여 거부됩니다). 태그의 내역은 `git tag -n99 vX.Y.Z`로 볼 수 있습니다. 태그가 push되면 `.github/workflows/release.yml`이 Windows에서 태그와 앱 버전이 같은지 확인하고 테스트와 타입 검사를 돌린 뒤, 설치 파일(`RCM-Setup-X.Y.Z.exe`, `.blockmap`, `latest.yml`)을 `RCM` 저장소에 초안 Release로 올리고, `latest.yml`과 설치 파일이 모두 있는지 확인한 뒤 정식 릴리스로 공개합니다. 공개되기 전의 초안은 사용자에게 보이지 않습니다.
+`npm run release`는 `apps/editor`의 버전을 올리고 `chore: release vX.Y.Z` 커밋과 `vX.Y.Z` 태그를 만들 뿐 push는 하지 않습니다. 태그 메시지에는 업데이트 내역이 들어가고, 같은 내용이 Release 본문에도 올라갑니다. 내역은 지난 태그 뒤의 커밋 중 `feat`(새 기능), `fix`(버그 수정), `perf`(성능 개선)를 종류별로 모아 자동으로 만들고, 실행할 때 화면에 보여 줍니다. 직접 쓴 내역을 쓰려면 Markdown 파일을 저장소 밖에 만들어 `npm run release -- X.Y.Z --notes <파일 경로>`로 넘기세요 (저장소 안에 두면 커밋 안 된 변경으로 보여 거부됩니다). 태그의 내역은 `git tag -n99 vX.Y.Z`로 볼 수 있습니다. 태그가 push되면 `.github/workflows/release.yml`이 Windows에서 태그와 앱 버전이 같은지 확인하고 테스트와 타입 검사를 돌린 뒤, 설치 파일(`RCM-Setup-X.Y.Z.exe`, `.blockmap`, `latest.yml`)을 초안 Release로 올리고, `latest.yml`과 설치 파일이 모두 있는지 확인한 뒤 정식 릴리스로 공개합니다. 공개되기 전의 초안은 사용자에게 보이지 않습니다. 그다음 같은 파일과 내역을 `RCM-Archive`에 보관하고, 보관이 확인된 이전 버전의 Release만 지웁니다 (태그는 남깁니다).
 
 ### 실패했을 때
 
-`RCM-Dev` 저장소의 Actions 탭에서 `release` 실행을 열어 실패한 단계의 로그를 확인합니다. `RELEASE_TOKEN Secret이 없어요`가 보이면 위 3번의 Secret 이름과 저장소를 확인하세요.
+`RCM` 저장소의 Actions 탭에서 `release` 실행을 열어 실패한 단계의 로그를 확인합니다. `ARCHIVE_TOKEN Secret이 없어요`가 보이면 위 3번의 Secret 이름과 저장소를 확인하세요.
 
-실패했다면 같은 실행에서 job을 다시 실행(Re-run)하세요. 다시 올릴 때는 같은 초안에 덮어씁니다. 공개 전에 실패한 초안은 `RCM` 저장소에서 사용자에게 보이지 않습니다. 그래도 꼬였다면 `RCM`의 해당 초안 Release를 지우고, `RCM-Dev`의 원격 태그를 먼저 지운 뒤 태그를 다시 push하세요.
+실패했다면 같은 실행에서 job을 다시 실행(Re-run)하세요. 다시 올릴 때는 같은 초안에 덮어씁니다. 공개 전에 실패한 초안은 사용자에게 보이지 않습니다. 그래도 꼬였다면 해당 초안 Release와 원격 태그를 지운 뒤 태그를 다시 push하세요.
 
-게시 단계에서 `401`이나 `Bad credentials`가 나오면 fine-grained 토큰이 만료된 것입니다. 새 토큰을 만들어 `RCM-Dev`의 `RELEASE_TOKEN` Secret을 바꾸세요.
+보관 단계에서 `401`이나 `Bad credentials`가 나오면 fine-grained 토큰이 만료된 것입니다. 새 토큰을 만들어 `RCM`의 `ARCHIVE_TOKEN` Secret을 바꾸세요. 이미 공개된 릴리스는 그대로이니 그 job만 다시 실행하면 됩니다.
 
 ### 업데이트 파일 위치
 

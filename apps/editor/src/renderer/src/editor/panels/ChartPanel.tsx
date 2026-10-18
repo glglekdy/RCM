@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { BookmarkPlus } from 'lucide-react'
-import { isGimmick } from '@rcm/core'
+import { isFreeChart, isGimmick } from '@rcm/core'
 import { keysLabel } from '@rcm/playfield'
 import { resolveKeymap } from '../../../../shared/presets'
 import { usePresets } from '../../presets/presetStore'
 import { TrackRowsEditor } from '../../presets/TrackRowsEditor'
-import { Button, Card, NumberField, Row, TextField, useDialogs, useToast } from '../../ui'
-import { updateChartMeta } from '../commands/meta'
+import { Button, Card, useDialogs, useToast } from '../../ui'
 import {
   addTrack,
   moveTrack,
@@ -15,25 +14,29 @@ import {
   renameTrack,
   updateTrackLook
 } from '../commands/tracks'
-import { getChart, type ProjectDoc } from '../state/doc'
+import { getChart, getLaneChart, type ProjectDoc } from '../state/doc'
 import { useEditor, useStore } from '../state/useStore'
+import { ChartInfoCard } from './ChartInfoCard'
+import { FreeChartPanel } from './FreeChartPanel'
 import { SavePresetDialog } from './SavePresetDialog'
 import styles from './Panel.module.css'
 
 export function ChartPanel() {
+  const free = useEditor((s) => isFreeChart(getChart(s.doc, s.activeChart)))
+  return free ? <FreeChartPanel /> : <LaneChartPanel />
+}
+
+function LaneChartPanel() {
   const store = useStore()
   const dialogs = useDialogs()
   const toast = useToast()
   const file = useEditor((s) => s.activeChart)
-  const chart = useEditor((s) => getChart(s.doc, s.activeChart))
+  const chart = useEditor((s) => getLaneChart(s.doc, s.activeChart))
   // 재생·녹음·테스트 플레이 중에는 트랙을 고치지 않는다
   const locked = useEditor((s) => s.playing || s.mode !== 'edit')
   const presets = usePresets()
   const keymap = resolveKeymap(chart.tracks, presets)
   const [savingPreset, setSavingPreset] = useState(false)
-
-  const applyMeta = (patch: { name?: string; level?: number }) =>
-    store.apply('채보 정보 변경', updateChartMeta(store.getState().doc, file, patch), file)
 
   const isLocked = () => {
     const s = store.getState()
@@ -56,7 +59,7 @@ export function ChartPanel() {
 
   const remove = async (i: number) => {
     if (isLocked()) return
-    const before = getChart(store.getState().doc, file)
+    const before = getLaneChart(store.getState().doc, file)
     const id = before.tracks[i]?.id
     if (id === undefined) return
     const count = notesOnTrack(before, id)
@@ -72,7 +75,7 @@ export function ChartPanel() {
     // 묻는 사이에 트랙이 바뀌었을 수 있으니 같은 이름의 트랙을 지운다
     const doc = store.getState().doc
     if (!doc.charts.some((c) => c.file === file)) return
-    const index = getChart(doc, file).tracks.findIndex((t) => t.id === id)
+    const index = getLaneChart(doc, file).tracks.findIndex((t) => t.id === id)
     if (index < 0) return
     applyTracks('트랙 삭제', removeTrack(doc, file, index)?.doc ?? null, true)
   }
@@ -84,19 +87,7 @@ export function ChartPanel() {
 
   return (
     <>
-      <Card title="채보 정보">
-        <Row label="이름">
-          <TextField value={chart.name} onCommit={(name) => applyMeta({ name })} />
-        </Row>
-        <Row label="레벨">
-          <NumberField
-            value={chart.level}
-            min={1}
-            max={99}
-            onCommit={(level) => applyMeta({ level: Math.round(level) })}
-          />
-        </Row>
-      </Card>
+      <ChartInfoCard />
       <Card title="트랙">
         <TrackRowsEditor
           tracks={chart.tracks}

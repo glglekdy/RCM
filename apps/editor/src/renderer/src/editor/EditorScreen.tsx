@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { PanelRight } from 'lucide-react'
-import { TimingMap } from '@rcm/core'
+import { isFreeChart, noteStartTicks, TimingMap } from '@rcm/core'
 import { trackForCode, trackForKey, type TrackKeymap } from '@rcm/playfield'
 import type { ProjectFiles } from '../../../shared/api'
 import { resolveKeymap } from '../../../shared/presets'
@@ -272,16 +272,22 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       return
     }
     if (s.playing) return
+    const target = getChart(s.doc, s.activeChart)
+    // 자유형 채보는 키보드로 위치를 정할 수 없어 녹음하지 않는다
+    if (isFreeChart(target)) {
+      toast('자유형 채보는 녹음할 수 없어요. 그리기 도구로 찍어 주세요')
+      return
+    }
     play()
     if (!store.getState().playing) return
-    const { keys } = resolveKeymap(getChart(s.doc, s.activeChart).tracks, getPresets())
+    const { keys } = resolveKeymap(target.tracks, getPresets())
     recordingRef.current = {
       recorder: new Recorder(keys),
       session: { file: s.activeChart, snap: s.snap },
       keymap: keys
     }
     store.set({ mode: 'recording' })
-  }, [play, stop, store])
+  }, [play, stop, store, toast])
 
   // ---- 테스트 플레이 (5.11절) ----
   /** 테스트 플레이의 판정 시작 위치. null이면 테스트 플레이 중이 아니다. */
@@ -298,9 +304,9 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       if (store.getState().mode !== 'edit') return
       stop()
       const s = store.getState()
-      const first = getChart(s.doc, s.activeChart).notes[0]
+      const first = noteStartTicks(getChart(s.doc, s.activeChart))[0]
       const fromMs = fromStart
-        ? Math.min(0, first ? tmRef.current.tickToMs(first.tick) : 0)
+        ? Math.min(0, first !== undefined ? tmRef.current.tickToMs(first) : 0)
         : s.playheadMs
       // 효과음 없이, 준비 시간을 두고 재생한다 (음수 위치는 AudioEngine이 지연으로 처리)
       engine.setHits([])
@@ -554,6 +560,12 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       case 'toolSelect':
         store.set({ tool: 'select' })
         break
+      case 'toolBrush': {
+        // 연속 그리기는 자유형 채보 전용
+        const st = store.getState()
+        if (isFreeChart(getChart(st.doc, st.activeChart))) store.set({ tool: 'brush' })
+        break
+      }
       case 'markerPrev':
       case 'markerNext': {
         const st = store.getState()

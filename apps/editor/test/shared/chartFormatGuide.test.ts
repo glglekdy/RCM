@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { ScrollMap, TimingMap, type Chart, type SpeedPoint, type TimingPoint } from '@rcm/core'
+import { ScrollMap, slideSpanAt, TimingMap, type Chart, type SlidePoint, type SpeedPoint, type TimingPoint } from '@rcm/core'
 import { PlayState } from '@rcm/playfield'
 
 /**
@@ -35,6 +35,7 @@ describe('CHART_FORMAT_GUIDE.md', () => {
       TimingMap: new (timing: TimingPoint[], offsetMs: number) => TimingMap
       ScrollMap: new (speeds: SpeedPoint[] | undefined, tm: TimingMap) => ScrollMap
       PlayState: new (chart: Chart, tm: TimingMap, fromMs: number) => PlayState
+      slideSpanAt: typeof slideSpanAt
     }
 
     beforeAll(async () => {
@@ -96,6 +97,22 @@ describe('CHART_FORMAT_GUIDE.md', () => {
       for (let ms = -500; ms < 10000; ms += 137) {
         expect(a.positionAt(ms)).toBeCloseTo(b.positionAt(ms), 9)
         expect(a.speedAt(ms)).toBeCloseTo(b.speedAt(ms), 9)
+      }
+    })
+
+    it('slideSpanAt: 자유형 슬라이드 경로가 실제 구현과 같다', () => {
+      const points: SlidePoint[] = [
+        { tick: 0, x: 0, width: 2, ease: 'easeOut' },
+        { tick: 480, x: 6, width: 4, hidden: true },
+        { tick: 960, x: 2, width: 3, ease: 'easeIn' },
+        { tick: 1440, x: 9, width: 3 }
+      ]
+      const times = [100, 600, 1100, 1600]
+      for (let t = 0; t < 1800; t += 37) {
+        const a = ref.slideSpanAt(points, times, t)
+        const b = slideSpanAt(points, times, t)
+        expect(a.x).toBeCloseTo(b.x, 9)
+        expect(a.width).toBeCloseTo(b.width, 9)
       }
     })
 

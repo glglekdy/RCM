@@ -1,5 +1,5 @@
-import { emptyEditorData, parseChart, parseEditorData, parseSong } from '@rcm/core'
-import type { Chart, EditorData, Song } from '@rcm/core'
+import { emptyEditorData, parseAnyChart, parseEditorData, parseSong } from '@rcm/core'
+import type { EditorData, Song } from '@rcm/core'
 import type { ProjectFiles } from '../../../../shared/api'
 import type { ChartEntry, ProjectDoc } from './doc'
 
@@ -15,8 +15,8 @@ export function loadProject(
 
   const charts: ChartEntry[] = []
   for (const { file, text } of files.charts) {
-    const c = parseChart(text, file)
-    if (c.ok) charts.push({ file, chart: c.value as Chart })
+    const c = parseAnyChart(text, file)
+    if (c.ok) charts.push({ file, chart: c.value })
     else errors.push(...c.errors)
   }
   if (files.charts.length === 0) errors.push('채보 파일(*.chart.json)이 없어요')

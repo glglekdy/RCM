@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TimingMap, basicTracks, type Note } from '@rcm/core'
-import { getChart, type ProjectDoc } from '../../../src/renderer/src/editor/state/doc'
+import { getLaneChart, type ProjectDoc } from '../../../src/renderer/src/editor/state/doc'
 import { History } from '../../../src/renderer/src/editor/state/history'
 import { EditorStore } from '../../../src/renderer/src/editor/state/store'
 import { createToolController } from '../../../src/renderer/src/editor/timeline/tools'
@@ -30,7 +30,7 @@ function setup(doc: ProjectDoc = d0, tool: 'draw' | 'erase' | 'select' = 'draw')
   const store = new EditorStore({ dir: 'C:/p' }, doc)
   store.set({ tool, snap: 4 })
   const tools = createToolController(store, () => ({ tm, view, layout }))
-  const notes = () => getChart(store.getState().doc, F).notes
+  const notes = () => getLaneChart(store.getState().doc, F).notes
   const labels = () => commit.mock.calls.map(([entry]) => entry.label)
   return { store, tools, notes, labels }
 }
@@ -108,7 +108,7 @@ describe('그리기 도구', () => {
       tools.onPointerMove(left(X1, yOf(960)))
       expect(tools.overlay().preview).toEqual([])
       tools.onPointerUp(left(X1, yOf(960)))
-      expect(getChart(store.getState().doc, F).notes).toEqual([])
+      expect(getLaneChart(store.getState().doc, F).notes).toEqual([])
     }
     expect(commit).not.toHaveBeenCalled()
   })

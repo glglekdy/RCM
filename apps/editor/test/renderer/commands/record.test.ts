@@ -8,7 +8,7 @@ import {
   quantizePresses,
   recordingMessage
 } from '../../../src/renderer/src/editor/commands/record'
-import { getChart } from '../../../src/renderer/src/editor/state/doc'
+import { getLaneChart } from '../../../src/renderer/src/editor/state/doc'
 
 // d0: 120 BPM, offset 0 → 1 tick = 500/480 ms, 1/16 한 칸 = 120 tick = 125ms
 const tm = new TimingMap([{ tick: 0, bpm: 120 }], 0)
@@ -63,7 +63,7 @@ describe('recording commands', () => {
       { track: 'Note_3', downMs: 600, upMs: 650 }
     ])
     expect(r.added).toBe(1)
-    expect(getChart(r.doc, 'normal.chart.json').notes).toEqual([{ tick: 480, track: 'Note_3', type: 'tap' }])
-    expect(getChart(r.doc, hard.file).notes).toEqual([])
+    expect(getLaneChart(r.doc, 'normal.chart.json').notes).toEqual([{ tick: 480, track: 'Note_3', type: 'tap' }])
+    expect(getLaneChart(r.doc, hard.file).notes).toEqual([])
   })
 })

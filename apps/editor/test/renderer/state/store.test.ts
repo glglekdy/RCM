@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getChart, replaceChart, type ProjectDoc } from '../../../src/renderer/src/editor/state/doc'
+import { getLaneChart, replaceChart, type ProjectDoc } from '../../../src/renderer/src/editor/state/doc'
 import { EditorStore } from '../../../src/renderer/src/editor/state/store'
 import { d0 } from '../fixtures'
 
@@ -11,7 +11,7 @@ const N = 'normal.chart.json'
 const H = 'hard.chart.json'
 const withHard: ProjectDoc = {
   ...d0,
-  charts: [...d0.charts, { file: H, chart: { ...getChart(d0, N), name: 'HARD' } }]
+  charts: [...d0.charts, { file: H, chart: { ...getLaneChart(d0, N), name: 'HARD' } }]
 }
 const titled = (title: string): ProjectDoc => ({ ...d0, song: { ...d0.song, title } })
 
@@ -58,7 +58,7 @@ describe('EditorStore active chart guard', () => {
   })
   it('undo of a chart edit switches to that chart and clears selection', () => {
     const s = make(withHard)
-    s.apply('edit', replaceChart(withHard, H, { ...getChart(withHard, H), level: 5 }), H)
+    s.apply('edit', replaceChart(withHard, H, { ...getLaneChart(withHard, H), level: 5 }), H)
     s.set({ activeChart: N, selection: new Set(['a']) })
     s.undo()
     expect(s.getState().activeChart).toBe(H)

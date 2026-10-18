@@ -1,4 +1,4 @@
-import type { Chart, TimingMap } from '@rcm/core'
+import { noteStartTicks, type AnyChart, type TimingMap } from '@rcm/core'
 
 /** 시작 위치가 음수면 그만큼 기다렸다가 곡 처음부터, 아니면 즉시 해당 오프셋부터 재생한다. */
 export function playbackStartParams(fromMs: number): { delaySec: number; offsetSec: number } {
@@ -7,8 +7,8 @@ export function playbackStartParams(fromMs: number): { delaySec: number; offsetS
 }
 
 /** 노트 시작 시각(ms) 목록. 오름차순, 같은 ms는 하나만. */
-export function hitTimesForChart(chart: Chart, tm: TimingMap): number[] {
-  const times = chart.notes.map((n) => tm.tickToMs(n.tick))
+export function hitTimesForChart(chart: AnyChart, tm: TimingMap): number[] {
+  const times = noteStartTicks(chart).map((t) => tm.tickToMs(t))
   times.sort((a, b) => a - b)
   return times.filter((t, i) => i === 0 || t !== times[i - 1])
 }

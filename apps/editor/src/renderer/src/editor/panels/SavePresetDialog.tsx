@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { newPresetId, resolveKeymap, type TrackPreset } from '../../../../shared/presets'
 import { getPresets, savePresets } from '../../presets/presetStore'
 import { Button, isSubmitEnter, Modal, Row, TextField, useDialogs, useToast } from '../../ui'
-import { getChart } from '../state/doc'
+import { getLaneChart } from '../state/doc'
 import { useStore } from '../state/useStore'
 import styles from './Panel.module.css'
 
@@ -18,7 +18,7 @@ export function SavePresetDialog({ onClose }: { onClose: () => void }) {
   const save = async () => {
     if (trimmed === '' || saving) return
     const s = store.getState()
-    const { tracks } = getChart(s.doc, s.activeChart)
+    const { tracks } = getLaneChart(s.doc, s.activeChart)
     const presets = getPresets()
     const { keys } = resolveKeymap(tracks, presets)
     const preset: TrackPreset = {

@@ -11,21 +11,21 @@ import {
   type Track,
   type TrackKind
 } from '@rcm/core'
-import { getChart, replaceChart, type ProjectDoc } from '../state/doc'
+import { getLaneChart, replaceChart, type ProjectDoc } from '../state/doc'
 
 const validIndex = (tracks: readonly Track[], i: number): boolean =>
   Number.isInteger(i) && i >= 0 && i < tracks.length
 
 /** 끝에 `Note_N` 트랙을 추가한다. 이미 최대 개수면 null. */
 export function addTrack(doc: ProjectDoc, file: string): ProjectDoc | null {
-  const chart = getChart(doc, file)
+  const chart = getLaneChart(doc, file)
   if (chart.tracks.length >= MAX_TRACKS) return null
   return replaceChart(doc, file, { ...chart, tracks: [...chart.tracks, { id: nextTrackId(chart.tracks) }] })
 }
 
 /** 트랙 이름을 바꾸고 그 트랙 노트의 `track`도 바꾼다. 형식이 틀리거나 이미 있는 이름(같은 이름 포함)이면 null. */
 export function renameTrack(doc: ProjectDoc, file: string, index: number, id: string): ProjectDoc | null {
-  const chart = getChart(doc, file)
+  const chart = getLaneChart(doc, file)
   if (!validIndex(chart.tracks, index) || !isValidTrackId(id)) return null
   if (chart.tracks.some((t) => t.id === id)) return null
   const old = chart.tracks[index].id
@@ -36,7 +36,7 @@ export function renameTrack(doc: ProjectDoc, file: string, index: number, id: st
 
 /** from 위치의 트랙을 to 위치(옮긴 뒤 위치)로 옮긴다. 노트는 그대로 두고 정렬만 다시 한다. */
 export function moveTrack(doc: ProjectDoc, file: string, from: number, to: number): ProjectDoc | null {
-  const chart = getChart(doc, file)
+  const chart = getLaneChart(doc, file)
   if (from === to || !validIndex(chart.tracks, from) || !validIndex(chart.tracks, to)) return null
   const tracks = [...chart.tracks]
   const [moved] = tracks.splice(from, 1)
@@ -55,7 +55,7 @@ export function updateTrackLook(
   index: number,
   patch: { color?: string; kind?: TrackKind }
 ): ProjectDoc | null {
-  const chart = getChart(doc, file)
+  const chart = getLaneChart(doc, file)
   if (!validIndex(chart.tracks, index)) return null
   if (patch.color !== undefined && !TRACK_COLOR_PATTERN.test(patch.color)) return null
   if (patch.kind !== undefined && !TRACK_KINDS.includes(patch.kind)) return null
@@ -76,7 +76,7 @@ export function removeTrack(
   file: string,
   index: number
 ): { doc: ProjectDoc; removed: number } | null {
-  const chart = getChart(doc, file)
+  const chart = getLaneChart(doc, file)
   if (chart.tracks.length <= MIN_TRACKS || !validIndex(chart.tracks, index)) return null
   const id = chart.tracks[index].id
   const tracks = chart.tracks.filter((_, i) => i !== index)

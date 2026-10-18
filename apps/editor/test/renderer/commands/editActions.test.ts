@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TimingMap, noteKey, type Note } from '@rcm/core'
 import { runEditAction } from '../../../src/renderer/src/editor/commands/editActions'
-import { getChart } from '../../../src/renderer/src/editor/state/doc'
+import { getLaneChart } from '../../../src/renderer/src/editor/state/doc'
 import { History } from '../../../src/renderer/src/editor/state/history'
 import { EditorStore } from '../../../src/renderer/src/editor/state/store'
 import { d0, withNotes } from '../fixtures'
@@ -22,7 +22,7 @@ function setup(notes: Note[] = start) {
   const store = new EditorStore({ dir: 'C:/p' }, withNotes(d0, notes))
   store.set({ snap: 4, selection: new Set(['Note_1:0', 'Note_2:480']) })
   const state = () => store.getState()
-  const keys = () => getChart(state().doc, F).notes.map(noteKey)
+  const keys = () => getLaneChart(state().doc, F).notes.map(noteKey)
   const labels = () => commit.mock.calls.map(([entry]) => entry.label)
   return { store, state, keys, labels }
 }

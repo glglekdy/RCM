@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { existsSync, promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { basicTracks, parseChart, parseSong } from '@rcm/core'
+import { basicTracks, parseChart, parseFreeChart, parseSong } from '@rcm/core'
 import {
   assertDirectory,
   createProject,
@@ -54,6 +54,15 @@ describe('projectFs', () => {
     expect(chart.ok && chart.value.tracks.map((t) => t.id)).toEqual(['Side_L', 'Note_1'])
     expect(chart.ok && chart.value.tracks[0]).toEqual({ id: 'Side_L', color: '#f59e0b', kind: 'gimmick' })
     expect((await summarizeProject(dir)).charts).toEqual([{ name: 'NORMAL', trackCount: 2 }])
+  })
+  it('자유형(모바일) 채보로 프로젝트 만들기', async () => {
+    const dir = await createProject({ ...opts, title: 'mobile', tracks: [], free: { columns: 12, flickMode: 'any' } })
+    const chart = parseFreeChart((await openProjectFiles(dir)).charts[0].text, 'normal.chart.json')
+    expect(chart.ok && chart.value).toMatchObject({ layout: 'free', columns: 12, flickMode: 'any', notes: [] })
+    expect((await summarizeProject(dir)).charts).toEqual([{ name: 'NORMAL', trackCount: 0, columns: 12 }])
+    for (const free of [{ columns: 0, flickMode: 'any' }, { columns: 12, flickMode: 'swipe' }, null]) {
+      expect(() => validateCreateProjectOptions({ ...opts, free }), JSON.stringify(free)).toThrow()
+    }
   })
   it('음악 없이 프로젝트 만들기', async () => {
     const dir = await createProject({ ...opts, title: 'silent', audioPath: null })

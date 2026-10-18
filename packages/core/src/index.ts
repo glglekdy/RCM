@@ -5,6 +5,7 @@ export * from './scroll';
 export * from './snap';
 export * from './tracks';
 export * from './tapTempo';
-export { notesOverlap, type ParseResult } from './validate';
+export { freeNoteErrors, freeNotesOverlap, notesOverlap, type ParseResult } from './validate';
+export * from './free';
 export * from './parse';
 export * from './serialize';

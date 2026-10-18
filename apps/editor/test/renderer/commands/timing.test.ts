@@ -7,7 +7,7 @@ import {
   setOffset,
   updateTimingPoint
 } from '../../../src/renderer/src/editor/commands/timing'
-import { getChart } from '../../../src/renderer/src/editor/state/doc'
+import { getLaneChart } from '../../../src/renderer/src/editor/state/doc'
 import { d0, withNotes, withTiming } from '../fixtures'
 
 describe('timing commands', () => {
@@ -51,7 +51,7 @@ describe('timing commands', () => {
   it('타이밍이 바뀌어도 노트 tick 유지', () => {
     const base = withNotes(d0, [{ tick: 960, track: 'Note_1', type: 'tap' }])
     const d = setOffset(base, 250)!
-    expect(getChart(d, 'normal.chart.json').notes[0].tick).toBe(960)
+    expect(getLaneChart(d, 'normal.chart.json').notes[0].tick).toBe(960)
     expect(d.charts).toBe(base.charts) // 차트 참조 그대로 → 차트는 dirty 아님
     expect(setOffset(base, NaN)).toBeNull()
   })

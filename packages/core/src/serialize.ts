@@ -1,6 +1,17 @@
 import { DEFAULT_NOTE_COLOR } from './constants';
 import { compareNotes } from './tracks';
-import type { Chart, EditorData, Note, Song, SpeedPoint, Track } from './types';
+import {
+  freeNoteTick,
+  type Chart,
+  type EditorData,
+  type FreeChart,
+  type FreeNote,
+  type Note,
+  type SlidePoint,
+  type Song,
+  type SpeedPoint,
+  type Track,
+} from './types';
 
 const dump = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
 
@@ -50,6 +61,45 @@ export function serializeChart(chart: Chart): string {
     tracks: chart.tracks.map(trackOut),
     ...(chart.speeds && chart.speeds.length > 0 ? { speeds: chart.speeds.map(speedOut) } : {}),
     notes: notes.map(noteOut),
+  });
+}
+
+function slidePointOut(p: SlidePoint) {
+  return {
+    tick: p.tick,
+    x: p.x,
+    width: p.width,
+    ...(p.ease !== undefined && p.ease !== 'linear' ? { ease: p.ease } : {}),
+    ...(p.hidden ? { hidden: true } : {}),
+  };
+}
+
+function freeNoteOut(n: FreeNote) {
+  if (n.type === 'slide') {
+    const end = n.endFlick ? { endFlick: true, ...(n.direction !== undefined ? { direction: n.direction } : {}) } : {};
+    return { type: n.type, points: n.points.map(slidePointOut), ...end };
+  }
+  const base = { tick: n.tick, type: n.type, x: n.x, width: n.width };
+  return n.type === 'flick' && n.direction !== undefined ? { ...base, direction: n.direction } : base;
+}
+
+/** 시작 tick → 왼쪽 위치 순 */
+function compareFreeNotes(a: FreeNote, b: FreeNote): number {
+  const pa = a.type === 'slide' ? a.points[0] : a;
+  const pb = b.type === 'slide' ? b.points[0] : b;
+  return freeNoteTick(a) - freeNoteTick(b) || pa.x - pb.x;
+}
+
+export function serializeFreeChart(chart: FreeChart): string {
+  return dump({
+    formatVersion: chart.formatVersion,
+    layout: chart.layout,
+    name: chart.name,
+    level: chart.level,
+    columns: chart.columns,
+    flickMode: chart.flickMode,
+    ...(chart.speeds && chart.speeds.length > 0 ? { speeds: chart.speeds.map(speedOut) } : {}),
+    notes: [...chart.notes].sort(compareFreeNotes).map(freeNoteOut),
   });
 }
 

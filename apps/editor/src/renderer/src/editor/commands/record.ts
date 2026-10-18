@@ -8,7 +8,7 @@ import {
   type TimingMap
 } from '@rcm/core'
 import type { Press } from '../input/recorder'
-import { getChart, replaceChart, type ProjectDoc } from '../state/doc'
+import { getLaneChart, replaceChart, type ProjectDoc } from '../state/doc'
 
 /**
  * 누름을 현재 스냅에 맞춘 노트로. 한 칸 이상 누르면 hold, 아니면 tap.
@@ -74,7 +74,7 @@ export function mergeRecorded(
   file: string,
   notes: Note[]
 ): { doc: ProjectDoc; added: number; dropped: number } {
-  const chart = getChart(doc, file)
+  const chart = getLaneChart(doc, file)
   const kept = [...chart.notes]
   let added = 0
   for (const n of notes) {

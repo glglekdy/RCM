@@ -3,10 +3,14 @@ import path from 'node:path'
 import {
   FORMAT_VERSION,
   emptyEditorData,
-  parseChart,
+  isFreeChart,
+  MAX_COLUMNS,
+  MIN_COLUMNS,
+  parseAnyChart,
   parseSong,
   serializeChart,
   serializeEditorData,
+  serializeFreeChart,
   serializeSong,
   trackErrors,
   type Track
@@ -67,6 +71,15 @@ export function validateCreateProjectOptions(raw: unknown): CreateProjectOptions
   if (typeof bpm !== 'number' || !Number.isFinite(bpm) || bpm <= 0) {
     throw new Error('BPM은 0보다 큰 숫자여야 해요')
   }
+  if (o.free !== undefined) {
+    const f = o.free as Record<string, unknown> | null
+    const columns = f?.columns
+    if (typeof columns !== 'number' || !Number.isInteger(columns) || columns < MIN_COLUMNS || columns > MAX_COLUMNS) {
+      throw new Error(`칸 수는 ${MIN_COLUMNS}~${MAX_COLUMNS} 사이 정수여야 해요`)
+    }
+    if (f?.flickMode !== 'directional' && f?.flickMode !== 'any') throw new Error('플릭 방식이 올바르지 않아요')
+    return { parentDir, title, artist, audioPath, bpm, chartName, tracks: [], free: { columns, flickMode: f.flickMode } }
+  }
   const errors = trackErrors(o.tracks, 'tracks')
   if (errors.length > 0) throw new Error(`트랙 목록이 올바르지 않아요 (${errors[0]})`)
   // 예전 width는 버리고, kind는 기믹일 때만 남긴다
@@ -119,9 +132,12 @@ export async function createProject(raw: CreateProjectOptions): Promise<string> 
       })
     )
     const chartFile = `${sanitizeFolderName(opts.chartName.toLowerCase())}.chart.json`
+    const base = { formatVersion: 1 as const, name: opts.chartName, level: 1, notes: [] }
     await fs.writeFile(
       path.join(dir, chartFile),
-      serializeChart({ formatVersion: FORMAT_VERSION, name: opts.chartName, level: 1, tracks: opts.tracks, notes: [] })
+      opts.free
+        ? serializeFreeChart({ ...base, layout: 'free', ...opts.free })
+        : serializeChart({ ...base, tracks: opts.tracks })
     )
     await fs.writeFile(path.join(dir, 'editor.json'), serializeEditorData(emptyEditorData()))
     return dir
@@ -194,8 +210,14 @@ export async function summarizeProject(dir: string): Promise<Omit<RecentProject,
     if (!song.ok) throw new Error('invalid song')
     const charts: RecentProject['charts'] = []
     for (const c of files.charts) {
-      const parsed = parseChart(c.text, c.file)
-      if (parsed.ok) charts.push({ name: parsed.value.name, trackCount: parsed.value.tracks.length })
+      const parsed = parseAnyChart(c.text, c.file)
+      if (!parsed.ok) continue
+      const chart = parsed.value
+      charts.push(
+        isFreeChart(chart)
+          ? { name: chart.name, trackCount: 0, columns: chart.columns }
+          : { name: chart.name, trackCount: chart.tracks.length }
+      )
     }
     return { dir, missing: false, title: song.value.title, artist: song.value.artist, charts }
   } catch {

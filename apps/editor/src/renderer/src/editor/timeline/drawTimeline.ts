@@ -1,10 +1,10 @@
 import {
   noteKey,
-  type Chart,
   type Marker,
   type Note,
   type ScrollMap,
   type SnapDivision,
+  type SpeedPoint,
   type TimingMap,
   type TimingPoint
 } from '@rcm/core'
@@ -28,7 +28,10 @@ export interface DrawParams {
   tm: TimingMap
   /** chart.speeds·tm으로 만든 스크롤 맵 (속도 그래프 띠) */
   scroll: ScrollMap
-  chart: Chart
+  /** 그릴 채보. 자유형 채보는 notes를 비우고 노트를 drawNotes로 그린다 */
+  chart: { speeds?: SpeedPoint[]; notes: readonly Note[] }
+  /** 레인 노트 대신(뒤에) 그릴 것 (자유형 노트). 트랙 이름 줄·재생선 아래에 그려진다 */
+  drawNotes?: (ctx: CanvasRenderingContext2D) => void
   snap: SnapDivision
   selection: ReadonlySet<string>
   markers: Marker[]
@@ -215,6 +218,7 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
     const color = p.previewInvalid ? COLORS.invalid : col.color
     drawNote(ctx, p, note, col, color, PREVIEW_ALPHA, false)
   }
+  p.drawNotes?.(ctx)
   if (p.recording) drawRecording(ctx, p, p.recording)
 
   // 사각 선택 범위: 걸친 트랙 전체 폭 (끄는 중에 트랙이 줄었으면 남은 트랙까지만)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { updateChartMeta, updateSong } from '../../../src/renderer/src/editor/commands/meta'
-import { getChart } from '../../../src/renderer/src/editor/state/doc'
+import { getLaneChart } from '../../../src/renderer/src/editor/state/doc'
 import { d0 } from '../fixtures'
 
 const F = 'normal.chart.json'
@@ -12,7 +12,7 @@ describe('meta commands', () => {
     expect(updateChartMeta(d0, F, { level: 0 })).toBeNull()
     expect(updateChartMeta(d0, F, { level: 100 })).toBeNull()
     const d = updateChartMeta(d0, F, { name: 'HARD', level: 9 })!
-    expect(getChart(d, F)).toMatchObject({ name: 'HARD', level: 9 })
+    expect(getLaneChart(d, F)).toMatchObject({ name: 'HARD', level: 9 })
   })
 
   it('곡 정보 변경', () => {

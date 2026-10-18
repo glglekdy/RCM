@@ -1,8 +1,8 @@
 import { noteKey, snapTick, type Note, type TimingMap } from '@rcm/core'
 import { markerAtY, removeMarker } from '../commands/markers'
 import { addNote, moveNotes, removeNotes, resizedHold, resizeHold, shiftNote } from '../commands/notes'
-import { getChart } from '../state/doc'
-import type { EditorStore } from '../state/store'
+import { getLaneChart } from '../state/doc'
+import type { EditorState, EditorStore } from '../state/store'
 import {
   hitTestNote,
   NOTE_HEIGHT,
@@ -102,6 +102,11 @@ type ResizeDrag = {
 }
 type Drag = DrawDrag | EraseDrag | RectDrag | MoveDrag | ResizeDrag
 
+/** 레인형 채보에는 연속 그리기가 없으므로 그리기로 다룬다 */
+function laneTool(tool: EditorState['tool']): Exclude<EditorState['tool'], 'brush'> {
+  return tool === 'brush' ? 'draw' : tool
+}
+
 const NO_KEYS: ReadonlySet<string> = new Set()
 const NO_NOTES: Note[] = []
 /** 지우기 드래그에서 이전 위치와 현재 위치 사이를 이 간격(px)으로 훑는다. */
@@ -120,7 +125,7 @@ export function createToolController(
    */
   let skipContextMenu = false
 
-  const chartNotes = (file: string) => getChart(store.getState().doc, file).notes
+  const chartNotes = (file: string) => getLaneChart(store.getState().doc, file).notes
 
   /** 트랙 위치. 트랙 영역 왼쪽 밖이면 -1, 오른쪽 밖이면 트랙 수. */
   const laneAt = (x: number) => {
@@ -175,7 +180,7 @@ export function createToolController(
     const t1 = tickAt(y)
     d.rect =
       lane0 <= lane1 ? { lane0, lane1, tick0: Math.min(t0, t1), tick1: Math.max(t0, t1) } : null
-    const { notes, tracks } = getChart(store.getState().doc, d.file)
+    const { notes, tracks } = getLaneChart(store.getState().doc, d.file)
     const r = d.rect
     const picked = r
       ? notesInRect(notes, tracks, r.lane0, r.lane1, r.tick0, r.tick1)
@@ -194,7 +199,7 @@ export function createToolController(
       d.invalid = false
       return
     }
-    const chart = getChart(s.doc, d.file)
+    const chart = getLaneChart(s.doc, d.file)
     d.preview = chart.notes
       .filter((n) => d.keys.has(noteKey(n)))
       .map((n) => shiftNote(n, d.dTick, d.dLane, chart.tracks))
@@ -306,7 +311,7 @@ export function createToolController(
         // 그리기 도구: 오른쪽 버튼을 누른 채 끌면 지나간 노트를 지운다.
         // 트랙 밖(마커)이나 다른 도구의 우클릭은 contextmenu가 처리한다
         const { layout } = getGeometry()
-        if (drag || s.tool !== 'draw' || xToLane(layout, e.x) === null) return
+        if (drag || laneTool(s.tool) !== 'draw' || xToLane(layout, e.x) === null) return
         if (inTrackNameBand(layout, e.x, e.y)) return
         last = e
         drag = { kind: 'erase', file: s.activeChart, keys: new Set(), x: e.x, y: e.y, button: 2 }
@@ -319,7 +324,7 @@ export function createToolController(
       // 트랙 이름 줄에서는 그리기·지우기·선택을 시작하지 않는다 (가려진 노트를 보지 않고 고치게 된다)
       if (inTrackNameBand(getGeometry().layout, e.x, e.y)) return
       const file = s.activeChart
-      if (s.tool === 'draw') {
+      if (laneTool(s.tool) === 'draw') {
         const { tm, view, layout } = getGeometry()
         // 노트를 잡으면 그 노트 하나만 옮기거나 (롱노트 끝이면) 길이를 바꾼다
         const hit = hitTestNote(chartNotes(file), tm, view, layout, e.x, e.y)
@@ -345,7 +350,7 @@ export function createToolController(
 
     hoverAction(x, y) {
       const s = store.getState()
-      if (drag || s.playing || (s.tool !== 'draw' && s.tool !== 'select')) return null
+      if (drag || s.playing || (laneTool(s.tool) !== 'draw' && s.tool !== 'select')) return null
       const { tm, view, layout } = getGeometry()
       if (inTrackNameBand(layout, x, y)) return null
       const hit = hitTestNote(chartNotes(s.activeChart), tm, view, layout, x, y)

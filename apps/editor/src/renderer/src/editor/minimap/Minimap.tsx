@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import type { Chart, Marker, TimingMap, TimingPoint } from '@rcm/core'
+import { isFreeChart, type AnyChart, type FreeChart, type Marker, type TimingMap, type TimingPoint } from '@rcm/core'
+import { FREE_NOTE_COLORS } from '@rcm/playfield'
 import { getChart } from '../state/doc'
 import { useStore } from '../state/useStore'
 import { clampPlayheadMs, layoutTimeline, type TimelineView } from '../timeline/view'
@@ -38,7 +39,7 @@ const GIMMICK_ALPHA = 0.4
 const crisp = (v: number) => Math.round(v) + 0.5
 
 interface StaticInput {
-  chart: Chart
+  chart: AnyChart
   timing: TimingPoint[]
   markers: Marker[]
   tm: TimingMap
@@ -60,6 +61,57 @@ function drawStatic(canvas: HTMLCanvasElement, p: StaticInput): void {
 
   const { tm, durationMs, height } = p
   const y = (ms: number) => msToMinimapY(ms, height, durationMs)
+  if (isFreeChart(p.chart)) drawFreeStatic(ctx, p, p.chart, y)
+  else drawLaneStatic(ctx, p, y)
+
+  ctx.fillStyle = COLORS.bpm
+  for (const point of p.timing) {
+    ctx.fillRect(0, Math.round(y(tm.tickToMs(point.tick))), TICK_LENGTH, 1)
+  }
+  ctx.fillStyle = COLORS.marker
+  for (const marker of p.markers) {
+    ctx.fillRect(p.width - TICK_LENGTH, Math.round(y(marker.ms)), TICK_LENGTH, 1)
+  }
+}
+
+/** 자유형 노트: 칸 수를 띠 폭에 맞춰 종류별 색 막대로, 슬라이드는 지점을 이은 띠로 그린다. */
+function drawFreeStatic(
+  ctx: CanvasRenderingContext2D,
+  p: StaticInput,
+  chart: FreeChart,
+  y: (ms: number) => number
+): void {
+  const { tm } = p
+  const scale = (p.width - 2 * PADDING) / chart.columns
+  const xOf = (col: number) => PADDING + col * scale
+  ctx.globalAlpha = NOTE_ALPHA
+  for (const note of chart.notes) {
+    if (note.type === 'slide') {
+      ctx.fillStyle = FREE_NOTE_COLORS.slide
+      ctx.beginPath()
+      note.points.forEach((pt, i) => {
+        const yy = y(tm.tickToMs(pt.tick))
+        if (i === 0) ctx.moveTo(xOf(pt.x), yy)
+        else ctx.lineTo(xOf(pt.x), yy)
+      })
+      for (let i = note.points.length - 1; i >= 0; i--) {
+        const pt = note.points[i]
+        ctx.lineTo(xOf(pt.x + pt.width), y(tm.tickToMs(pt.tick)))
+      }
+      ctx.closePath()
+      ctx.fill()
+      continue
+    }
+    ctx.fillStyle = FREE_NOTE_COLORS[note.type]
+    const start = Math.round(y(tm.tickToMs(note.tick)))
+    ctx.fillRect(xOf(note.x), start - TAP_HEIGHT / 2, Math.max(1, note.width * scale - TRACK_GAP), TAP_HEIGHT)
+  }
+  ctx.globalAlpha = 1
+}
+
+function drawLaneStatic(ctx: CanvasRenderingContext2D, p: StaticInput, y: (ms: number) => number): void {
+  if (isFreeChart(p.chart)) return
+  const { tm } = p
   // 트랙 열을 타임라인과 같은 폭 비율로 띠 폭에 맞춘다
   const layout = layoutTimeline(0, p.chart.tracks)
   const scale = (p.width - 2 * PADDING) / layout.totalWidth
@@ -87,15 +139,6 @@ function drawStatic(canvas: HTMLCanvasElement, p: StaticInput): void {
     }
   }
   ctx.globalAlpha = 1
-
-  ctx.fillStyle = COLORS.bpm
-  for (const point of p.timing) {
-    ctx.fillRect(0, Math.round(y(tm.tickToMs(point.tick))), TICK_LENGTH, 1)
-  }
-  ctx.fillStyle = COLORS.marker
-  for (const marker of p.markers) {
-    ctx.fillRect(p.width - TICK_LENGTH, Math.round(y(marker.ms)), TICK_LENGTH, 1)
-  }
 }
 
 /** VS Code 미니맵처럼 곡 전체를 축소해 보여 주고, 클릭·드래그로 재생선을 옮긴다. */

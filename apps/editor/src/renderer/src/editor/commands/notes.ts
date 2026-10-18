@@ -7,7 +7,7 @@ import {
   type Note,
   type Track
 } from '@rcm/core'
-import { getChart, replaceChart, type ProjectDoc } from '../state/doc'
+import { getLaneChart, replaceChart, type ProjectDoc } from '../state/doc'
 
 /** 복사한 노트 묶음. 첫 노트의 tick이 0이 되도록 옮긴 사본이다. */
 export interface Clip {
@@ -59,7 +59,7 @@ function merge(
 }
 
 export function addNote(doc: ProjectDoc, file: string, note: Note): ProjectDoc | null {
-  const chart = getChart(doc, file)
+  const chart = getLaneChart(doc, file)
   return merge(doc, file, chart, chart.notes, [note])
 }
 
@@ -68,7 +68,7 @@ export function removeNotes(
   file: string,
   keys: ReadonlySet<string>
 ): ProjectDoc | null {
-  const chart = getChart(doc, file)
+  const chart = getLaneChart(doc, file)
   const notes = chart.notes.filter((n) => !keys.has(noteKey(n)))
   if (notes.length === chart.notes.length) return null
   return replaceChart(doc, file, { ...chart, notes })
@@ -81,7 +81,7 @@ function transform(
   keys: ReadonlySet<string>,
   fn: (n: Note, tracks: readonly Track[]) => Note | null
 ): { doc: ProjectDoc; keys: Set<string> } | null {
-  const chart = getChart(doc, file)
+  const chart = getLaneChart(doc, file)
   const rest: Note[] = []
   const moved: Note[] = []
   for (const n of chart.notes) {
@@ -155,7 +155,7 @@ export function pasteClip(
   atTick: number
 ): { doc: ProjectDoc; keys: Set<string> } | null {
   if (clip.notes.length === 0) return null
-  const chart = getChart(doc, file)
+  const chart = getLaneChart(doc, file)
   const moved = clip.notes.map((n) => shiftTick(n, atTick))
   const next = merge(doc, file, chart, chart.notes, moved)
   return next && { doc: next, keys: new Set(moved.map(noteKey)) }

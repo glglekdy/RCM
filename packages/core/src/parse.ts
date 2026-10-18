@@ -1,6 +1,8 @@
-import type { Chart, EditorData, Song } from './types';
+import type { AnyChart, Chart, EditorData, FreeChart, Song } from './types';
 import {
+  validateAnyChart,
   validateChart,
+  validateFreeChart,
   validateEditorData,
   validateSong,
   type ParseResult,
@@ -29,6 +31,15 @@ export function parseSong(text: string, file = 'song.json'): ParseResult<Song> {
 
 export function parseChart(text: string, file: string): ParseResult<Chart> {
   return parseWith(text, file, validateChart);
+}
+
+export function parseFreeChart(text: string, file: string): ParseResult<FreeChart> {
+  return parseWith(text, file, validateFreeChart);
+}
+
+/** 레인형·자유형 어느 쪽이든 읽는다. 구분은 `isFreeChart`로. */
+export function parseAnyChart(text: string, file: string): ParseResult<AnyChart> {
+  return parseWith(text, file, validateAnyChart);
 }
 
 export function parseEditorData(text: string, file = 'editor.json'): ParseResult<EditorData> {

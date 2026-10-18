@@ -20,7 +20,7 @@
 2. 노트 위치는 시간이 아니라 **tick**(박자 단위 정수). **1박 = 480 tick**.
 3. tick → ms 변환은 `song.json`의 `offsetMs`와 `timing`(BPM 변경 목록)으로 한다 (3장 공식).
 4. 노트는 레인 번호가 아니라 **트랙 이름 문자열**(`"Note_1"`, `"Side_L"` 등)을 가리킨다. 트랙 이름을 게임 규칙에 어떻게 대응시킬지는 **게임이 정한다**.
-5. 노트 종류는 `tap`과 `hold`(롱노트, `endTick` 있음) 두 가지뿐이다.
+5. 레인형 채보의 노트 종류는 `tap`과 `hold`(롱노트, `endTick` 있음) 두 가지뿐이다. 루트에 `"layout": "free"`가 있는 채보는 **자유형(모바일) 채보**로, 노트가 트랙 대신 가로 위치 `x`와 폭 `width`를 갖고 `tap`·`trace`·`flick`·`slide`를 쓴다 (2.4절, 4.7절).
 6. 채보에 선택 필드 `speeds`(변속)가 있으면 노트를 ms 차이가 아니라 **스크롤 위치** 차이로 그린다 (3.6절). 판정은 변속과 무관하게 ms 기준이다.
 7. 외부 라이브러리 없이 구현한다. TypeScript/JavaScript라면 3.5절(`TimingMap`), 3.6절(`ScrollMap`), 4.5절(`PlayState`)의 참고 구현을 그대로 복사해 쓴다. 다른 언어라면 이 코드를 그대로 옮긴다.
 8. 게임 플레이 방식(화면 방향, 롱노트 처리 등)과 판정 방식(판정 범위, 헛누름 벌점 등)은 **게임이 정한다.** 새 게임이면 코드를 쓰기 전에 7장 질문으로 사용자에게 먼저 묻는다. 이미 만든 게임이면 플레이·판정은 그대로 두고 채보 읽는 부분만 바꾼다 (7.6절).
@@ -141,6 +141,81 @@
 { "formatVersion": 1, "markers": [ { "ms": 15234.5, "label": "드럼 시작" } ] }
 ```
 에디터에서 박자를 맞출 때 쓰는 표시선이다. 게임 로직과 무관하다.
+
+### 2.4 자유형(모바일) 채보 — `"layout": "free"`
+
+프로젝트 세카이·츄니즘 같은 모바일 리듬게임용이다. 루트에 `"layout": "free"`가 있으면 2.2절 대신 이 절을 따른다. `layout`이 없으면 레인형이다. 레인형만 지원하는 게임은 `layout`이 있는 채보를 "지원하지 않음"으로 표시한다.
+
+```jsonc
+{
+  "formatVersion": 1,
+  "layout": "free",
+  "name": "MASTER",
+  "level": 30,
+  "columns": 12,                 // 가로 칸 수 (1~32 정수). 노트 위치·폭의 단위
+  "flickMode": "directional",    // "directional": 플릭마다 방향이 있다 / "any": 아무 방향으로나 튕기면 된다
+  "speeds": [],                  // (선택) 2.2절과 같다
+  "notes": [                     // 시작 tick 오름차순, 같은 tick이면 x 오름차순
+    { "tick": 0,    "type": "tap",   "x": 0,   "width": 3 },
+    { "tick": 480,  "type": "trace", "x": 4.5, "width": 2 },
+    { "tick": 960,  "type": "flick", "x": 6,   "width": 3, "direction": "upLeft" },
+    { "type": "slide",
+      "points": [
+        { "tick": 1440, "x": 0, "width": 3, "ease": "easeOut" },
+        { "tick": 1920, "x": 4, "width": 3, "hidden": true },
+        { "tick": 2400, "x": 9, "width": 3 }
+      ],
+      "endFlick": true, "direction": "up" }
+  ]
+}
+```
+
+**노트 종류**
+
+| `type` | 뜻 | 필드 |
+|---|---|---|
+| `tap` | 누르기 | `tick`, `x`, `width` |
+| `trace` | 누를 필요 없이 그 시각에 손가락이 노트 위에 있으면 된다 | `tick`, `x`, `width` |
+| `flick` | 누르고 튕기기 | `tick`, `x`, `width`, `direction`(`flickMode`가 `directional`일 때만 필수) |
+| `slide` | 지점을 따라 손가락을 끌고 가는 롱노트 | `points`(2개 이상), `endFlick`(선택), `direction`(`endFlick`이고 `directional`일 때만 필수) |
+
+**규칙**
+
+- `x`는 왼쪽 끝 칸 위치(0 이상 수), `width`는 칸 수(0보다 큰 수). 소수 가능. `x + width ≤ columns`. 화면 가로 위치 = `x / columns`(판 폭 비율).
+- `direction`: `"up"`, `"left"`, `"right"`, `"upLeft"`, `"upRight"` 중 하나. `flickMode`가 `"any"`면 `direction`을 쓰지 않는다. 플릭이 아닌 노트에는 쓰지 않는다.
+- `points[].tick`은 0 이상 정수이고 엄격히 증가한다. 각 지점에 `x`, `width`가 있다 (규칙은 위와 같음).
+- `points[].ease`: 그 지점에서 **다음 지점까지** 옮겨 가는 곡선. `"linear"`(생략과 같음), `"easeIn"`(t²), `"easeOut"`(1 − (1 − t)²) 중 하나. 진행도 t는 두 지점 사이의 **ms** 비율이다.
+- `points[].hidden: true`: 중간 지점에만 쓸 수 있다. 판정 없이 경로만 꺾는다. 숨기지 않은 중간 지점은 판정한다 (4.7절).
+- 겹침 금지: **같은 시작 tick**에서 가로 구간 `[x, x + width)`가 겹치는 노트는 없다 (끝이 맞닿는 것은 된다). 슬라이드는 첫 지점으로 본다. 그래서 `"<시작 tick>@<시작 x>"`가 노트를 유일하게 식별한다. 슬라이드 몸통끼리는 교차해도 된다.
+- 레인형의 `hold`에 해당하는 것은 지점 2개, 위치가 같은 `slide`다.
+
+**슬라이드 경로 계산 (참고 구현)**: 화면에 그릴 때와 판정할 때 같은 함수로 시각 `ms`의 가로 구간을 구한다. `times`는 지점마다 3.2절 `tickToMs`로 바꾼 시각이다.
+
+```ts
+export type SlideEase = 'linear' | 'easeIn' | 'easeOut'
+export interface SlidePoint { tick: number; x: number; width: number; ease?: SlideEase; hidden?: boolean }
+
+export function easeProgress(ease: SlideEase | undefined, t: number): number {
+  const c = Math.min(1, Math.max(0, t))
+  if (ease === 'easeIn') return c * c
+  if (ease === 'easeOut') return 1 - (1 - c) * (1 - c)
+  return c
+}
+
+/** 슬라이드가 시각 time에 차지하는 가로 구간. 시작 전은 첫 지점, 끝난 뒤는 마지막 지점. */
+export function slideSpanAt(points: readonly SlidePoint[], times: readonly number[], time: number): { x: number; width: number } {
+  if (time <= times[0]) return { x: points[0].x, width: points[0].width }
+  const last = points.length - 1
+  if (time >= times[last]) return { x: points[last].x, width: points[last].width }
+  let i = 0
+  while (i < last - 1 && time >= times[i + 1]) i++
+  const a = points[i]
+  const b = points[i + 1]
+  const span = times[i + 1] - times[i]
+  const t = easeProgress(a.ease, span > 0 ? (time - times[i]) / span : 1)
+  return { x: a.x + (b.x - a.x) * t, width: a.width + (b.width - a.width) * t }
+}
+```
 
 ---
 
@@ -625,7 +700,24 @@ state.combo; state.maxCombo; state.counts;   // { perfect, great, good, miss }
 
 ### 4.6 점수 (포맷이 정하지 않음 — 제안)
 
-판정 개수의 총합 = `tap 수 + hold 수 × 2`. 예: `점수 = 1,000,000 × (PERFECT×1 + GREAT×0.7 + GOOD×0.4) / 총 판정 수`. 게임 성격에 맞게 정한다.
+판정 개수의 총합 = `tap 수 + hold 수 × 2`. 예: `점수 = 1,000,000 × (PERFECT×1 + GREAT×0.7 + GOOD×0.4) / 총 판정 수`. 게임 성격에 맞게 정한다. 자유형 채보는 `tap`·`trace`·`flick` 각 1개 + `slide`마다 (머리 1 + 숨기지 않은 중간 지점 수 + 끝 1)이다.
+
+### 4.7 자유형(모바일) 채보 판정 (에디터 테스트 플레이 기준)
+
+입력은 키가 아니라 **포인터**(손가락 하나, 또는 마우스)다. 손가락마다 따로 판정하므로 여러 손가락으로 동시에 친다. 좌표는 칸 단위로 바꿔 쓴다: `col = (화면 x − 판 왼쪽) / 칸 폭`, 세로도 `row = 화면 y / 칸 폭`으로 칸 폭을 단위로 잰다. 판정 창(40/80/120ms)과 EARLY/LATE, 콤보 규칙은 4.5절과 같다.
+
+| 노트 | 판정 |
+|---|---|
+| `tap` | 손가락이 닿은 순간, 창 안이고 `col`이 `[x − 0.5, x + width + 0.5]` 안인 판정 안 된 머리 중 시각이 가장 가까운 것을 그 시각 차로 판정. 창 밖 터치는 무시 |
+| `flick` | 탭처럼 노트를 잡은 뒤, 누른 자리에서 **0.75칸** 이상 움직이면 플릭. 방향이 정한 방향에서 ±45° 안이면 **누른 시각**의 차로 판정, 틀린 방향이면 MISS. 튕기지 않고 떼거나 창(+120ms)이 지나면 MISS. `flickMode: "any"`면 방향은 보지 않는다 |
+| `trace` | 손가락이 노트 구간 위에 있는 채로 `노트 시각 − 40ms`가 되면 판정. 미리 올려 둔 손가락은 PERFECT, 늦게 닿으면 늦은 만큼 (GREAT·GOOD). 누르지 않고 지나가기만 해도 된다 |
+| `slide` 머리 | `tap`과 같다. 잡은 손가락이 슬라이드를 맡는다 |
+| `slide` 중간 지점 | 숨기지 않은 지점마다, 그 시각에 맡은 손가락이 경로(`slideSpanAt` 구간 ± 1칸) 안에 있으면 PERFECT |
+| `slide` 끝 | 끝까지 잡고 있으면 PERFECT. 끝 120ms 전부터는 떼도 PERFECT. 그보다 일찍 떼거나 경로를 120ms 넘게 벗어나면 남은 지점과 끝이 MISS. `endFlick`이면 끝 ±120ms 안에 튕겨야 하고, 판정은 튕긴 시각의 차 (방향 규칙은 `flick`과 같다) |
+
+- 머리를 놓친 슬라이드는 그 자리에서 중간 지점과 끝도 MISS.
+- 화면: 노트는 판정선을 향해 내려오고 가로 위치는 칸 위치를 따른다. 슬라이드 몸통은 지점 사이를 `slideSpanAt`으로 촘촘히 잘라 그린 띠다. 잡고 있는 슬라이드의 머리는 판정선 위 지금 위치에 붙인다.
+- 에디터 테스트 플레이는 PC에서 마우스(포인터 하나)로 칠 수 있고, 터치 화면이면 여러 손가락도 된다. 화면 비율은 폰 세로(9:16)·가로(16:9)를 고를 수 있다.
 
 ---
 
@@ -638,6 +730,7 @@ state.combo; state.maxCombo; state.counts;   // { perfect, great, good, miss }
 - [ ] `speeds`가 있으면 노트 y를 스크롤 위치(3.6절 `S`)로 계산, 3.6 검산값으로 테스트 (`speeds`가 없으면 ms 차이와 같음)
 - [ ] 오디오 시계 하나만 사용, 프레임마다 현재 위치를 한 번 읽음
 - [ ] 판정은 트랙별, 창 40/80/120ms, 롱노트는 머리·꼬리 2판정
+- [ ] 자유형 채보(`layout: "free"`)를 지원하면 2.4절 규칙과 4.7절 판정을, 지원하지 않으면 그 채보를 "지원하지 않음"으로 표시
 - [ ] 모르는 트랙 이름 처리 방침 정하기 (거부 또는 무시)
 - [ ] 키 반복·조합키 입력 무시
 - [ ] 사용자 오프셋(지연 보정) 설정
@@ -688,7 +781,7 @@ state.combo; state.maxCombo; state.counts;   // { perfect, great, good, miss }
 | 1 | 플랫폼: 어디서 돌아가는 게임인가? | **웹 브라우저 + TypeScript (기본)**, 3.5·3.6·4.5절 참고 구현을 그대로 사용 / 다른 엔진·언어 (Unity, Godot 등), 참고 구현을 그 언어로 옮긴다 |
 | 2 | 화면 방향: 노트가 어떻게 움직이나? | **위에서 아래로 떨어지고 판정선은 아래 (기본)** / 아래에서 위로 / 오른쪽에서 왼쪽 (가로) / 직접 설명 |
 | 3 | 레인 배치: 트랙을 어떻게 놓나? | **`tracks` 배열 순서대로 왼쪽부터, 모두 같은 너비 (기본)** / 사이드 트랙(`Side_L`·`Side_R`)은 양 끝에 넓게 / 직접 지정 |
-| 4 | 입력: 무엇으로 치나? | **키보드 (기본, 4.2절 키 배치)** / 터치 (레인 영역을 터치) / 게임패드 / 여러 개 함께 |
+| 4 | 입력: 무엇으로 치나? | **키보드 (기본, 4.2절 키 배치)** / 터치 (레인 영역을 터치) / 게임패드 / 여러 개 함께. 자유형 채보(2.4절)를 쓰는 게임이면 **터치·마우스 (기본, 4.7절)** |
 | 5 | 모르는 트랙: 게임이 모르는 트랙 이름이 있으면? | **그 채보를 "지원하지 않음"으로 표시 (기본)** / 그 트랙 노트만 무시 |
 | 6 | 롱노트: 어떻게 판정하나? | **머리 판정 + 끝까지 누르고 있으면 꼬리 PERFECT, 판정 2개 (기본)** / 꼬리도 떼는 타이밍으로 판정 (osu!mania 방식) / 누르는 동안 일정 간격으로 콤보가 오름 (DJMAX 방식) / 머리만 판정 |
 | 7 | 노트 속도: 유저 배속과 변속 | 배속: **DJMAX 고정 배속, 1.0~9.0, 0.1 단위, 기본 4.0 (기본, 4.4절)** / 고정 속도. 채보의 변속(`speeds`): **적용 (기본)** / 무시 |

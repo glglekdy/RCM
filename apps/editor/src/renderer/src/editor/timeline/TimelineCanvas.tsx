@@ -1,13 +1,22 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import { ScrollMap, type SpeedPoint, type TimingMap, type Track } from '@rcm/core'
+import { isFreeChart, ScrollMap, type AnyChart, type SpeedPoint, type TimingMap, type Track } from '@rcm/core'
 import { keysLabel, type TrackKeymap } from '@rcm/playfield'
 import type { WaveformPeaks } from '../audio/waveform'
 import type { Recorder } from '../input/recorder'
 import { getChart } from '../state/doc'
 import { useEditor, useStore } from '../state/useStore'
+import { drawFreeNotes } from './drawFree'
 import { drawTimeline } from './drawTimeline'
+import { createFreeToolController } from './freeTools'
 import { createToolController, type ToolGeometry, type ToolPointer } from './tools'
-import { clampPlayheadMs, clampZoom, layoutTimeline, stepPlayheadMs } from './view'
+import {
+  clampPlayheadMs,
+  clampZoom,
+  layoutFreeTimeline,
+  layoutTimeline,
+  stepPlayheadMs,
+  type TimelineLayout
+} from './view'
 import styles from './TimelineCanvas.module.css'
 
 interface TimelineCanvasProps {
@@ -24,6 +33,13 @@ function trackKeyLabels(tracks: readonly Track[], keymap: TrackKeymap): string[]
 }
 
 const ZOOM_STEP = 1.1
+
+/** 채보 종류에 맞는 타임라인 배치: 레인형은 트랙마다, 자유형은 칸마다 열 하나 */
+function layoutFor(width: number, chart: AnyChart): TimelineLayout {
+  return isFreeChart(chart) ? layoutFreeTimeline(width, chart.columns) : layoutTimeline(width, chart.tracks)
+}
+
+const NO_NOTES: never[] = []
 
 interface ScrollCache {
   speeds: readonly SpeedPoint[] | undefined
@@ -43,18 +59,24 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
   const scrollRef = useRef<ScrollCache | null>(null)
   const tool = useEditor((s) => s.tool)
 
-  // 그리기·지우기·선택 도구. 좌표계는 입력이 올 때의 화면 크기·상태로 계산한다
-  const [tools] = useState(() =>
-    createToolController(store, (): ToolGeometry => {
+  // 그리기·지우기·선택 도구 (레인형, 자유형). 좌표계는 입력이 올 때의 화면 크기·상태로 계산한다
+  const [{ laneTools, freeTools }] = useState(() => {
+    const geometry = (): ToolGeometry => {
       const s = store.getState()
       const { width, height } = sizeRef.current
       return {
         tm: propsRef.current.tm,
         view: { playheadMs: s.playheadMs, pxPerMs: s.pxPerMs, height },
-        layout: layoutTimeline(width, getChart(s.doc, s.activeChart).tracks)
+        layout: layoutFor(width, getChart(s.doc, s.activeChart))
       }
-    })
-  )
+    }
+    return { laneTools: createToolController(store, geometry), freeTools: createFreeToolController(store, geometry) }
+  })
+  /** 지금 채보 종류의 도구 */
+  const tools = () => {
+    const s = store.getState()
+    return isFreeChart(getChart(s.doc, s.activeChart)) ? freeTools : laneTools
+  }
 
   // 그리기: 상태가 바뀔 때마다 바로 그린다 (재생 중에는 rAF마다 playheadMs가 바뀐다)
   useEffect(() => {
@@ -75,13 +97,23 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
       const dpr = window.devicePixelRatio || 1
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, width, height)
-      const { preview, previewInvalid, hiddenKeys, selectRect } = tools.overlay()
+      const view = { playheadMs: s.playheadMs, pxPerMs: s.pxPerMs, height }
+      const layout = layoutFor(width, chart)
+      const free = isFreeChart(chart)
+      const { preview, previewInvalid, hiddenKeys, selectRect } = free
+        ? { preview: NO_NOTES, previewInvalid: false, hiddenKeys: undefined, selectRect: null }
+        : laneTools.overlay()
+      const freeOverlay = free ? freeTools.overlay() : null
       drawTimeline(ctx, {
-        view: { playheadMs: s.playheadMs, pxPerMs: s.pxPerMs, height },
-        layout: layoutTimeline(width, chart.tracks),
+        view,
+        layout,
         tm,
         scroll: cache.scroll,
-        chart,
+        chart: free ? { speeds: chart.speeds, notes: NO_NOTES } : chart,
+        drawNotes:
+          free && freeOverlay
+            ? (c) => drawFreeNotes(c, { view, layout, tm, chart, selection: s.selection, ...freeOverlay })
+            : undefined,
         snap: s.snap,
         selection: s.selection,
         markers: s.doc.editorData.markers,
@@ -92,7 +124,7 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
         previewInvalid,
         hiddenKeys,
         selectRect,
-        recording: recording
+        recording: recording && !free
           ? {
               pressed: recording.recorder.pressed(),
               labels: trackKeyLabels(chart.tracks, recording.keymap)
@@ -103,7 +135,7 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
     drawRef.current = draw
     draw()
     return store.subscribe(draw)
-  }, [store, tools])
+  }, [store, laneTools, freeTools])
 
   useEffect(() => drawRef.current(), [tm, durationMs, peaks])
 
@@ -144,23 +176,24 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
         const next = stepPlayheadMs(tm, s.playheadMs, s.snap, e.deltaY > 0 ? -1 : 1)
         store.set({ playheadMs: clampPlayheadMs(tm, next, durationMs) })
       }
-      tools.refresh()
+      tools().refresh()
       drawRef.current()
     }
     wrap.addEventListener('wheel', onWheel, { passive: false })
     return () => wrap.removeEventListener('wheel', onWheel)
-  }, [store, tools])
+  })
 
   // Escape: 진행 중인 드래그(미리보기) 취소
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code !== 'Escape') return
-      tools.cancel()
+      laneTools.cancel()
+      freeTools.cancel()
       drawRef.current()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [tools])
+  }, [laneTools, freeTools])
 
   // 포인터 입력은 도구 컨트롤러로 넘기고 미리보기를 다시 그린다
   const forward =
@@ -178,38 +211,41 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
   const onPointerDown = (e: React.PointerEvent) => {
     // 드래그가 캔버스 밖으로 나가도 이어지도록 포인터를 붙잡는다 (오른쪽 버튼은 그리기 도구의 지우기 드래그)
     if (e.button === 0 || e.button === 2) e.currentTarget.setPointerCapture(e.pointerId)
-    forward(tools.onPointerDown)(e)
+    forward(tools().onPointerDown)(e)
   }
 
   // 버튼을 누르지 않은 이동(호버)은 드래그가 아니므로 다시 그리지 않고, 누르면 할 일을 커서로만 보인다
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.buttons !== 0) {
-      forward(tools.onPointerMove)(e)
+      forward(tools().onPointerMove)(e)
       return
     }
     const rect = e.currentTarget.getBoundingClientRect()
-    const action = tools.hoverAction(e.clientX - rect.left, e.clientY - rect.top)
-    e.currentTarget.style.cursor = action === 'resize' ? 'ns-resize' : action === 'move' ? 'move' : ''
+    const action = tools().hoverAction(e.clientX - rect.left, e.clientY - rect.top)
+    // 레인형은 롱노트 끝(세로), 자유형은 노트 폭(가로)을 바꾼다
+    const resize = tools() === freeTools ? 'ew-resize' : 'ns-resize'
+    e.currentTarget.style.cursor =
+      action === 'resize' ? resize : action === 'move' ? 'move' : action === 'insert' ? 'copy' : ''
   }
 
   // 우클릭: 트랙 안은 노트 삭제, 트랙 밖(파형·라벨 영역)은 마커 삭제
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
-    forward(tools.onContextMenu)(e)
+    forward(tools().onContextMenu)(e)
   }
 
   const onLostPointerCapture = () => {
-    tools.cancel()
+    tools().cancel()
     drawRef.current()
   }
 
   return (
     <div
       ref={wrapRef}
-      className={`${styles.wrap} ${tool === 'draw' ? styles.draw : ''}`}
+      className={`${styles.wrap} ${tool === 'draw' || tool === 'brush' ? styles.draw : ''}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={forward(tools.onPointerUp)}
+      onPointerUp={(e) => forward(tools().onPointerUp)(e)}
       onLostPointerCapture={onLostPointerCapture}
       onContextMenu={onContextMenu}
     >

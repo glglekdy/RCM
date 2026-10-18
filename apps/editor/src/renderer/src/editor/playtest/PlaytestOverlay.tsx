@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import type { TimingMap } from '@rcm/core'
+import { isFreeChart, type TimingMap } from '@rcm/core'
 import {
   clampSpeed,
   DEFAULT_PLAYFIELD_COLORS,
+  FreePlayfield,
   Playfield,
   SPEED_STEP,
+  type FreeAspect,
   type Judgement
 } from '@rcm/playfield'
 import { resolveKeymap } from '../../../../shared/presets'
@@ -17,6 +19,9 @@ import styles from './PlaytestOverlay.module.css'
 
 /** 판정 개수를 화면에 옮기는 간격(ms) */
 const STATS_INTERVAL_MS = 100
+
+/** 자유형 채보의 폰 화면 방향. 이번 실행 동안 기억한다 */
+let lastAspect: FreeAspect = 'portrait'
 
 interface PlaytestOverlayProps {
   fromMs: number
@@ -44,7 +49,11 @@ const ROWS: { key: Judgement; label: string }[] = [
 export function PlaytestOverlay({ fromMs, tm, getTimeMs, autoplay, onExit }: PlaytestOverlayProps) {
   const chart = useEditor((s) => getChart(s.doc, s.activeChart))
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const playfieldRef = useRef<Playfield | null>(null)
+  const playfieldRef = useRef<Playfield | FreePlayfield | null>(null)
+  const free = isFreeChart(chart)
+  const [aspect, setAspect] = useState<FreeAspect>(lastAspect)
+  const aspectRef = useRef(aspect)
+  aspectRef.current = aspect
   // 지난 테스트 플레이의 배속으로 시작한다
   const [speed, setSpeed] = useState(getPlaytestSpeed)
   const speedRef = useRef(speed)
@@ -59,8 +68,10 @@ export function PlaytestOverlay({ fromMs, tm, getTimeMs, autoplay, onExit }: Pla
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const { keys: keymap } = resolveKeymap(chart.tracks, getPresets())
-    const pf = new Playfield(canvas, { chart, tm, getTimeMs, fromMs, speed: speedRef.current, keymap, layout: getLayout(), autoplay: autoplayRef.current })
+    const common = { tm, getTimeMs, fromMs, speed: speedRef.current, layout: getLayout(), autoplay: autoplayRef.current }
+    const pf = isFreeChart(chart)
+      ? new FreePlayfield(canvas, { ...common, chart, aspect: aspectRef.current })
+      : new Playfield(canvas, { ...common, chart, keymap: resolveKeymap(chart.tracks, getPresets()).keys })
     playfieldRef.current = pf
     pf.start()
     const timer = setInterval(() => {
@@ -87,10 +98,21 @@ export function PlaytestOverlay({ fromMs, tm, getTimeMs, autoplay, onExit }: Pla
   }, [autoplay])
 
   useEffect(() => {
+    const pf = playfieldRef.current
+    if (pf instanceof FreePlayfield) pf.setAspect(aspect)
+    lastAspect = aspect
+  }, [aspect])
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       // 타이틀바 버튼 등으로 포커스가 옮겨 가 키 입력이 엉뚱한 곳에 들어가지 않게 한다
       if (e.key === 'Tab') {
         e.preventDefault()
+        return
+      }
+      if (e.code === 'F6') {
+        e.preventDefault()
+        setAspect((a) => (a === 'portrait' ? 'landscape' : 'portrait'))
         return
       }
       if (e.code !== 'ArrowUp' && e.code !== 'ArrowDown') return
@@ -116,11 +138,24 @@ export function PlaytestOverlay({ fromMs, tm, getTimeMs, autoplay, onExit }: Pla
           <span className={autoplay ? styles.autoOn : undefined}>
             자동 {autoplay ? '켬' : '끔'} (F4)
           </span>
+          {free && (
+            <>
+              <span className={styles.dot}>·</span>
+              <button
+                type="button"
+                className={styles.exit}
+                onClick={() => setAspect((a) => (a === 'portrait' ? 'landscape' : 'portrait'))}
+              >
+                {aspect === 'portrait' ? '세로' : '가로'} 화면 (F6)
+              </button>
+            </>
+          )}
           <span className={styles.dot}>·</span>
           <button type="button" className={styles.exit} onClick={onExit}>
             Esc 종료
           </button>
         </div>
+        {free && <p className={styles.hint}>마우스·터치로 쳐요. 터치 화면이면 여러 손가락도 돼요.</p>}
         <dl className={styles.stats}>
           {ROWS.map((r) => (
             <div key={r.key} className={styles.stat}>

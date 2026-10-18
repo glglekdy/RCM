@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { SNAP_DIVISIONS } from '@rcm/core'
+import { DEFAULT_COLUMNS, isFreeChart, MAX_COLUMNS, MIN_COLUMNS, SNAP_DIVISIONS, type FlickMode } from '@rcm/core'
 import {
+  Brush,
   ChevronDown,
   Circle,
   Eraser,
@@ -19,13 +20,19 @@ import {
   isSubmitEnter,
   Menu,
   Modal,
+  NumberField,
   Row,
+  SegmentedControl,
   TextField
 } from '../../ui'
 import { presetToChartTracks } from '../../../../shared/presets'
 import { PresetPicker } from '../../presets/PresetPicker'
 import { defaultPresetId, setLastPresetId, usePresets } from '../../presets/presetStore'
-import { addChart } from '../commands/charts'
+import { addChart, addFreeChart } from '../commands/charts'
+import { DEFAULT_FLICK_MODE } from '../commands/freeNotes'
+import { FLICK_DIRECTION_OPTIONS, FLICK_MODE_OPTIONS, FREE_TYPE_OPTIONS } from '../panels/freeLabels'
+import { getChart } from '../state/doc'
+import { FREE_NOTE_COLORS } from '@rcm/playfield'
 import { DEFAULT_PX_PER_MS } from '../minimap/geometry'
 import { useEditor, useStore } from '../state/useStore'
 import { clampZoom } from '../timeline/view'
@@ -66,7 +73,18 @@ export function BottomToolbar({
   const playing = useEditor((s) => s.playing)
   const recording = useEditor((s) => s.mode === 'recording')
   const pxPerMs = useEditor((s) => s.pxPerMs)
+  const freeChart = useEditor((s) => {
+    const chart = getChart(s.doc, s.activeChart)
+    return isFreeChart(chart) ? chart : null
+  })
+  const freeType = useEditor((s) => s.freeType)
+  const flickDirection = useEditor((s) => s.flickDirection)
+  const freeWidth = useEditor((s) => s.freeWidth)
   const [adding, setAdding] = useState(false)
+  const directionLabel = FLICK_DIRECTION_OPTIONS.find((o) => o.value === flickDirection)?.label ?? ''
+  // 폭은 1칸 ~ 채보의 칸 수
+  const setWidth = (w: number) =>
+    store.set({ freeWidth: Math.min(Math.max(1, w), freeChart?.columns ?? MAX_COLUMNS) })
 
   return (
     <div className={styles.bar} inert={inert}>
@@ -91,9 +109,17 @@ export function BottomToolbar({
           <IconButton
             icon={Pencil}
             label="그리기 (B)"
-            active={tool === 'draw'}
+            active={tool === 'draw' || (tool === 'brush' && !freeChart)}
             onClick={() => store.set({ tool: 'draw' })}
           />
+          {freeChart && (
+            <IconButton
+              icon={Brush}
+              label="연속 그리기 (G) — 끌고 지나간 스냅마다 노트를 깔아요"
+              active={tool === 'brush'}
+              onClick={() => store.set({ tool: 'brush' })}
+            />
+          )}
           <IconButton
             icon={Eraser}
             label="지우기 (E)"
@@ -107,6 +133,45 @@ export function BottomToolbar({
             onClick={() => store.set({ tool: 'select' })}
           />
         </div>
+        {freeChart && (
+          <div className={styles.group}>
+            {FREE_TYPE_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                className={`${styles.tab} ${freeType === o.value ? styles.selected : ''}`}
+                title={`${o.label} 그리기`}
+                // 연속 그리기 중이면 그대로, 지우기·선택 중이면 그리기로
+                onClick={() => store.set({ freeType: o.value, tool: tool === 'brush' ? 'brush' : 'draw' })}
+              >
+                <span className={styles.typeDot} style={{ background: FREE_NOTE_COLORS[o.value] }} />
+                {o.label}
+              </button>
+            ))}
+            {freeChart.flickMode === 'directional' && (
+              <Menu
+                placement="up"
+                trigger={
+                  <button type="button" className={styles.dropdown} title="새 플릭 방향">
+                    {directionLabel}
+                    <ChevronDown size={14} />
+                  </button>
+                }
+                items={FLICK_DIRECTION_OPTIONS.map((o) => ({
+                  label: o.label,
+                  onSelect: () => store.set({ flickDirection: o.value })
+                }))}
+              />
+            )}
+          </div>
+        )}
+        {freeChart && (
+          <div className={styles.group} title="클릭으로 그릴 노트 폭 (가로로 끌면 걸친 칸만큼)">
+            <IconButton icon={Minus} label="폭 줄이기" onClick={() => setWidth(freeWidth - 1)} />
+            <span className={styles.zoom}>폭 {freeWidth}</span>
+            <IconButton icon={Plus} label="폭 늘리기" onClick={() => setWidth(freeWidth + 1)} />
+          </div>
+        )}
         <div className={styles.group}>
           <Menu
             placement="up"
@@ -201,11 +266,21 @@ interface AddChartDialogProps {
 function AddChartDialog({ onClose, onAdded }: AddChartDialogProps) {
   const store = useStore()
   const [name, setName] = useState('')
+  const [layout, setLayout] = useState<'lanes' | 'free'>('lanes')
+  const [columns, setColumns] = useState(DEFAULT_COLUMNS)
+  const [flickMode, setFlickMode] = useState<FlickMode>(DEFAULT_FLICK_MODE)
   const presets = usePresets()
   const [presetId, setPresetId] = useState(() => defaultPresetId(presets))
   const chosenId = presets.some((p) => p.id === presetId) ? presetId : defaultPresetId(presets)
 
   const add = () => {
+    if (layout === 'free') {
+      const added = addFreeChart(store.getState().doc, name, columns, flickMode)
+      if (!added) return
+      store.apply('난이도 추가', added.doc)
+      onAdded(added.file)
+      return
+    }
     const preset = presets.find((p) => p.id === chosenId)
     if (!preset) return
     const added = addChart(store.getState().doc, name, presetToChartTracks(preset))
@@ -241,7 +316,34 @@ function AddChartDialog({ onClose, onAdded }: AddChartDialogProps) {
         <Row label="이름">
           <TextField value={name} onChange={setName} placeholder="HARD" />
         </Row>
-        <PresetPicker presets={presets} value={chosenId} onChange={setPresetId} />
+        <Row label="방식">
+          <SegmentedControl
+            options={[
+              { value: 'lanes' as const, label: '레인형' },
+              { value: 'free' as const, label: '자유형 (모바일) (베타)' }
+            ]}
+            value={layout}
+            onChange={setLayout}
+          />
+        </Row>
+        {layout === 'lanes' ? (
+          <PresetPicker presets={presets} value={chosenId} onChange={setPresetId} />
+        ) : (
+          <>
+            <Row label="칸 수">
+              <NumberField
+                value={columns}
+                min={MIN_COLUMNS}
+                max={MAX_COLUMNS}
+                onChange={(v) => setColumns(Math.round(v))}
+                onCommit={(v) => setColumns(Math.round(v))}
+              />
+            </Row>
+            <Row label="플릭">
+              <SegmentedControl options={FLICK_MODE_OPTIONS} value={flickMode} onChange={setFlickMode} />
+            </Row>
+          </>
+        )}
       </div>
     </Modal>
   )

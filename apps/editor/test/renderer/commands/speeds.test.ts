@@ -6,11 +6,11 @@ import {
   removeSpeedPoint,
   updateSpeedPoint
 } from '../../../src/renderer/src/editor/commands/speeds'
-import { getChart, type ProjectDoc } from '../../../src/renderer/src/editor/state/doc'
+import { getLaneChart, type ProjectDoc } from '../../../src/renderer/src/editor/state/doc'
 import { d0, withNotes } from '../fixtures'
 
 const F = 'normal.chart.json'
-const speeds = (d: ProjectDoc) => getChart(d, F).speeds
+const speeds = (d: ProjectDoc) => getLaneChart(d, F).speeds
 
 describe('speed commands', () => {
   it('추가: 정렬, 중복·범위 거부', () => {
@@ -42,7 +42,7 @@ describe('speed commands', () => {
   it('삭제: 마지막 하나면 필드 제거', () => {
     const d = addSpeedPoint(d0, F, 960, 2)!
     const r = removeSpeedPoint(d, F, 0)!
-    expect('speeds' in getChart(r, F)).toBe(false)
+    expect('speeds' in getLaneChart(r, F)).toBe(false)
     expect(removeSpeedPoint(d0, F, 0)).toBeNull()
   })
 
@@ -54,8 +54,8 @@ describe('speed commands', () => {
       0,
       1
     )!
-    expect(defaultSpeedAt(getChart(d, F), tm, 960)).toBe(2)
-    expect(defaultSpeedAt(getChart(d0, F), tm, 960)).toBe(1)
+    expect(defaultSpeedAt(getLaneChart(d, F), tm, 960)).toBe(2)
+    expect(defaultSpeedAt(getLaneChart(d0, F), tm, 960)).toBe(1)
   })
 
   it('서서히 구간 안에 추가하면 linear로 나눠 재생이 바뀌지 않는다', () => {
@@ -64,7 +64,7 @@ describe('speed commands', () => {
     const before = updateSpeedPoint(addSpeedPoint(addSpeedPoint(d0, F, 0, 1)!, F, 1920, 3)!, F, 1, {
       ease: 'linear'
     })!
-    const after = addSpeedPoint(before, F, 960, defaultSpeedAt(getChart(before, F), tm, 960))!
+    const after = addSpeedPoint(before, F, 960, defaultSpeedAt(getLaneChart(before, F), tm, 960))!
     expect(speeds(after)).toEqual([
       { tick: 0, speed: 1 },
       { tick: 960, speed: 2, ease: 'linear' },
@@ -93,7 +93,7 @@ describe('speed commands', () => {
   it('노트·트랙은 그대로 (속도만 바뀜)', () => {
     const base = withNotes(d0, [{ tick: 0, track: 'Note_1', type: 'tap' }])
     const d = addSpeedPoint(base, F, 960, 2)!
-    expect(getChart(d, F).notes).toBe(getChart(base, F).notes)
-    expect(getChart(d, F).tracks).toBe(getChart(base, F).tracks)
+    expect(getLaneChart(d, F).notes).toBe(getLaneChart(base, F).notes)
+    expect(getLaneChart(d, F).tracks).toBe(getLaneChart(base, F).tracks)
   })
 })

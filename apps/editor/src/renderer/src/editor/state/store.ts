@@ -1,8 +1,9 @@
-import type { SnapDivision } from '@rcm/core'
+import type { FlickDirection, SnapDivision } from '@rcm/core'
 import type { ProjectFiles } from '../../../../shared/api'
 import { dirtyFiles, isDirty, removedFiles, savedRefsOf, type SavedRefs } from './dirty'
 import type { ProjectDoc } from './doc'
 import type { Clip } from '../commands/notes'
+import { DEFAULT_FLICK_DIRECTION, type FreeClip, type FreeNoteType } from '../commands/freeNotes'
 import { History } from './history'
 
 export interface EditorState {
@@ -10,7 +11,8 @@ export interface EditorState {
   doc: ProjectDoc
   saved: SavedRefs
   activeChart: string
-  tool: 'draw' | 'erase' | 'select'
+  /** brush: 끌고 지나간 스냅 위치마다 노트를 까는 연속 그리기 (자유형 채보 전용, 레인형에서는 그리기와 같다) */
+  tool: 'draw' | 'erase' | 'select' | 'brush'
   snap: SnapDivision
   playheadMs: number
   pxPerMs: number
@@ -22,7 +24,13 @@ export interface EditorState {
   hitsoundVolume: number
   musicVolume: number
   taps: number[]
-  clipboard: Clip | null
+  clipboard: Clip | FreeClip | null
+  /** 자유형 채보에서 그릴 노트 종류 */
+  freeType: FreeNoteType
+  /** 자유형 채보에서 새 플릭의 방향 (flickMode가 directional일 때) */
+  flickDirection: FlickDirection
+  /** 자유형 채보에서 클릭으로 그릴 노트 폭(칸). 드래그로 폭을 정하면 그 폭을 기억한다 */
+  freeWidth: number
   /** 입력 필드에 포커스가 있다 (확정 안 된 값이 있을 수 있어 닫기 전에 확인한다) */
   fieldFocused: boolean
 }
@@ -54,6 +62,9 @@ export class EditorStore {
       musicVolume: 1,
       taps: [],
       clipboard: null,
+      freeType: 'tap',
+      flickDirection: DEFAULT_FLICK_DIRECTION,
+      freeWidth: 3,
       fieldFocused: false
     }
   }

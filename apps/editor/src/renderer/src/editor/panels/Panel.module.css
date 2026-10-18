@@ -119,3 +119,25 @@
 .speedList:disabled .speedEase {
   opacity: 0.4;
 }
+
+/* 자유형: 슬라이드 지점의 숨김 스위치 */
+.inlineSwitch {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* 자유형: 슬라이드 지점별 폭 */
+.pointWidth {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.pointWidth > label {
+  width: 96px;
+}

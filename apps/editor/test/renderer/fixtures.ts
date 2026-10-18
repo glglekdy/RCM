@@ -1,7 +1,7 @@
 import { basicTracks, emptyEditorData, serializeEditorData, type Note, type TimingPoint } from '@rcm/core'
 import type { ProjectFiles } from '../../src/shared/api'
 import { loadProject } from '../../src/renderer/src/editor/state/loadProject'
-import { getChart, replaceChart, type ProjectDoc } from '../../src/renderer/src/editor/state/doc'
+import { getLaneChart, replaceChart, type ProjectDoc } from '../../src/renderer/src/editor/state/doc'
 
 export function files(): ProjectFiles {
   const song = {
@@ -32,7 +32,7 @@ export function withNotes(
   trackCount?: number,
   file = 'normal.chart.json'
 ): ProjectDoc {
-  const chart = getChart(doc, file)
+  const chart = getLaneChart(doc, file)
   const tracks = trackCount === undefined ? chart.tracks : basicTracks(trackCount)
   return replaceChart(doc, file, { ...chart, notes, tracks })
 }

@@ -1,4 +1,4 @@
-import type { TimingMap } from '@rcm/core'
+import { lastNoteEndTick, type TimingMap } from '@rcm/core'
 import type { ProjectDoc } from '../state/doc'
 
 /** 음악이 없을 때 타임라인 길이의 최소값 (3분) */
@@ -16,7 +16,7 @@ export function projectAudioPath(dir: string, audio: string): string {
 export function silentDurationMs(doc: ProjectDoc, tm: TimingMap): number {
   let lastTick = 0
   for (const { chart } of doc.charts) {
-    for (const n of chart.notes) lastTick = Math.max(lastTick, n.type === 'hold' ? n.endTick : n.tick)
+    lastTick = Math.max(lastTick, lastNoteEndTick(chart))
   }
   return Math.max(SILENT_MIN_MS, tm.tickToMs(lastTick) + SILENT_TAIL_MS)
 }

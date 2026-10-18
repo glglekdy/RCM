@@ -1,4 +1,4 @@
-import type { Track } from '@rcm/core'
+import type { FlickMode, Track } from '@rcm/core'
 import type { PlayfieldLayout } from '@rcm/playfield'
 import type { UpdateState } from '../main/update/updateState'
 import type { PresenceInfo } from './presence'
@@ -15,6 +15,8 @@ export interface CreateProjectOptions {
   bpm: number
   chartName: string
   tracks: Track[]
+  /** 있으면 첫 난이도를 자유형(모바일) 채보로 만든다. tracks는 쓰지 않는다 */
+  free?: { columns: number; flickMode: FlickMode }
 }
 
 export interface ProjectFiles {
@@ -38,7 +40,8 @@ export interface RecentProject {
   missing: boolean
   title: string
   artist: string
-  charts: { name: string; trackCount: number }[]
+  /** 자유형 채보는 trackCount 대신 칸 수(columns)가 있다 */
+  charts: { name: string; trackCount: number; columns?: number }[]
 }
 
 export interface RcmApi {

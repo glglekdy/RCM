@@ -2,7 +2,7 @@ import {
   MAX_SCROLL_SPEED,
   MIN_SCROLL_SPEED,
   ScrollMap,
-  type Chart,
+  type AnyChart,
   type SpeedEase,
   type SpeedPoint,
   type TimingMap
@@ -16,7 +16,7 @@ function validSpeed(speed: number): boolean {
 /** speeds만 바꾼 차트로 교체한다. 비면 필드 자체를 뺀다. */
 function withSpeeds(doc: ProjectDoc, file: string, speeds: SpeedPoint[]): ProjectDoc {
   const { speeds: _old, ...rest } = getChart(doc, file)
-  const chart: Chart = speeds.length > 0 ? { ...rest, speeds } : rest
+  const chart = (speeds.length > 0 ? { ...rest, speeds } : rest) as AnyChart
   return replaceChart(doc, file, chart)
 }
 
@@ -65,7 +65,7 @@ export function removeSpeedPoint(doc: ProjectDoc, file: string, index: number): 
 }
 
 /** 새 속도 지점의 기본 배율: 그 위치의 현재 속도 (소수 둘째 자리 반올림). */
-export function defaultSpeedAt(chart: Chart, tm: TimingMap, tick: number): number {
+export function defaultSpeedAt(chart: { speeds?: SpeedPoint[] }, tm: TimingMap, tick: number): number {
   const speed = new ScrollMap(chart.speeds, tm).speedAt(tm.tickToMs(tick))
   return Math.round(speed * 100) / 100
 }

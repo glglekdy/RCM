@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Play, Square } from 'lucide-react'
+import { DEFAULT_COLUMNS, MAX_COLUMNS, MIN_COLUMNS, type FlickMode } from '@rcm/core'
 import {
   Button,
   IconButton,
   Modal,
   NumberField,
   Row,
+  SegmentedControl,
   TextField,
   useDialogs
 } from '../ui'
+import { DEFAULT_FLICK_MODE } from '../editor/commands/freeNotes'
+import { FLICK_MODE_OPTIONS } from '../editor/panels/freeLabels'
 import { presetToChartTracks } from '../../../shared/presets'
 import { PresetPicker } from '../presets/PresetPicker'
 import { defaultPresetId, getPresets, setLastPresetId, usePresets } from '../presets/presetStore'
@@ -46,6 +50,9 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
   const [bpm, setBpm] = useState(120)
   const [chartName, setChartName] = useState('NORMAL')
   const [presetId, setPresetId] = useState(() => defaultPresetId(presets))
+  const [layout, setLayout] = useState<'lanes' | 'free'>('lanes')
+  const [columns, setColumns] = useState(DEFAULT_COLUMNS)
+  const [flickMode, setFlickMode] = useState<FlickMode>(DEFAULT_FLICK_MODE)
   const [parentDir, setParentDir] = useState('')
   const [preview, setPreview] = useState('')
   const [playing, setPlaying] = useState(false)
@@ -78,6 +85,9 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
     setBpm(120)
     setChartName('NORMAL')
     setPresetId(defaultPresetId(getPresets()))
+    setLayout('lanes')
+    setColumns(DEFAULT_COLUMNS)
+    setFlickMode(DEFAULT_FLICK_MODE)
     setPreview('')
     setCreating(false)
     pickToken.current++
@@ -179,7 +189,7 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
 
   const canCreate =
     !creating &&
-    preset !== undefined &&
+    (layout === 'free' || preset !== undefined) &&
     title.trim() !== '' &&
     // 음악은 골라도 되고 안 골라도 되지만, 고른 파일은 열 수 있어야 한다
     (audio.state === 'none' || audio.state === 'ok') &&
@@ -188,7 +198,7 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
     parentDir !== ''
 
   const create = async () => {
-    if (!canCreate || !preset) return
+    if (!canCreate) return
     setCreating(true)
     stopPlayback()
     try {
@@ -199,11 +209,14 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
         audioPath: audio.state === 'ok' ? audio.path : null,
         bpm,
         chartName: chartName.trim(),
-        tracks: presetToChartTracks(preset)
+        tracks: layout === 'lanes' && preset ? presetToChartTracks(preset) : [],
+        ...(layout === 'free' ? { free: { columns, flickMode } } : {})
       })
-      void setLastPresetId(preset.id).catch(() => {
-        // 마지막 선택을 기억하지 못해도 프로젝트는 만들어졌다
-      })
+      if (layout === 'lanes' && preset) {
+        void setLastPresetId(preset.id).catch(() => {
+          // 마지막 선택을 기억하지 못해도 프로젝트는 만들어졌다
+        })
+      }
       onCreated(dir)
     } catch (err) {
       setCreating(false)
@@ -266,7 +279,34 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
         <Row label="첫 난이도 이름">
           <TextField value={chartName} onChange={setChartName} placeholder="NORMAL" width={140} />
         </Row>
-        <PresetPicker presets={presets} value={chosenId} onChange={setPresetId} />
+        <Row label="채보 방식">
+          <SegmentedControl
+            options={[
+              { value: 'lanes' as const, label: '레인형' },
+              { value: 'free' as const, label: '자유형 (모바일) (베타)' }
+            ]}
+            value={layout}
+            onChange={setLayout}
+          />
+        </Row>
+        {layout === 'lanes' ? (
+          <PresetPicker presets={presets} value={chosenId} onChange={setPresetId} />
+        ) : (
+          <>
+            <Row label="칸 수">
+              <NumberField
+                value={columns}
+                min={MIN_COLUMNS}
+                max={MAX_COLUMNS}
+                onChange={(v) => setColumns(Math.round(v))}
+              />
+            </Row>
+            <Row label="플릭">
+              <SegmentedControl options={FLICK_MODE_OPTIONS} value={flickMode} onChange={setFlickMode} />
+            </Row>
+            <div className={styles.hint}>노트가 레인 대신 가로 위치와 폭을 가져요 (탭·트레이스·플릭·슬라이드)</div>
+          </>
+        )}
         <Row label="저장 위치">
           <span className={styles.fileName} title={parentDir}>
             {parentDir}

@@ -1,4 +1,4 @@
-import type { TrackKind } from './types';
+import type { FlickDirection, SlideEase, TrackKind } from './types';
 
 export const TICKS_PER_BEAT = 480;
 export const FORMAT_VERSION = 1;
@@ -19,3 +19,9 @@ export const SNAP_DIVISIONS: readonly SnapDivision[] = [4, 8, 12, 16, 24, 32];
 export function snapStepTicks(division: SnapDivision): number {
   return (TICKS_PER_BEAT * 4) / division;
 }
+
+export const MIN_COLUMNS = 1;
+export const MAX_COLUMNS = 32;
+export const DEFAULT_COLUMNS = 12;
+export const FLICK_DIRECTIONS: readonly FlickDirection[] = ['up', 'left', 'right', 'upLeft', 'upRight'];
+export const SLIDE_EASES: readonly SlideEase[] = ['linear', 'easeIn', 'easeOut'];

@@ -126,3 +126,11 @@
   border-radius: 50%;
   background: var(--danger);
 }
+
+/* 자유형 노트 종류 버튼의 색 점 (타임라인 노트 색) */
+.typeDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}

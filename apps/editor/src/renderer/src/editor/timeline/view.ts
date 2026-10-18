@@ -46,6 +46,8 @@ export interface TimelineColumn {
 
 export interface TimelineLayout {
   tracksX: number
+  /** 열 하나의 폭(px) */
+  colPx: number
   totalWidth: number
   columns: TimelineColumn[]
   waveX: number
@@ -55,19 +57,20 @@ export interface TimelineLayout {
   labelX: number
 }
 
-export function layoutTimeline(width: number, tracks: readonly Track[]): TimelineLayout {
-  const totalWidth = tracks.length * TRACK_PX
+export function layoutTimeline(width: number, tracks: readonly Track[], colPx = TRACK_PX): TimelineLayout {
+  const totalWidth = tracks.length * colPx
   const tracksX = Math.round((width - totalWidth) / 2)
   const columns = tracks.map((t, i) => ({
     id: t.id,
-    x: tracksX + i * TRACK_PX,
-    width: TRACK_PX,
+    x: tracksX + i * colPx,
+    width: colPx,
     color: t.color ?? DEFAULT_NOTE_COLOR,
     gimmick: isGimmick(t)
   }))
   const speedX = tracksX + totalWidth + GAP
   return {
     tracksX,
+    colPx,
     totalWidth,
     columns,
     waveX: tracksX - GAP - WAVE_WIDTH,
@@ -75,6 +78,24 @@ export function layoutTimeline(width: number, tracks: readonly Track[]): Timelin
     speedX,
     labelX: speedX + SPEED_GRAPH_WIDTH + GAP
   }
+}
+
+/** 자유형 채보 타임라인의 칸 폭(px) */
+export const FREE_COL_PX = 36
+
+/** 자유형 채보 타임라인: 칸마다 열 하나 (이름은 1부터 센 칸 번호). */
+export function layoutFreeTimeline(width: number, columns: number): TimelineLayout {
+  const tracks = Array.from({ length: columns }, (_, i) => ({ id: String(i + 1) }))
+  return layoutTimeline(width, tracks, FREE_COL_PX)
+}
+
+/** 화면 x가 놓인 칸 위치 (소수, 왼쪽 끝 0). 범위로 자르지 않는다. */
+export function xToCol(l: TimelineLayout, x: number): number {
+  return (x - l.tracksX) / l.colPx
+}
+
+export function colToX(l: TimelineLayout, col: number): number {
+  return l.tracksX + col * l.colPx
 }
 
 /**

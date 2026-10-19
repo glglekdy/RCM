@@ -17,6 +17,7 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
   <link rel="stylesheet" href="style.css">
+  <script>document.documentElement.classList.add('js')</script>
 </head>
 <body>
   <a class="skip" href="#features">본문으로 건너뛰기</a>
@@ -39,10 +40,10 @@
     <section class="hero">
       <div class="wrap hero-grid">
         <div class="hero-copy">
-          <h1>채보를 찍고,<br>바로 쳐 보세요.</h1>
+          <h1 class="hero-title"><span class="line"><span>채보를 찍고,</span></span><span class="line"><span>바로 쳐 보세요.</span></span></h1>
           <p class="lead">RCM은 세로 레인형 리듬게임의 채보를 만드는 무료 Windows 에디터입니다. 곡에 맞춰 노트를 찍고, 그 자리에서 플레이해 보고, 게임이 읽을 수 있는 JSON으로 저장합니다.</p>
           <div class="cta">
-            <a class="btn-download" data-download href="https://github.com/glglekdy/RCM/releases/latest">
+            <a class="btn-download" id="hero-download" data-download href="https://github.com/glglekdy/RCM/releases/latest">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16"/></svg>
               Windows용 다운로드
             </a>
@@ -58,12 +59,25 @@
           <canvas id="playfield"></canvas>
         </div>
       </div>
-      <div class="wrap">
+      <div class="wrap shot-hero-wrap">
         <figure class="shot shot-hero">
           <img src="images/hero-editor.webp" width="2400" height="1500" alt="RCM 에디터에서 8트랙 채보를 편집하는 화면. 왼쪽에 음악 파형, 가운데에 노트 타임라인, 오른쪽에 곡 정보 패널이 있다.">
         </figure>
       </div>
     </section>
+
+    <div class="ticker" aria-hidden="true">
+      <div class="ticker-track">
+        <div class="ticker-group">
+          <span>DJMAX RESPECT V</span><i></i>
+          <span class="outline">EZ2ON REBOOT : R</span><i></i>
+          <span>PUMP IT UP</span><i></i>
+          <span class="outline">osu!mania</span><i></i>
+          <span>Muse Dash</span><i></i>
+          <span class="outline">자유 배치 채보</span><i></i>
+        </div>
+      </div>
+    </div>
 
     <div id="features">
       <section class="feature band-dark">
@@ -161,7 +175,11 @@
             <p>가이드에는 tick을 시간으로 바꾸는 공식, 판정 규칙, 트랙 이름을 해석하는 방법이 모두 들어 있습니다.</p>
             <div class="credit">
               <p><strong>Made with RCM</strong> 표기를 부탁드립니다</p>
-              <p>RCM으로 만든 채보를 쓰는 게임을 공개한다면, 크레딧에 <a href="https://github.com/glglekdy/RCM/tags" rel="noopener">github.com/glglekdy/RCM/tags</a>로 이동하는 Made with RCM 버튼을 넣어 주세요.</p>
+              <p>RCM으로 만든 채보를 쓰는 게임을 공개한다면, 크레딧에 누르면 <a href="https://glglekdy.github.io/RCM/">glglekdy.github.io/RCM</a>으로 이동하는 Made with RCM 버튼을 넣어 주세요. AI 가이드 문서와 예시 프롬프트에도 이 내용이 들어 있어서, AI가 게임을 만들 때 버튼을 함께 넣어 줍니다.</p>
+              <a class="made-with" href="https://glglekdy.github.io/RCM/" aria-label="Made with RCM 버튼 예시, 누르면 RCM 사이트로 이동">
+                <img src="images/icon.png" alt="" width="20" height="20">
+                Made with RCM
+              </a>
             </div>
           </div>
           <figure class="shot">

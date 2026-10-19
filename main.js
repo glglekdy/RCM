@@ -88,6 +88,14 @@ function setupPlayfield() {
     (n) => n[2] > 0 || !holds.some((h) => h[1] === n[1] && n[0] > h[0] && n[0] <= h[0] + h[2])
   )
 
+  const button = document.getElementById('hero-download')
+  function pulseButton() {
+    if (!button) return
+    button.classList.remove('beat')
+    void button.offsetWidth // 애니메이션을 처음부터 다시 시작
+    button.classList.add('beat')
+  }
+
   const flash = new Float32Array(LANES)
   let combo = 0
   let width = 0
@@ -99,10 +107,10 @@ function setupPlayfield() {
   let frame = 0
 
   function resize() {
-    const rect = canvas.getBoundingClientRect()
+    // 등장 애니메이션의 scale에 영향받지 않는 레이아웃 크기를 쓴다
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
-    width = rect.width
-    height = rect.height
+    width = canvas.clientWidth
+    height = canvas.clientHeight
     canvas.width = Math.round(width * dpr)
     canvas.height = Math.round(height * dpr)
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -191,6 +199,9 @@ function setupPlayfield() {
     ctx.fillStyle = fadeBottom
     ctx.fillRect(0, judgeY + 2, width, height - judgeY - 2)
 
+    // 마디가 바뀔 때 다운로드 버튼에 링을 띄운다
+    if (lastBeat >= 0 && Math.floor(songBeat / 4) > Math.floor(lastBeat / 4)) pulseButton()
+
     // 콤보
     if (combo > 0) {
       ctx.fillStyle = 'rgba(255,255,255,0.14)'
@@ -258,5 +269,106 @@ function setupPlayfield() {
   play()
 }
 
+// 스크롤 모션: 나타나기, 대표 스크린샷 기울기, 스크린샷 시차, 게임 이름 띠
+function setupMotion() {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  const selectors = [
+    '.feature-copy > *',
+    '.feature .shot',
+    '.extras h2',
+    '.extras article',
+    '.install h2',
+    '.steps li',
+    '.final h2',
+    '.final .btn-download'
+  ]
+  const targets = [...document.querySelectorAll(selectors.join(','))]
+  targets.forEach((el) => el.classList.add('reveal'))
+  // 같은 부모 안에서 순서대로 조금씩 늦게 나타나게
+  targets.forEach((el) => {
+    const siblings = [...el.parentElement.children].filter((c) => c.classList.contains('reveal'))
+    el.style.setProperty('--i', String(siblings.indexOf(el)))
+  })
+  document.querySelectorAll('.points').forEach((list) => {
+    ;[...list.children].forEach((li, i) => li.style.setProperty('--i', String(i)))
+  })
+
+  if (reduceMotion || !('IntersectionObserver' in window)) {
+    targets.forEach((el) => el.classList.add('in'))
+    return
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue
+        entry.target.classList.add('in')
+        observer.unobserve(entry.target)
+      }
+    },
+    { rootMargin: '0px 0px -12% 0px', threshold: 0.15 }
+  )
+  targets.forEach((el) => observer.observe(el))
+
+  const heroShot = document.querySelector('.shot-hero')
+  const featureShots = [...document.querySelectorAll('.feature .shot')]
+  const track = document.querySelector('.ticker-track')
+  const group = track && track.querySelector('.ticker-group')
+
+  // 띠가 화면보다 두 배 넘게 길어지도록 묶음을 복제한다
+  let groupWidth = 0
+  function fillTicker() {
+    if (!track || !group) return
+    groupWidth = group.getBoundingClientRect().width
+    const needed = Math.ceil((window.innerWidth * 2) / groupWidth) + 1
+    while (track.children.length < needed) track.appendChild(group.cloneNode(true))
+  }
+  fillTicker()
+  window.addEventListener('resize', fillTicker)
+  if (document.fonts) document.fonts.ready.then(fillTicker)
+
+  let tickerX = 0
+  let lastScroll = window.scrollY
+  let velocity = 0
+  let prev = performance.now()
+
+  function frame(now) {
+    const dt = Math.min(0.05, (now - prev) / 1000)
+    prev = now
+    const vh = window.innerHeight
+
+    // 스크롤 속도: 아래로 내리면 띠가 빨라지고, 올리면 거꾸로 흐른다
+    const scroll = window.scrollY
+    const instant = dt > 0 ? (scroll - lastScroll) / dt : 0
+    lastScroll = scroll
+    velocity += (instant - velocity) * Math.min(1, dt * 8)
+
+    if (heroShot) {
+      const top = heroShot.getBoundingClientRect().top
+      const tilt = Math.min(1, Math.max(0, (top - vh * 0.15) / (vh * 0.75)))
+      heroShot.style.setProperty('--tilt', tilt.toFixed(4))
+    }
+
+    for (const shot of featureShots) {
+      const rect = shot.getBoundingClientRect()
+      if (rect.bottom < 0 || rect.top > vh) continue
+      const offset = (rect.top + rect.height / 2 - vh / 2) / vh
+      shot.style.setProperty('--shift', `${(offset * -36).toFixed(2)}px`)
+    }
+
+    if (track && groupWidth > 0) {
+      const speed = 70 + Math.max(-900, Math.min(900, velocity * 0.45))
+      tickerX = (tickerX - speed * dt) % groupWidth
+      if (tickerX > 0) tickerX -= groupWidth
+      track.style.transform = `translate3d(${tickerX.toFixed(2)}px, 0, 0)`
+    }
+
+    requestAnimationFrame(frame)
+  }
+  requestAnimationFrame(frame)
+}
+
 setupDownload()
 setupPlayfield()
+setupMotion()

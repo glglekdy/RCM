@@ -720,48 +720,19 @@ h3 {
   transform: none;
 }
 
-/* 스크린샷 위로 판정선이 훑고 지나간다 */
-.shot {
-  position: relative;
+/* 스크린샷은 글보다 조금 더 아래에서 올라온다 */
+.js .shot.reveal {
+  transform: translateY(64px);
+  transition-duration: 1.1s;
+}
+
+.js .shot.reveal.in {
+  transform: none;
 }
 
 /* 시차: 나타나기의 transform과 따로 움직이도록 translate 속성을 쓴다 */
 .feature .shot {
   translate: 0 var(--shift, 0px);
-}
-
-.shot::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 2px;
-  background: var(--white);
-  box-shadow: 0 0 22px 6px rgb(255 255 255 / 0.5);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.js .shot.in::after {
-  animation: sweep 1.2s 0.3s cubic-bezier(0.55, 0, 0.25, 1) both;
-}
-
-@keyframes sweep {
-  0% {
-    top: 0;
-    opacity: 0;
-  }
-
-  12%,
-  80% {
-    opacity: 1;
-  }
-
-  100% {
-    top: 100%;
-    opacity: 0;
-  }
 }
 
 /* 노트 모양 글머리표가 떨어져 내려앉는다 */

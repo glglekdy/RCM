@@ -3,10 +3,15 @@
 const RELEASE_API = 'https://api.github.com/repos/glglekdy/RCM/releases/latest'
 const CACHE_KEY = 'rcm-latest-release'
 
+// 새 버전이 나오면 지난 Release는 지워지므로, 오래 기억하면 없는 파일로 연결된다
+const CACHE_TTL = 5 * 60 * 1000
+
 function readCache() {
   try {
     const raw = sessionStorage.getItem(CACHE_KEY)
-    return raw ? JSON.parse(raw) : null
+    const cached = raw ? JSON.parse(raw) : null
+    if (!cached || typeof cached.at !== 'number' || Date.now() - cached.at > CACHE_TTL) return null
+    return cached
   } catch {
     return null
   }
@@ -14,7 +19,7 @@ function readCache() {
 
 function writeCache(info) {
   try {
-    sessionStorage.setItem(CACHE_KEY, JSON.stringify(info))
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ...info, at: Date.now() }))
   } catch {
     // 저장소를 못 쓰면 다음에 다시 조회한다
   }

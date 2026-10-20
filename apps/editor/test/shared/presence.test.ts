@@ -9,7 +9,7 @@ describe('buildActivity', () => {
       type: 0,
       timestamps: { start: 500 },
       assets: { large_image: 'rcm', large_text: 'RCM - Rhythm Chaebo Maker' },
-      buttons: [{ label: '채보 짜러가기!', url: 'https://github.com/glglekdy/RCM/tags' }]
+      buttons: [{ label: '채보 짜러가기!', url: 'https://glglekdy.github.io/RCM/' }]
     })
   })
 

@@ -53,7 +53,7 @@ Each song is saved as one folder. The folder holds the song info (`song.json`), 
 
 How a game reads these files is documented in the app's **AI 가이드** (AI guide) menu and in [CHART_FORMAT_GUIDE.md](docs/CHART_FORMAT_GUIDE.md). The guide includes the timing formulas, judgement rules, and reference code. You can hand it to an AI agent such as Claude and have it build the game. The guide itself is written in Korean.
 
-> **Credit rule**: games that use charts made with RCM must put a **`Made with RCM`** button in their credits. The button should open `https://github.com/glglekdy/RCM/tags`.
+> **Credit rule**: games that use charts made with RCM must put a **`Made with RCM`** button in their credits. The button should open `https://glglekdy.github.io/RCM/`.
 
 ## Copyright notice
 

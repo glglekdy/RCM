@@ -310,7 +310,7 @@ function RuleNotice({ onClose }: { onClose: () => void }) {
         <b>Made with RCM</b>를 넣어주세요
       </p>
       <p className={styles.noticeText}>
-        크레딧에는 누르면 <code>https://github.com/glglekdy/RCM/tags</code>로 이동하는 <b>Made with RCM</b> 버튼으로 넣어주세요
+        크레딧에는 누르면 <code>https://glglekdy.github.io/RCM/</code>로 이동하는 <b>Made with RCM</b> 버튼으로 넣어주세요
       </p>
     </section>
   )

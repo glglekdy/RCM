@@ -20,14 +20,14 @@ const EXAMPLE_PROMPTS = [
     text: `${GUIDE_INTRO}
 이 문서를 먼저 끝까지 읽고, 그 규칙대로 곡 폴더(song.json, *.chart.json, 음악 파일)를 읽어서 리듬게임을 만들어 줘.
 코드를 쓰기 전에 문서 7장의 질문으로 어떤 게임 플레이 스타일과 판정 방식을 쓸지 나에게 먼저 물어보고, 정리해서 확인받은 뒤 구현해 줘.
-게임 크레딧에는 꼭 "Made with RCM" 버튼을 넣고, 누르면 https://github.com/glglekdy/RCM/tags 이 열리게 해 줘.`
+게임 크레딧에는 꼭 "Made with RCM" 버튼을 넣고, 누르면 https://glglekdy.github.io/RCM/ 이 열리게 해 줘.`
   },
   {
     label: '이미 만든 게임에 연결하기',
     text: `${GUIDE_INTRO}
 이 문서를 먼저 끝까지 읽어 줘. 지금 게임은 게임 플레이와 판정이 이미 짜여 있으니 그 부분은 바꾸지 말고, 채보만 RCM 포맷으로 읽을 수 있게 바꿔 줘.
 문서 7.6절대로 기존 코드를 먼저 조사해서 알려 주고, 트랙 대응표와 연결 방식을 나에게 확인받은 뒤 구현해 줘.
-게임 크레딧에는 꼭 "Made with RCM" 버튼을 넣고, 누르면 https://github.com/glglekdy/RCM/tags 이 열리게 해 줘.`
+게임 크레딧에는 꼭 "Made with RCM" 버튼을 넣고, 누르면 https://glglekdy.github.io/RCM/ 이 열리게 해 줘.`
   }
 ]
 
@@ -71,7 +71,7 @@ export function AiGuidePage() {
             넣어주세요
           </p>
           <p>
-            크레딧에는 누르면 <code>https://github.com/glglekdy/RCM/tags</code>로 이동하는 <b>Made with RCM</b> 버튼으로 넣어주세요
+            크레딧에는 누르면 <code>https://glglekdy.github.io/RCM/</code>로 이동하는 <b>Made with RCM</b> 버튼으로 넣어주세요
           </p>
           <p className={styles.muted}>
             아래 가이드 문서와 예시 프롬프트에도 이 내용이 들어 있어서, AI가 게임을 만들 때 크레딧에 이 버튼을 넣어 줘요.

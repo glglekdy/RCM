@@ -18,7 +18,7 @@ export interface DiscordActivity {
   buttons: { label: string; url: string }[]
 }
 
-export const PRESENCE_BUTTON = { label: '채보 짜러가기!', url: 'https://github.com/glglekdy/RCM/tags' }
+export const PRESENCE_BUTTON = { label: '채보 짜러가기!', url: 'https://glglekdy.github.io/RCM/' }
 export const PRESENCE_IMAGE = 'rcm'
 export const PRESENCE_IMAGE_TEXT = 'RCM - Rhythm Chaebo Maker'
 

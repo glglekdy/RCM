@@ -51,7 +51,7 @@ DJMAX처럼 노트가 레인을 따라 떨어지는 **세로 레인형** 채보�
 
 게임에서 이 파일을 읽는 방법은 앱의 **AI 가이드** 메뉴(또는 [CHART_FORMAT_GUIDE.md](docs/CHART_FORMAT_GUIDE.md))에 정리돼 있어요. 시간 계산 공식, 판정 규칙, 참고 코드까지 들어 있어서 Claude 같은 AI 에이전트에게 이 문서를 넘기면 게임 구현을 맡길 수 있어요.
 
-> **크레딧 규정**: RCM으로 만든 채보를 쓰는 게임은 크레딧에 **`Made with RCM`** 버튼을 넣어 주세요. 누르면 `https://github.com/glglekdy/RCM/tags`가 열리면 돼요.
+> **크레딧 규정**: RCM으로 만든 채보를 쓰는 게임은 크레딧에 **`Made with RCM`** 버튼을 넣어 주세요. 누르면 `https://glglekdy.github.io/RCM/`가 열리면 돼요.
 
 ## 저작권 안내
 

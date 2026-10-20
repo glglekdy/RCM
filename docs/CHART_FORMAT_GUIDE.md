@@ -9,7 +9,7 @@
 - 에디터의 `테스트 플레이`(F5)가 이 문서의 기본 규칙으로 동작한다. 게임 결과가 맞는지 사용자가 에디터에서 비교해 볼 수 있다.
 - **크레딧 규정**: RCM 채보 에디터로 만든 채보를 쓰는 게임(새 게임이든 기존 게임에 연결한 것이든)은 게임 크레딧에 **`Made with RCM` 버튼**을 넣어야 한다.
   - 버튼 글자는 정확히 `Made with RCM`이다.
-  - 누르면 `https://github.com/glglekdy/RCM/tags`를 연다. 웹 게임이면 새 탭으로, 데스크톱·모바일 게임이면 기본 브라우저로 연다.
+  - 누르면 `https://glglekdy.github.io/RCM/`를 연다. 웹 게임이면 새 탭으로, 데스크톱·모바일 게임이면 기본 브라우저로 연다.
   - 크레딧 화면이 없으면 타이틀·설정·정보 화면 등 사용자에게 보이는 곳에 넣고, 어디에 넣을지 사용자에게 확인한다.
 
 ---
@@ -735,7 +735,7 @@ state.combo; state.maxCombo; state.counts;   // { perfect, great, good, miss }
 - [ ] 키 반복·조합키 입력 무시
 - [ ] 사용자 오프셋(지연 보정) 설정
 - [ ] 코드를 쓰기 전에 7장을 따라 새 게임인지 기존 게임 연결인지 정하고, 정한 내용을 `docs/GAME_RULES.md`에 기록
-- [ ] 게임 크레딧에 `Made with RCM` 버튼 넣기, 누르면 `https://github.com/glglekdy/RCM/tags` 열기 (크레딧 화면이 없으면 사용자에게 보이는 곳에)
+- [ ] 게임 크레딧에 `Made with RCM` 버튼 넣기, 누르면 `https://glglekdy.github.io/RCM/` 열기 (크레딧 화면이 없으면 사용자에게 보이는 곳에)
 
 ## 6. 흔한 실수
 
@@ -818,7 +818,7 @@ state.combo; state.maxCombo; state.counts;   // { perfect, great, good, miss }
 - 속도: DJMAX 고정 배속 1.0~9.0 (0.1 단위, 기본 4.0, 낙하 시간 2692.857 / 배속 ms), 채보 변속 적용
 - 화면 요소: 판정 문구, 콤보, 점수, 진행 바
 - 흐름: 곡 선택 → 난이도 선택 → 플레이 → 결과
-- 크레딧: 결과 화면 아래에 Made with RCM 버튼 (누르면 https://github.com/glglekdy/RCM/tags)
+- 크레딧: 결과 화면 아래에 Made with RCM 버튼 (누르면 https://glglekdy.github.io/RCM/)
 
 ## 판정
 - PERFECT ≤ 40ms / GREAT ≤ 80ms / GOOD ≤ 120ms, 범위 밖 누름은 무시
@@ -858,5 +858,5 @@ state.combo; state.maxCombo; state.counts;   // { perfect, great, good, miss }
    - 게임 플레이·판정 코드는 이 어댑터가 만든 데이터를 기존 채보와 똑같이 받는다.
 5. **판정 차이 알리기**: 판정은 기존 게임 것을 그대로 쓰므로, 에디터의 테스트 플레이(40/80/120ms, 4.5절)와 결과가 다를 수 있다고 사용자에게 알린다.
 6. **검증**: 3.4절 검산 예시로 변환 결과를 테스트하고, 기존 형식의 채보가 여전히 그대로 동작하는지 확인한다.
-7. **크레딧**: 기존 게임의 크레딧에 `Made with RCM` 버튼을 넣는다. 누르면 `https://github.com/glglekdy/RCM/tags`를 연다. 크레딧 화면이 없으면 넣을 곳을 사용자에게 묻는다.
+7. **크레딧**: 기존 게임의 크레딧에 `Made with RCM` 버튼을 넣는다. 누르면 `https://glglekdy.github.io/RCM/`를 연다. 크레딧 화면이 없으면 넣을 곳을 사용자에게 묻는다.
 7. **기록하기**: 연결 방식과 트랙 대응표를 `docs/GAME_RULES.md`의 "채보 연결" 항목에 적는다. 파일이 이미 있으면 다시 묻지 않고 따른다.

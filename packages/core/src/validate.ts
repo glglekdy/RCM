@@ -2,10 +2,13 @@ import {
   FLICK_DIRECTIONS,
   FORMAT_VERSION,
   MAX_COLUMNS,
+  MAX_GIMMICK_NAME_LENGTH,
+  MAX_GIMMICKS,
   MAX_SCROLL_SPEED,
   MIN_COLUMNS,
   MIN_SCROLL_SPEED,
   SLIDE_EASES,
+  TRACK_COLOR_PATTERN,
 } from './constants';
 import { trackErrors } from './tracks';
 import {
@@ -16,6 +19,7 @@ import {
   type FlickDirection,
   type FlickMode,
   type FreeChart,
+  type FreeGimmick,
   type FreeNote,
   type Marker,
   type Note,
@@ -277,7 +281,14 @@ function checkDirection(raw: Obj, p: string, mode: FlickMode | undefined, c: Col
   }
 }
 
-function readSlide(raw: Obj, p: string, columns: number | undefined, mode: FlickMode | undefined, c: Collector): FreeNote | null {
+function readSlide(
+  raw: Obj,
+  p: string,
+  columns: number | undefined,
+  mode: FlickMode | undefined,
+  gimmicks: readonly string[] | undefined,
+  c: Collector,
+): FreeNote | null {
   if (!Array.isArray(raw.points) || raw.points.length < 2) {
     c.add(`${p}.points`, '2개 이상의 배열이어야 함');
     return null;
@@ -315,10 +326,18 @@ function readSlide(raw: Obj, p: string, columns: number | undefined, mode: Flick
     points.push(point);
   });
   if (raw.endFlick !== undefined && typeof raw.endFlick !== 'boolean') c.add(`${p}.endFlick`, 'true 또는 false여야 함');
-  if (raw.endFlick === true) checkDirection(raw, p, mode, c);
-  else if (raw.direction !== undefined) c.add(`${p}.direction`, 'endFlick이 true일 때만 쓸 수 있음');
+  if (raw.gimmick !== undefined) {
+    // 기믹 슬라이드: 판정이 없으므로 끝 플릭도 없다
+    if (typeof raw.gimmick !== 'string') c.add(`${p}.gimmick`, '문자열이어야 함');
+    else if (gimmicks && !gimmicks.includes(raw.gimmick)) c.add(`${p}.gimmick`, `gimmicks에 없는 이름 "${raw.gimmick}"`);
+    if (raw.endFlick === true) c.add(`${p}.endFlick`, '기믹 슬라이드에는 쓸 수 없음');
+  }
+  if (raw.endFlick === true) {
+    if (raw.gimmick === undefined) checkDirection(raw, p, mode, c);
+  } else if (raw.direction !== undefined) c.add(`${p}.direction`, 'endFlick이 true일 때만 쓸 수 있음');
   if (c.errors.length > before) return null;
   const note: FreeNote = { type: 'slide', points };
+  if (raw.gimmick !== undefined) note.gimmick = raw.gimmick as string;
   if (raw.endFlick === true) {
     note.endFlick = true;
     if (raw.direction !== undefined) note.direction = raw.direction as FlickDirection;
@@ -326,31 +345,88 @@ function readSlide(raw: Obj, p: string, columns: number | undefined, mode: Flick
   return note;
 }
 
-function readFreeNote(raw: unknown, p: string, columns: number | undefined, mode: FlickMode | undefined, c: Collector): FreeNote | null {
+/** 기믹 노트가 가리키는 종류 이름 검사. names가 없으면(종류 목록이 잘못됨) 있는지는 보지 않는다. */
+function checkGimmickRef(raw: Obj, p: string, names: readonly string[] | undefined, c: Collector): void {
+  if (typeof raw.gimmick !== 'string') c.add(`${p}.gimmick`, '문자열이어야 함');
+  else if (names && !names.includes(raw.gimmick)) c.add(`${p}.gimmick`, `gimmicks에 없는 이름 "${raw.gimmick}"`);
+  if (raw.direction !== undefined) c.add(`${p}.direction`, '플릭에만 쓸 수 있음');
+}
+
+function readFreeNote(
+  raw: unknown,
+  p: string,
+  columns: number | undefined,
+  mode: FlickMode | undefined,
+  gimmicks: readonly string[] | undefined,
+  c: Collector,
+): FreeNote | null {
   if (!isObj(raw)) {
     c.add(p, '객체여야 함');
     return null;
   }
-  if (raw.type === 'slide') return readSlide(raw, p, columns, mode, c);
+  if (raw.type === 'slide') return readSlide(raw, p, columns, mode, gimmicks, c);
   const before = c.errors.length;
   if (!isInt(raw.tick) || raw.tick < 0) c.add(`${p}.tick`, '0 이상의 정수여야 함');
   checkSpan(raw, p, columns, c);
   if (raw.type === 'flick') checkDirection(raw, p, mode, c);
-  else if (raw.type !== 'tap' && raw.type !== 'trace') c.add(`${p}.type`, '"tap", "trace", "flick", "slide" 중 하나여야 함');
-  else if (raw.direction !== undefined) c.add(`${p}.direction`, '플릭에만 쓸 수 있음');
+  else if (raw.type === 'gimmick') checkGimmickRef(raw, p, gimmicks, c);
+  else if (raw.type !== 'tap' && raw.type !== 'trace') {
+    c.add(`${p}.type`, '"tap", "trace", "flick", "slide", "gimmick" 중 하나여야 함');
+  } else if (raw.direction !== undefined) c.add(`${p}.direction`, '플릭에만 쓸 수 있음');
   if (c.errors.length > before) return null;
   const base = { tick: raw.tick as number, x: raw.x as number, width: raw.width as number };
+  if (raw.type === 'gimmick') return { tick: base.tick, type: 'gimmick', gimmick: raw.gimmick as string, x: base.x, width: base.width };
   if (raw.type !== 'flick') return { ...base, type: raw.type as 'tap' | 'trace' };
   return raw.direction === undefined
     ? { ...base, type: 'flick' }
     : { ...base, type: 'flick', direction: raw.direction as FlickDirection };
 }
 
-/** 노트 하나가 채보 규칙(칸 범위, 플릭 방향, 슬라이드 지점)에 맞는지. 겹침은 보지 않는다. 문제 목록을 돌려준다. */
-export function freeNoteErrors(note: unknown, columns: number, flickMode: FlickMode): string[] {
+/**
+ * 노트 하나가 채보 규칙(칸 범위, 플릭 방향, 슬라이드 지점, 기믹 종류)에 맞는지. 겹침은 보지 않는다. 문제 목록을 돌려준다.
+ */
+export function freeNoteErrors(
+  note: unknown,
+  columns: number,
+  flickMode: FlickMode,
+  gimmicks: readonly FreeGimmick[] = [],
+): string[] {
   const c = new Collector('note');
-  readFreeNote(note, 'note', columns, flickMode, c);
+  readFreeNote(note, 'note', columns, flickMode, gimmicks.map(g => g.name), c);
   return c.errors;
+}
+
+/** 기믹 종류 이름 하나의 문제 (빈 이름, 앞뒤 공백, 길이). 없으면 null. */
+export function gimmickNameError(name: string): string | null {
+  if (name.trim() === '') return '비어 있으면 안 됨';
+  if (name.trim() !== name) return '앞뒤에 공백이 있으면 안 됨';
+  if (name.length > MAX_GIMMICK_NAME_LENGTH) return `${MAX_GIMMICK_NAME_LENGTH}자 이하여야 함`;
+  return null;
+}
+
+/** 기믹 종류 목록. 문제가 있으면 오류를 남기고 undefined (노트의 이름 검사는 건너뛴다). */
+function readGimmicks(root: Obj, c: Collector): FreeGimmick[] | undefined {
+  if (root.gimmicks === undefined) return [];
+  if (!Array.isArray(root.gimmicks)) {
+    c.add('gimmicks', '배열이어야 함');
+    return undefined;
+  }
+  const before = c.errors.length;
+  if (root.gimmicks.length > MAX_GIMMICKS) c.add('gimmicks', `${MAX_GIMMICKS}개 이하여야 함`);
+  const out: FreeGimmick[] = [];
+  root.gimmicks.forEach((raw, i) => {
+    const p = `gimmicks[${i}]`;
+    if (!isObj(raw)) {
+      c.add(p, '객체여야 함');
+      return;
+    }
+    const nameErr = typeof raw.name === 'string' ? gimmickNameError(raw.name) : '문자열이어야 함';
+    if (nameErr) c.add(`${p}.name`, nameErr);
+    else if (out.some(g => g.name === raw.name)) c.add(`${p}.name`, `이름 "${raw.name}"이 중복됨`);
+    if (typeof raw.color !== 'string' || !TRACK_COLOR_PATTERN.test(raw.color)) c.add(`${p}.color`, '#rrggbb 형식이어야 함');
+    if (c.errors.length === before) out.push({ name: raw.name as string, color: (raw.color as string).toLowerCase() });
+  });
+  return c.errors.length > before ? undefined : out;
 }
 
 export function validateFreeChart(root: Obj, file: string): ParseResult<FreeChart> {
@@ -371,6 +447,8 @@ export function validateFreeChart(root: Obj, file: string): ParseResult<FreeChar
   else flickMode = root.flickMode;
 
   const speeds = readSpeeds(root, c);
+  const gimmicks = readGimmicks(root, c);
+  const gimmickNames = gimmicks?.map(g => g.name);
 
   const notes: FreeNote[] = [];
   const noteIndex: number[] = [];
@@ -378,7 +456,7 @@ export function validateFreeChart(root: Obj, file: string): ParseResult<FreeChar
     c.add('notes', '배열이어야 함');
   } else {
     root.notes.forEach((raw, i) => {
-      const note = readFreeNote(raw, `notes[${i}]`, columns, flickMode, c);
+      const note = readFreeNote(raw, `notes[${i}]`, columns, flickMode, gimmickNames, c);
       if (note) {
         notes.push(note);
         noteIndex.push(i);
@@ -405,6 +483,7 @@ export function validateFreeChart(root: Obj, file: string): ParseResult<FreeChar
 
   if (c.errors.length > 0 || columns === undefined || flickMode === undefined) return { ok: false, errors: c.errors };
   const value: FreeChart = { formatVersion: FORMAT_VERSION, layout: 'free', name, level, columns, flickMode, notes };
+  if (gimmicks && gimmicks.length > 0) value.gimmicks = gimmicks;
   if (speeds.length > 0) value.speeds = speeds;
   return { ok: true, value };
 }

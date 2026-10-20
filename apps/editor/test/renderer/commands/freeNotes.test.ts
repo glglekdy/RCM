@@ -5,7 +5,14 @@ import { getFreeChart, replaceChart, type ProjectDoc } from '../../../src/render
 import { addFreeChart } from '../../../src/renderer/src/editor/commands/charts'
 import {
   addFreeNote,
+  addGimmick,
   changeFreeType,
+  changeToGimmick,
+  gimmickError,
+  gimmickNoteCount,
+  nextGimmickColor,
+  removeGimmick,
+  updateGimmick,
   copyFreeNotes,
   insertSlidePoint,
   mirrorFreeNotes,
@@ -156,5 +163,92 @@ describe('자유형 노트 편집', () => {
     const pasted = pasteFreeClip(d, F, clip, 1920)!
     expect([...pasted.keys]).toEqual(['1920@0', '2400@4'])
     expect(pasteFreeClip(d, F, clip, 480)).toBeNull()
+  })
+})
+
+describe('기믹 노트 종류', () => {
+  const bomb = (tick: number, x: number, gimmick = '폭탄'): FreeNote => ({ tick, type: 'gimmick', gimmick, x, width: 3 })
+  const withBomb = addGimmick(base, F, { name: ' 폭탄 ', color: '#EF4444' })!
+
+  it('처음에는 없고, 추가하면 이름 앞뒤 공백을 지우고 색은 소문자로', () => {
+    expect(getFreeChart(base, F).gimmicks).toBeUndefined()
+    expect(getFreeChart(withBomb, F).gimmicks).toEqual([{ name: '폭탄', color: '#ef4444' }])
+  })
+
+  it('빈 이름·같은 이름·잘못된 색은 거부한다', () => {
+    const chart = getFreeChart(withBomb, F)
+    expect(addGimmick(withBomb, F, { name: '  ', color: '#ef4444' })).toBeNull()
+    expect(addGimmick(withBomb, F, { name: '폭탄', color: '#00ff00' })).toBeNull()
+    expect(addGimmick(withBomb, F, { name: '빛', color: 'red' })).toBeNull()
+    expect(gimmickError(chart, { name: '폭탄', color: '#00ff00' })).toBe('같은 이름의 기믹 노트가 있어요')
+    // 고치는 중인 자기 이름은 괜찮다
+    expect(gimmickError(chart, { name: '폭탄', color: '#00ff00' }, '폭탄')).toBeNull()
+  })
+
+  it('새 색은 아직 안 쓴 색부터', () => {
+    expect(nextGimmickColor(getFreeChart(base, F))).toBe('#ef4444')
+    expect(nextGimmickColor(getFreeChart(withBomb, F))).toBe('#a78bfa')
+  })
+
+  it('기믹 노트는 종류가 있어야 놓이고, 다른 노트처럼 겹침 검사를 받는다', () => {
+    expect(addFreeNote(base, F, bomb(0, 0))).toBeNull()
+    const doc = addFreeNote(withBomb, F, bomb(0, 0))!
+    expect(getFreeChart(doc, F).notes).toEqual([bomb(0, 0)])
+    expect(addFreeNote(doc, F, tap(0, 1))).toBeNull()
+  })
+
+  it('이름을 바꾸면 그 종류의 노트도 따라가고, 색만 바꿀 수도 있다', () => {
+    const doc = withFree([bomb(0, 0), tap(480, 0)], withBomb)
+    const renamed = updateGimmick(doc, F, '폭탄', { name: '지뢰', color: '#ef4444' })!
+    expect(getFreeChart(renamed, F).gimmicks).toEqual([{ name: '지뢰', color: '#ef4444' }])
+    expect(getFreeChart(renamed, F).notes).toEqual([bomb(0, 0, '지뢰'), tap(480, 0)])
+    const recolored = updateGimmick(doc, F, '폭탄', { name: '폭탄', color: '#22d3ee' })!
+    expect(getFreeChart(recolored, F).gimmicks).toEqual([{ name: '폭탄', color: '#22d3ee' }])
+    expect(updateGimmick(doc, F, '폭탄', { name: '폭탄', color: '#ef4444' })).toBeNull()
+  })
+
+  it('지우면 그 종류의 노트도 지우고, 마지막 종류면 gimmicks를 뺀다', () => {
+    const doc = withFree([bomb(0, 0), tap(480, 0), bomb(960, 4)], withBomb)
+    expect(gimmickNoteCount(getFreeChart(doc, F), '폭탄')).toBe(2)
+    const removed = removeGimmick(doc, F, '폭탄')!
+    expect(getFreeChart(removed, F).notes).toEqual([tap(480, 0)])
+    expect('gimmicks' in getFreeChart(removed, F)).toBe(false)
+    expect(removeGimmick(doc, F, '없음')).toBeNull()
+  })
+
+  it('단발 노트를 기믹으로, 기믹을 탭으로 바꾼다 (슬라이드는 그대로)', () => {
+    const doc = withFree([tap(0, 0), slide([480, 0], [960, 0])], withBomb)
+    const r = changeToGimmick(doc, F, new Set(keys(doc)), '폭탄')!
+    expect(getFreeChart(r.doc, F).notes).toEqual([bomb(0, 0), slide([480, 0], [960, 0])])
+    const back = changeFreeType(r.doc, F, new Set(['0@0']), 'tap', 'up')!
+    expect(getFreeChart(back.doc, F).notes[0]).toEqual(tap(0, 0))
+    expect(changeToGimmick(doc, F, new Set(['0@0']), '없음')).toBeNull()
+  })
+})
+
+describe('기믹 슬라이드 명령', () => {
+  const withLaser = addGimmick(base, F, { name: '레이저', color: '#22d3ee' })!
+  const laser = (gimmick = '레이저'): FreeNote => ({
+    type: 'slide',
+    gimmick,
+    points: [
+      { tick: 0, x: 0, width: 3 },
+      { tick: 960, x: 6, width: 2 }
+    ]
+  })
+
+  it('기믹 슬라이드도 종류 이름 변경·삭제·개수 세기에 들어간다', () => {
+    const doc = withFree([laser(), tap(480, 6)], withLaser)
+    expect(gimmickNoteCount(getFreeChart(doc, F), '레이저')).toBe(1)
+    const renamed = updateGimmick(doc, F, '레이저', { name: '빔', color: '#22d3ee' })!
+    expect(getFreeChart(renamed, F).notes[0]).toEqual(laser('빔'))
+    expect(getFreeChart(removeGimmick(doc, F, '레이저')!, F).notes).toEqual([tap(480, 6)])
+  })
+
+  it('종류를 바꿔도 경로는 그대로, 치는 슬라이드는 바꾸지 않고, 끝 플릭은 켤 수 없다', () => {
+    const doc = addGimmick(withFree([laser(), slide([480, 0], [960, 0])], withLaser), F, { name: '빛', color: '#a3e635' })!
+    const r = changeToGimmick(doc, F, new Set(keys(doc)), '빛')!
+    expect(getFreeChart(r.doc, F).notes).toEqual([laser('빛'), slide([480, 0], [960, 0])])
+    expect(setSlideEndFlick(doc, F, '0@0', true, 'up')).toBeNull()
   })
 })

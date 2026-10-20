@@ -10,7 +10,7 @@ export const FLICK_DIRECTION_OPTIONS: { value: FlickDirection; label: string }[]
   { value: 'right', label: '→' }
 ]
 
-export const FREE_TYPE_OPTIONS: { value: FreeNoteType; label: string }[] = [
+export const FREE_TYPE_OPTIONS: { value: Exclude<FreeNoteType, 'gimmick'>; label: string }[] = [
   { value: 'tap', label: '탭' },
   { value: 'trace', label: '트레이스' },
   { value: 'flick', label: '플릭' },

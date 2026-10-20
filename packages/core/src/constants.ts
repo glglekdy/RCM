@@ -25,3 +25,6 @@ export const MAX_COLUMNS = 32;
 export const DEFAULT_COLUMNS = 12;
 export const FLICK_DIRECTIONS: readonly FlickDirection[] = ['up', 'left', 'right', 'upLeft', 'upRight'];
 export const SLIDE_EASES: readonly SlideEase[] = ['linear', 'easeIn', 'easeOut'];
+/** 자유형 기믹 노트 종류 이름 길이 (앞뒤 공백 없이) */
+export const MAX_GIMMICK_NAME_LENGTH = 24;
+export const MAX_GIMMICKS = 32;

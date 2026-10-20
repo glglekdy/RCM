@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TimingMap, type FlickMode, type FreeChart, type FreeNote } from '@rcm/core';
-import { flickMatches, FreePlayState } from '../src';
+import { flickMatches, freeGimmickNotes, FreePlayState } from '../src';
 
 // 120 BPM: 480 tick = 500 ms
 const tm = new TimingMap([{ tick: 0, bpm: 120 }], 0);
@@ -225,5 +225,47 @@ describe('FreePlayState', () => {
       500,
     );
     expect(s.notes).toHaveLength(1);
+  });
+});
+
+describe('자유형 기믹 노트', () => {
+  const withGimmicks = (notes: FreeNote[]): FreeChart => ({
+    ...chart(notes),
+    gimmicks: [{ name: '폭탄', color: '#ef4444' }],
+  });
+  const notes: FreeNote[] = [
+    { tick: 480, type: 'gimmick', gimmick: '폭탄', x: 0, width: 3 },
+    { tick: 960, type: 'tap', x: 4, width: 3 },
+    { tick: 0, type: 'gimmick', gimmick: '폭탄', x: 6, width: 2 },
+  ];
+
+  it('판정 대상이 아니다', () => {
+    const s = new FreePlayState(withGimmicks(notes), tm, 0);
+    expect(s.notes.map(n => n.kind)).toEqual(['tap']);
+    expect(s.down(1, 1, 0, 500)).toEqual([]);
+  });
+
+  it('freeGimmickNotes는 종류의 색을 붙여 시각 순으로 돌려준다 (fromMs 이전은 뺀다)', () => {
+    expect(freeGimmickNotes(withGimmicks(notes), tm, 0)).toEqual([
+      { startMs: 0, x: 6, width: 2, color: '#ef4444' },
+      { startMs: 500, x: 0, width: 3, color: '#ef4444' },
+    ]);
+    expect(freeGimmickNotes(withGimmicks(notes), tm, 100)).toEqual([{ startMs: 500, x: 0, width: 3, color: '#ef4444' }]);
+  });
+
+  it('기믹 슬라이드는 판정하지 않고, 경로와 끝 시각을 붙여 그린다', () => {
+    const laser: FreeNote = {
+      type: 'slide',
+      gimmick: '폭탄',
+      points: [
+        { tick: 480, x: 0, width: 3 },
+        { tick: 1440, x: 6, width: 2 },
+      ],
+    };
+    const s = new FreePlayState(withGimmicks([laser]), tm, 0);
+    expect(s.notes).toEqual([]);
+    expect(freeGimmickNotes(withGimmicks([laser]), tm, 0)).toEqual([
+      { startMs: 500, endMs: 1500, points: laser.type === 'slide' ? laser.points : [], pointMs: [500, 1500], x: 0, width: 3, color: '#ef4444' },
+    ]);
   });
 });

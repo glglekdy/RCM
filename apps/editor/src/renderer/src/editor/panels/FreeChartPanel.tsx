@@ -1,8 +1,9 @@
-import { Trash2 } from 'lucide-react'
-import { freeNoteKey, MAX_COLUMNS, MIN_COLUMNS, type FlickDirection, type FreeNote } from '@rcm/core'
+import { ChevronDown, Trash2 } from 'lucide-react'
+import { freeGimmickOf, freeNoteKey, MAX_COLUMNS, MIN_COLUMNS, type FlickDirection, type FreeNote } from '@rcm/core'
 import { Card, IconButton, NumberField, Row, SegmentedControl, Switch, useToast } from '../../ui'
 import {
   changeFreeType,
+  changeToGimmick,
   removeSlidePoint,
   setFlickDirection,
   setFreeNoteWidth,
@@ -60,6 +61,14 @@ export function FreeChartPanel() {
   const singles = selected.filter((n) => n.type !== 'slide')
   const commonType =
     singles.length > 0 && singles.every((n) => n.type === singles[0].type) ? singles[0].type : null
+  const gimmicks = chart.gimmicks ?? []
+  // 기믹 종류를 고를 수 있는 노트: 단발 노트와 기믹 슬라이드. 모두 같은 종류일 때만 그 이름을 보인다
+  const gimmickTargets = selected.filter((n) => n.type !== 'slide' || n.gimmick !== undefined)
+  const commonGimmick =
+    gimmickTargets.length > 0 && gimmickTargets.every((n) => freeGimmickOf(n) === freeGimmickOf(gimmickTargets[0]))
+      ? freeGimmickOf(gimmickTargets[0])
+      : null
+  const anyGimmick = gimmickTargets.some((n) => freeGimmickOf(n) !== null)
   const flicks = selected.filter(flicky)
   const flickDir = (n: FreeNote) => (n.type === 'flick' || n.type === 'slide' ? n.direction : undefined)
   const commonDir: FlickDirection | null =
@@ -118,13 +127,35 @@ export function FreeChartPanel() {
               <Row label="종류">
                 <SegmentedControl
                   options={TYPE_OPTIONS}
-                  value={commonType ?? ('' as never)}
+                  value={commonType === null || commonType === 'gimmick' ? ('' as never) : commonType}
                   onChange={(type) =>
                     edit('노트 종류 변경', (doc) =>
                       changeFreeType(doc, file, keys(), type, commonDir ?? flickDirection)
                     )
                   }
                 />
+              </Row>
+            )}
+            {gimmickTargets.length > 0 && gimmicks.length > 0 && (
+              <Row label="기믹">
+                <div className={styles.selectWrap}>
+                  <select
+                    className={styles.select}
+                    value={commonGimmick ?? ''}
+                    onChange={(e) =>
+                      e.target.value &&
+                      edit('노트 종류 변경', (doc) => changeToGimmick(doc, file, keys(), e.target.value))
+                    }
+                  >
+                    <option value="">{commonGimmick === null && anyGimmick ? '(제각각)' : '—'}</option>
+                    {gimmicks.map((g) => (
+                      <option key={g.name} value={g.name}>
+                        {g.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} className={styles.chevron} />
+                </div>
               </Row>
             )}
             {flicks.length > 0 && chart.flickMode === 'directional' && (
@@ -141,15 +172,17 @@ export function FreeChartPanel() {
             )}
             {slide && slide.type === 'slide' && (
               <>
-                <Row label="끝 플릭">
-                  <Switch
-                    label="끝 플릭"
-                    checked={slide.endFlick === true}
-                    onChange={(on) =>
-                      edit('슬라이드 끝 변경', (doc) => setSlideEndFlick(doc, file, slideKey, on, flickDirection))
-                    }
-                  />
-                </Row>
+                {slide.gimmick === undefined && (
+                  <Row label="끝 플릭">
+                    <Switch
+                      label="끝 플릭"
+                      checked={slide.endFlick === true}
+                      onChange={(on) =>
+                        edit('슬라이드 끝 변경', (doc) => setSlideEndFlick(doc, file, slideKey, on, flickDirection))
+                      }
+                    />
+                  </Row>
+                )}
                 {slide.points.map((pt, i) => {
                   const last = i === slide.points.length - 1
                   const mid = i > 0 && !last
@@ -207,7 +240,8 @@ export function FreeChartPanel() {
                   )
                 })}
                 <p className={styles.hint}>
-                  슬라이드 도구로 몸통을 누르면 지점이 생기고, 지점을 끌어 옮겨요. 숨은 지점은 판정 없이 경로만 꺾어요.
+                  {slide.gimmick === undefined ? '슬라이드' : '기믹'} 도구로 몸통을 누르면 지점이 생기고, 지점을 끌어 옮겨요. 숨은 지점은
+                  판정 없이 경로만 꺾어요.
                 </p>
               </>
             )}

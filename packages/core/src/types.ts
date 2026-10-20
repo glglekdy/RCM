@@ -78,7 +78,17 @@ export interface SlidePoint {
 export type FreeNote =
   | { tick: number; type: 'tap' | 'trace'; x: number; width: number }
   | { tick: number; type: 'flick'; x: number; width: number; direction?: FlickDirection }
-  | { type: 'slide'; points: SlidePoint[]; endFlick?: boolean; direction?: FlickDirection };
+  /** `gimmick`이 있으면 판정 없이 경로만 있는 기믹 슬라이드 (`endFlick`은 쓰지 않는다) */
+  | { type: 'slide'; points: SlidePoint[]; endFlick?: boolean; direction?: FlickDirection; gimmick?: string }
+  /** 판정 없이 게임이 해석하는 노트. `gimmick`은 채보의 `gimmicks` 중 하나의 이름 */
+  | { tick: number; type: 'gimmick'; gimmick: string; x: number; width: number };
+
+/** 자유형 채보의 기믹 노트 종류. 이름과 색은 사용자가 정한다 */
+export interface FreeGimmick {
+  name: string;
+  /** #rrggbb */
+  color: string;
+}
 
 export interface FreeChart {
   formatVersion: 1;
@@ -87,6 +97,8 @@ export interface FreeChart {
   level: number;
   columns: number;
   flickMode: FlickMode;
+  /** 기믹 노트 종류. 생략 = 없음 */
+  gimmicks?: FreeGimmick[];
   speeds?: SpeedPoint[];
   notes: FreeNote[];
 }

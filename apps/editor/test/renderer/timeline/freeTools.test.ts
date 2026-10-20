@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TimingMap, type FreeNote } from '@rcm/core'
 import { addFreeChart } from '../../../src/renderer/src/editor/commands/charts'
+import { addGimmick } from '../../../src/renderer/src/editor/commands/freeNotes'
 import { getFreeChart, replaceChart, type ProjectDoc } from '../../../src/renderer/src/editor/state/doc'
 import { History } from '../../../src/renderer/src/editor/state/history'
 import { EditorStore, type EditorState } from '../../../src/renderer/src/editor/state/store'
@@ -166,6 +167,52 @@ describe('자유형 그리기 도구', () => {
     expect(labels()).toEqual(['슬라이드 지점 추가'])
   })
 
+  it('탭·트레이스·플릭은 슬라이드 몸통 위에도 놓인다 (슬라이드는 그대로)', () => {
+    const slide: FreeNote = { type: 'slide', points: [{ tick: 0, x: 0, width: 6 }, { tick: 960, x: 0, width: 6 }] }
+    const { store, tools, notes, labels } = setup(withFree([slide]))
+    store.set({ snap: 8 })
+    tools.onPointerDown(left(cx(1), yOf(240)))
+    tools.onPointerUp(left(cx(1), yOf(240)))
+    store.set({ freeType: 'trace' })
+    tools.onPointerDown(left(cx(4), yOf(480)))
+    tools.onPointerUp(left(cx(4), yOf(480)))
+    store.set({ freeType: 'flick' })
+    tools.onPointerDown(left(cx(2), yOf(720)))
+    tools.onPointerMove(left(cx(2), yOf(720) - 30))
+    tools.onPointerUp(left(cx(2), yOf(720) - 30))
+    expect(notes()).toEqual([
+      slide,
+      tap(240, 0),
+      { tick: 480, type: 'trace', x: 3, width: 3 },
+      { tick: 720, type: 'flick', x: 1, width: 3, direction: 'up' }
+    ])
+    expect(labels()).toEqual(['노트 추가', '노트 추가', '노트 추가'])
+    expect(tools.hoverAction(cx(5), yOf(720))).toBeNull()
+  })
+
+  it('슬라이드 몸통 위에 놓은 노트는 다시 누르면 그 노트를 잡는다', () => {
+    const slide: FreeNote = { type: 'slide', points: [{ tick: 0, x: 0, width: 6 }, { tick: 1920, x: 0, width: 6 }] }
+    const { tools, notes } = setup(withFree([slide, tap(960, 0)]))
+    tools.onPointerDown(left(cx(1), yOf(960)))
+    tools.onPointerMove(left(cx(1), yOf(1440)))
+    tools.onPointerUp(left(cx(1), yOf(1440)))
+    expect(notes()).toEqual([slide, tap(1440, 0)])
+  })
+
+  it('슬라이드 도구로 Shift를 누른 채 몸통을 누르면 그 위에 새 슬라이드를 그린다', () => {
+    const slide: FreeNote = { type: 'slide', points: [{ tick: 0, x: 0, width: 6 }, { tick: 1920, x: 0, width: 6 }] }
+    const { store, tools, notes, labels } = setup(withFree([slide]))
+    store.set({ freeType: 'slide' })
+    tools.onPointerDown(left(cx(1), yOf(480), true))
+    tools.onPointerMove(left(cx(5), yOf(1440), true))
+    tools.onPointerUp(left(cx(5), yOf(1440), true))
+    expect(notes()).toEqual([
+      slide,
+      { type: 'slide', points: [{ tick: 480, x: 0, width: 3 }, { tick: 1440, x: 4, width: 3 }] }
+    ])
+    expect(labels()).toEqual(['슬라이드 추가'])
+  })
+
   it('노트를 끌면 옮기고, 끝을 끌면 폭이 바뀐다', () => {
     const { tools, notes, labels } = setup(withFree([tap(0, 0)]))
     tools.onPointerDown(left(cx(1), yOf(0)))
@@ -287,5 +334,61 @@ describe('자유형 선택·지우기 도구', () => {
     tools.onPointerMove(left(cx(1), yOf(480)))
     tools.onPointerUp(left(cx(1), yOf(480)))
     expect(notes()).toEqual([])
+  })
+})
+
+describe('기믹 노트 그리기', () => {
+  it('고른 기믹 종류로 그리고, 종류가 없으면 놓지 않는다', () => {
+    const doc = addGimmick(added.doc, F, { name: '폭탄', color: '#ef4444' })!
+    const { store, tools, notes } = setup(doc)
+    store.set({ freeType: 'gimmick', freeGimmick: '폭탄' })
+    tools.onPointerDown(left(cx(1), yOf(0)))
+    tools.onPointerUp(left(cx(1), yOf(0)))
+    expect(notes()).toEqual([{ tick: 0, type: 'gimmick', gimmick: '폭탄', x: 0, width: 3 }])
+    store.set({ freeGimmick: '없음' })
+    tools.onPointerDown(left(cx(6), yOf(480)))
+    tools.onPointerUp(left(cx(6), yOf(480)))
+    expect(notes()).toHaveLength(1)
+  })
+})
+
+describe('기믹 슬라이드', () => {
+  const doc = addGimmick(added.doc, F, { name: '레이저', color: '#22d3ee' })!
+  const laser = (...pts: [number, number, number][]): FreeNote => ({
+    type: 'slide',
+    gimmick: '레이저',
+    points: pts.map(([tick, x, width]) => ({ tick, x, width }))
+  })
+  const withNotes = (notes: FreeNote[]) => replaceChart(doc, F, { ...getFreeChart(doc, F), notes })
+
+  it('기믹 도구로 위로 끌면 기믹 슬라이드가 된다 (옆으로 먼저 끌면 시작 폭, 끝은 포인터를 따라간다)', () => {
+    const { store, tools, notes, labels } = setup(doc)
+    store.set({ freeType: 'gimmick', freeGimmick: '레이저' })
+    tools.onPointerDown(left(cx(1), yOf(0)))
+    tools.onPointerMove(left(cx(4), yOf(0)))
+    tools.onPointerMove(left(cx(8), yOf(960)))
+    tools.onPointerUp(left(cx(8), yOf(960)))
+    expect(notes()).toEqual([laser([0, 1, 4], [960, 7, 4])])
+    expect(labels()).toEqual(['노트 추가'])
+  })
+
+  it('기믹 도구로 몸통을 누르면 지점이 생기고, 지점마다 위치를 옮긴다', () => {
+    const { store, tools, notes, labels } = setup(withNotes([laser([0, 0, 3], [960, 0, 3])]))
+    store.set({ freeType: 'gimmick', freeGimmick: '레이저' })
+    tools.onPointerDown(left(cx(1), yOf(480)))
+    tools.onPointerMove(left(cx(6), yOf(480)))
+    tools.onPointerUp(left(cx(6), yOf(480)))
+    expect(notes()).toEqual([laser([0, 0, 3], [480, 5, 3], [960, 0, 3])])
+    expect(labels()).toEqual(['슬라이드 지점 추가'])
+  })
+
+  it('슬라이드 도구로는 기믹 슬라이드 몸통에 지점을 넣지 않는다 (그 위에 슬라이드를 그린다)', () => {
+    const { store, tools, notes } = setup(withNotes([laser([0, 0, 6], [960, 0, 6])]))
+    store.set({ freeType: 'slide' })
+    expect(tools.hoverAction(cx(1), yOf(480))).toBeNull()
+    tools.onPointerDown(left(cx(1), yOf(480)))
+    tools.onPointerMove(left(cx(1), yOf(720)))
+    tools.onPointerUp(left(cx(1), yOf(720)))
+    expect(notes()).toHaveLength(2)
   })
 })

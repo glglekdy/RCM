@@ -20,7 +20,7 @@
 2. 노트 위치는 시간이 아니라 **tick**(박자 단위 정수). **1박 = 480 tick**.
 3. tick → ms 변환은 `song.json`의 `offsetMs`와 `timing`(BPM 변경 목록)으로 한다 (3장 공식).
 4. 노트는 레인 번호가 아니라 **트랙 이름 문자열**(`"Note_1"`, `"Side_L"` 등)을 가리킨다. 트랙 이름을 게임 규칙에 어떻게 대응시킬지는 **게임이 정한다**.
-5. 레인형 채보의 노트 종류는 `tap`과 `hold`(롱노트, `endTick` 있음) 두 가지뿐이다. 루트에 `"layout": "free"`가 있는 채보는 **자유형(모바일) 채보**로, 노트가 트랙 대신 가로 위치 `x`와 폭 `width`를 갖고 `tap`·`trace`·`flick`·`slide`를 쓴다 (2.4절, 4.7절).
+5. 레인형 채보의 노트 종류는 `tap`과 `hold`(롱노트, `endTick` 있음) 두 가지뿐이다. 루트에 `"layout": "free"`가 있는 채보는 **자유형(모바일) 채보**로, 노트가 트랙 대신 가로 위치 `x`와 폭 `width`를 갖고 `tap`·`trace`·`flick`·`slide`, 그리고 판정 없는 `gimmick`을 쓴다 (2.4절, 4.7절).
 6. 채보에 선택 필드 `speeds`(변속)가 있으면 노트를 ms 차이가 아니라 **스크롤 위치** 차이로 그린다 (3.6절). 판정은 변속과 무관하게 ms 기준이다.
 7. 외부 라이브러리 없이 구현한다. TypeScript/JavaScript라면 3.5절(`TimingMap`), 3.6절(`ScrollMap`), 4.5절(`PlayState`)의 참고 구현을 그대로 복사해 쓴다. 다른 언어라면 이 코드를 그대로 옮긴다.
 8. 게임 플레이 방식(화면 방향, 롱노트 처리 등)과 판정 방식(판정 범위, 헛누름 벌점 등)은 **게임이 정한다.** 새 게임이면 코드를 쓰기 전에 7장 질문으로 사용자에게 먼저 묻는다. 이미 만든 게임이면 플레이·판정은 그대로 두고 채보 읽는 부분만 바꾼다 (7.6절).
@@ -154,9 +154,15 @@
   "level": 30,
   "columns": 12,                 // 가로 칸 수 (1~32 정수). 노트 위치·폭의 단위
   "flickMode": "directional",    // "directional": 플릭마다 방향이 있다 / "any": 아무 방향으로나 튕기면 된다
+  "gimmicks": [                  // (선택) 기믹 노트 종류. 이름·색은 채보 작성자가 정한다
+    { "name": "폭탄", "color": "#ef4444" }
+  ],
   "speeds": [],                  // (선택) 2.2절과 같다
   "notes": [                     // 시작 tick 오름차순, 같은 tick이면 x 오름차순
     { "tick": 0,    "type": "tap",   "x": 0,   "width": 3 },
+    { "tick": 240,  "type": "gimmick", "gimmick": "폭탄", "x": 8, "width": 2 },
+    { "type": "slide", "gimmick": "폭탄",
+      "points": [ { "tick": 480, "x": 0, "width": 2 }, { "tick": 960, "x": 6, "width": 4 } ] },
     { "tick": 480,  "type": "trace", "x": 4.5, "width": 2 },
     { "tick": 960,  "type": "flick", "x": 6,   "width": 3, "direction": "upLeft" },
     { "type": "slide",
@@ -177,7 +183,8 @@
 | `tap` | 누르기 | `tick`, `x`, `width` |
 | `trace` | 누를 필요 없이 그 시각에 손가락이 노트 위에 있으면 된다 | `tick`, `x`, `width` |
 | `flick` | 누르고 튕기기 | `tick`, `x`, `width`, `direction`(`flickMode`가 `directional`일 때만 필수) |
-| `slide` | 지점을 따라 손가락을 끌고 가는 롱노트 | `points`(2개 이상), `endFlick`(선택), `direction`(`endFlick`이고 `directional`일 때만 필수) |
+| `slide` | 지점을 따라 손가락을 끌고 가는 롱노트. `gimmick`이 있으면 판정 없는 **기믹 슬라이드** | `points`(2개 이상), `endFlick`(선택), `direction`(`endFlick`이고 `directional`일 때만 필수), `gimmick`(선택) |
+| `gimmick` | **판정 없음.** 게임이 해석하는 데이터 (장애물·연출 등) | `tick`, `x`, `width`, `gimmick`(`gimmicks`에 있는 이름) |
 
 **규칙**
 
@@ -188,6 +195,10 @@
 - `points[].hidden: true`: 중간 지점에만 쓸 수 있다. 판정 없이 경로만 꺾는다. 숨기지 않은 중간 지점은 판정한다 (4.7절).
 - 겹침 금지: **같은 시작 tick**에서 가로 구간 `[x, x + width)`가 겹치는 노트는 없다 (끝이 맞닿는 것은 된다). 슬라이드는 첫 지점으로 본다. 그래서 `"<시작 tick>@<시작 x>"`가 노트를 유일하게 식별한다. 슬라이드 몸통끼리는 교차해도 된다.
 - 레인형의 `hold`에 해당하는 것은 지점 2개, 위치가 같은 `slide`다.
+- `gimmicks`: 생략하면 없음. 각 항목은 `name`(앞뒤 공백 없는 1~24자 문자열, 채보 안에서 중복 없음)과 `color`(`#rrggbb`). 32개까지.
+- `gimmick` 노트의 `gimmick`은 `gimmicks`의 `name` 중 하나여야 한다. `direction`은 쓰지 않는다. 겹침 규칙은 다른 노트와 같다 (시작 tick만 본다).
+- **기믹 슬라이드**: `slide`에 `gimmick`(`gimmicks`의 `name` 중 하나)이 있으면 판정 없는 긴 기믹 노트다. 경로 규칙(`points`, `ease`, `hidden`, `slideSpanAt`)은 슬라이드와 같아서 지점마다 위치·폭이 달라질 수 있다. `endFlick`·`direction`은 쓰지 않는다.
+- `gimmick` 노트와 기믹 슬라이드는 2.2절의 `kind: "gimmick"` 트랙처럼 **판정 대상이 아니다**. 콤보·점수에 넣지 않는다. 이름이 뜻하는 동작(장애물 등장, 화면 연출 등)과 보여 줄 모습은 게임이 정한다. 모르는 이름은 무시해도 된다.
 
 **슬라이드 경로 계산 (참고 구현)**: 화면에 그릴 때와 판정할 때 같은 함수로 시각 `ms`의 가로 구간을 구한다. `times`는 지점마다 3.2절 `tickToMs`로 바꾼 시각이다.
 
@@ -716,6 +727,7 @@ state.combo; state.maxCombo; state.counts;   // { perfect, great, good, miss }
 | `slide` 끝 | 끝까지 잡고 있으면 PERFECT. 끝 120ms 전부터는 떼도 PERFECT. 그보다 일찍 떼거나 경로를 120ms 넘게 벗어나면 남은 지점과 끝이 MISS. `endFlick`이면 끝 ±120ms 안에 튕겨야 하고, 판정은 튕긴 시각의 차 (방향 규칙은 `flick`과 같다) |
 
 - 머리를 놓친 슬라이드는 그 자리에서 중간 지점과 끝도 MISS.
+- `gimmick` 노트와 기믹 슬라이드(`gimmick`이 있는 `slide`)는 판정하지 않는다. 테스트 플레이는 종류의 색으로 흐리게 그린다 (단발은 테두리, 기믹 슬라이드는 경로를 따라 흐린 띠).
 - 화면: 노트는 판정선을 향해 내려오고 가로 위치는 칸 위치를 따른다. 슬라이드 몸통은 지점 사이를 `slideSpanAt`으로 촘촘히 잘라 그린 띠다. 잡고 있는 슬라이드의 머리는 판정선 위 지금 위치에 붙인다.
 - 에디터 테스트 플레이는 PC에서 마우스(포인터 하나)로 칠 수 있고, 터치 화면이면 여러 손가락도 된다. 화면 비율은 폰 세로(9:16)·가로(16:9)를 고를 수 있다.
 

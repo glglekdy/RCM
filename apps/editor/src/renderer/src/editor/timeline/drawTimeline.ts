@@ -327,7 +327,7 @@ function drawTrackNames(ctx: CanvasRenderingContext2D, layout: TimelineLayout): 
 }
 
 /** maxWidth에 안 들어가면 뒤를 잘라 `…`을 붙인다. */
-function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+export function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
   if (ctx.measureText(text).width <= maxWidth) return text
   for (let n = text.length - 1; n > 0; n--) {
     const cut = `${text.slice(0, n)}…`

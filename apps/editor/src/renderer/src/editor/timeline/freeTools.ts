@@ -3,6 +3,7 @@ import { markerAtY, removeMarker } from '../commands/markers'
 import {
   addFreeNote,
   addFreeNotes,
+  type FreeNoteType,
   insertSlidePoint,
   moveFreeNotes,
   movedSlidePoint,
@@ -44,14 +45,16 @@ export interface FreeToolController {
 type Span = { x: number; width: number }
 
 /**
- * 탭·트레이스·플릭 그리기: 클릭은 기억한 폭, 가로로 끌면 걸친 칸 전체.
- * 방향이 있는 플릭은 끈 방향이 플릭 방향이 된다 (폭은 기억한 폭)
+ * 탭·트레이스·플릭·기믹 그리기: 클릭은 기억한 폭, 가로로 끌면 걸친 칸 전체.
+ * 방향이 있는 플릭은 끈 방향이 플릭 방향이 된다 (폭은 기억한 폭). 기믹은 위로 끌면 그 tick까지 이어지는 긴 노트
  */
 type SpanDrag = {
   kind: 'span'
   file: string
   tick: number
   startCell: number
+  /** 옆으로 끌어 정한 구간 (위로 끄는 동안은 그대로 둔다) */
+  span: Span
   /** 누른 화면 위치 (플릭 방향을 잰다) */
   x: number
   y: number
@@ -189,9 +192,11 @@ export function createFreeToolController(store: EditorStore, getGeometry: () => 
     return hitTestFree(chartOf(file).notes, tm, view, layout, x, y)
   }
 
-  /** 지금 고른 종류(탭·트레이스·플릭)의 노트. direction이 있으면 툴바 방향 대신 쓴다 */
+  /** 지금 고른 종류(탭·트레이스·플릭·기믹)의 노트. direction이 있으면 툴바 방향 대신 쓴다 */
   const makeNote = (chart: FreeChart, tick: number, span: Span, direction?: FlickDirection | null): FreeNote => {
-    const { freeType, flickDirection } = store.getState()
+    const { freeType, flickDirection, freeGimmick } = store.getState()
+    // 고른 기믹 종류가 채보에 없으면 규칙 검사에서 거부된다
+    if (freeType === 'gimmick') return { tick, type: 'gimmick', gimmick: freeGimmick ?? '', ...span }
     if (freeType === 'flick') {
       return chart.flickMode === 'directional'
         ? { tick, type: 'flick', ...span, direction: direction ?? flickDirection }
@@ -223,10 +228,17 @@ export function createFreeToolController(store: EditorStore, getGeometry: () => 
       d.invalid = !addFreeNote(s.doc, d.file, d.preview)
       return
     }
-    const cell = cellAt(x, chart.columns)
-    d.dragged = d.dragged || cell !== d.startCell
-    const span = d.dragged ? dragSpan(d.startCell, cell) : clickSpan(d.startCell, s.freeWidth, chart.columns)
-    d.preview = makeNote(chart, d.tick, span)
+    const end = s.freeType === 'gimmick' ? Math.max(0, snapped(y)) : d.tick
+    if (end > d.tick) {
+      // 위로 끌면 기믹 슬라이드: 시작 폭은 옆으로 끌어 정한 그대로, 끝 지점은 포인터를 따라간다
+      const tail = { tick: end, ...clickSpan(cellAt(x, chart.columns), d.span.width, chart.columns) }
+      d.preview = { type: 'slide', gimmick: s.freeGimmick ?? '', points: [{ tick: d.tick, ...d.span }, tail] }
+    } else {
+      const cell = cellAt(x, chart.columns)
+      d.dragged = d.dragged || cell !== d.startCell
+      d.span = d.dragged ? dragSpan(d.startCell, cell) : clickSpan(d.startCell, s.freeWidth, chart.columns)
+      d.preview = makeNote(chart, d.tick, d.span)
+    }
     d.invalid = !addFreeNote(s.doc, d.file, d.preview)
   }
 
@@ -354,7 +366,7 @@ export function createFreeToolController(store: EditorStore, getGeometry: () => 
         invalid: false
       }
     }
-    if (hit.note.type === 'slide' && hit.part === 'body' && s.freeType === 'slide' && s.tool === 'draw') {
+    if (hit.note.type === 'slide' && hit.part === 'body' && s.tool === 'draw' && insertsOnBody(hit.note, s.freeType)) {
       const at = pointerTick(getGeometry().tm, getGeometry().view, e.y, s.snap)
       const { tm } = getGeometry()
       const ins = at === null ? null : insertSlidePoint(s.doc, file, hit.key, at, (t) => tm.tickToMs(t))
@@ -507,7 +519,8 @@ export function createFreeToolController(store: EditorStore, getGeometry: () => 
         return
       }
       const hit = hitAt(file, e.x, e.y)
-      if (hit) {
+      // 슬라이드 몸통 위에도 다른 노트를 놓는다 (슬라이드 도구는 Shift를 누르면 새 슬라이드, 아니면 지점 추가)
+      if (hit && !placesOnBody(hit, s.freeType, e.shift)) {
         drag = noteDrag(e, file, hit, new Set([hit.key]), false)
         return
       }
@@ -523,16 +536,18 @@ export function createFreeToolController(store: EditorStore, getGeometry: () => 
         drag = { kind: 'slide', file, start, startCell, sized: false, preview: null, invalid: false, ready: false }
         return
       }
+      const span = clickSpan(startCell, s.freeWidth, chart.columns)
       const d: SpanDrag = {
         kind: 'span',
         file,
         tick,
         startCell,
+        span,
         x: e.x,
         y: e.y,
         dragged: false,
         direction: null,
-        preview: makeNote(chart, tick, clickSpan(startCell, s.freeWidth, chart.columns)),
+        preview: makeNote(chart, tick, span),
         invalid: false
       }
       d.invalid = !addFreeNote(s.doc, file, d.preview)
@@ -549,7 +564,7 @@ export function createFreeToolController(store: EditorStore, getGeometry: () => 
       const hit = hitAt(s.activeChart, x, y)
       if (!hit) return null
       if (hit.part === 'point' && hit.edge) return 'resize'
-      if (hit.part === 'body' && s.tool === 'draw' && s.freeType === 'slide') return 'insert'
+      if (hit.part === 'body' && s.tool === 'draw') return insertsOnBody(hit.note, s.freeType) ? 'insert' : null
       return 'move'
     },
 
@@ -673,6 +688,17 @@ export function createFreeToolController(store: EditorStore, getGeometry: () => 
       }
     }
   }
+}
+
+/** 몸통을 누르면 지점을 넣는 도구인지: 슬라이드 도구는 치는 슬라이드, 기믹 도구는 기믹 슬라이드 */
+function insertsOnBody(note: FreeNote, type: FreeNoteType): boolean {
+  if (note.type !== 'slide') return false
+  return note.gimmick === undefined ? type === 'slide' : type === 'gimmick'
+}
+
+/** 그리기 도구로 누른 슬라이드 몸통을 잡지 않고 그 위에 새 노트를 그리는지. Shift면 늘 새로 그린다 */
+function placesOnBody(hit: FreeHit, type: FreeNoteType, shift: boolean): boolean {
+  return hit.part === 'body' && (shift || !insertsOnBody(hit.note, type))
 }
 
 function freeWidthOf(n: FreeNote): number {

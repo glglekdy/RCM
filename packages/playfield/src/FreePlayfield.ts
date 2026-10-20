@@ -3,6 +3,7 @@ import type { Judgement, Timing } from './judge';
 import { DEFAULT_LAYOUT, sanitizeLayout, type PlayfieldLayout } from './layout';
 import { DEFAULT_PLAYFIELD_COLORS, type PlayfieldColors } from './Playfield';
 import { FreePlayState, type FreeJudgeEvent, type FreePlayNote } from './freePlayState';
+import { freeGimmickNotes, type FreeGimmickNote } from './gimmick';
 import { freeFieldRect, pointToCell, type FreeAspect, type FreeFieldRect } from './freeView';
 import {
   clampSpeed,
@@ -44,6 +45,9 @@ const NOTE_INSET = 2;
 const TRACE_RATIO = 0.6;
 const MID_POINT_RATIO = 0.55;
 const BODY_ALPHA = 0.35;
+/** 기믹 노트: 판정이 없으므로 흐린 테두리만 */
+const GIMMICK_ALPHA = 0.6;
+const GIMMICK_BORDER = 2;
 /** 슬라이드 몸통을 지점 사이마다 이만큼 끊어 그린다 */
 const BODY_SAMPLES = 24;
 const ARROW_LENGTH = 18;
@@ -75,6 +79,8 @@ export class FreePlayfield {
   private readonly startPos: number[];
   private readonly endPos: number[];
   private readonly maxHoldSpanPos: number;
+  private readonly gimmicks: FreeGimmickNote[];
+  private readonly gimmickPos: { startPos: number[]; endPos: number[]; maxHoldSpanPos: number };
   private speed: number;
   private layout: PlayfieldLayout;
   private autoplay: boolean;
@@ -99,6 +105,8 @@ export class FreePlayfield {
     this.startPos = pos.startPos;
     this.endPos = pos.endPos;
     this.maxHoldSpanPos = pos.maxHoldSpanPos;
+    this.gimmicks = freeGimmickNotes(opts.chart, opts.tm, opts.fromMs);
+    this.gimmickPos = notePositions(this.gimmicks, this.scroll);
     this.speed = clampSpeed(opts.speed);
     this.layout = sanitizeLayout(opts.layout ?? DEFAULT_LAYOUT);
     this.autoplay = opts.autoplay === true;
@@ -224,6 +232,7 @@ export class FreePlayfield {
     ctx.fillStyle = colors.laneLine;
     for (let c = 0; c <= this.opts.chart.columns; c++) ctx.fillRect(Math.round(fieldX + c * colPx), 0, 1, height);
 
+    this.drawGimmicks(now, rect, judgeY, height);
     this.drawNotes(now, rect, judgeY, height);
 
     ctx.fillStyle = colors.judgeLine;
@@ -285,6 +294,52 @@ export class FreePlayfield {
       if (n.tailJudged) continue;
       this.drawSlide(i, n, now, yAt, xOf);
     }
+  }
+
+  /** 기믹 노트는 치는 노트 아래에 테두리로만 그린다 */
+  private drawGimmicks(now: number, rect: FreeFieldRect, judgeY: number, height: number): void {
+    const { ctx, layout } = this;
+    const pxPerMs = pxPerMsForSpeed(this.speed, judgeY);
+    const pad = layout.noteHeight / pxPerMs;
+    const nowPos = this.scroll.positionAt(now);
+    const { fromPos, toPos } = visibleScrollRange(nowPos, height, judgeY, pxPerMs);
+    const h = layout.noteHeight;
+    const { startPos, endPos, maxHoldSpanPos } = this.gimmickPos;
+    ctx.lineWidth = GIMMICK_BORDER;
+    for (let i = firstAtOrAbove(startPos, fromPos - pad - maxHoldSpanPos); i < this.gimmicks.length; i++) {
+      const n = this.gimmicks[i];
+      if (startPos[i] > toPos + pad) break;
+      if (endPos[i] < fromPos - pad) continue;
+      const y = noteY(startPos[i], nowPos, judgeY, pxPerMs);
+      const x0 = rect.fieldX + n.x * rect.colPx + NOTE_INSET;
+      const w = Math.max(1, n.width * rect.colPx - NOTE_INSET * 2);
+      ctx.strokeStyle = n.color;
+      ctx.fillStyle = n.color;
+      if (n.points && n.pointMs) {
+        // 기믹 슬라이드: 경로를 따라 흐린 띠
+        const { points, pointMs } = n;
+        const samples: number[] = [pointMs[0]];
+        for (let k = 0; k < pointMs.length - 1; k++) {
+          for (let s = 1; s <= BODY_SAMPLES; s++) samples.push(pointMs[k] + ((pointMs[k + 1] - pointMs[k]) * s) / BODY_SAMPLES);
+        }
+        const spans = samples.map(t => slideSpanAt(points, pointMs, t));
+        const ys = samples.map(t => noteY(this.scroll.positionAt(t), nowPos, judgeY, pxPerMs));
+        const xOf = (col: number) => rect.fieldX + col * rect.colPx;
+        ctx.beginPath();
+        samples.forEach((_, k) => (k === 0 ? ctx.moveTo(xOf(spans[k].x), ys[k]) : ctx.lineTo(xOf(spans[k].x), ys[k])));
+        for (let k = samples.length - 1; k >= 0; k--) ctx.lineTo(xOf(spans[k].x + spans[k].width), ys[k]);
+        ctx.closePath();
+        ctx.globalAlpha = GIMMICK_ALPHA * BODY_ALPHA;
+        ctx.fill();
+        ctx.globalAlpha = GIMMICK_ALPHA;
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.roundRect(x0, y - h / 2, w, h, NOTE_RADIUS);
+      ctx.globalAlpha = GIMMICK_ALPHA;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
   }
 
   private drawSlide(

@@ -37,6 +37,7 @@ import { DEFAULT_PX_PER_MS } from '../minimap/geometry'
 import { useEditor, useStore } from '../state/useStore'
 import { clampZoom } from '../timeline/view'
 import styles from './BottomToolbar.module.css'
+import { GimmickList } from './GimmickList'
 
 /** 확대 컨트롤 한 번에 바뀌는 배율 */
 const ZOOM_STEP = 1.25
@@ -148,6 +149,7 @@ export function BottomToolbar({
                 {o.label}
               </button>
             ))}
+            <GimmickList chart={freeChart} />
             {freeChart.flickMode === 'directional' && (
               <Menu
                 placement="up"

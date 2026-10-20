@@ -141,3 +141,41 @@
 .pointWidth > label {
   width: 96px;
 }
+
+/* 자유형: 선택한 노트의 기믹 종류 드롭다운 (펼친 목록은 OS가 그린다) */
+.selectWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.select {
+  width: 168px;
+  height: 28px;
+  padding: 0 28px 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  color-scheme: dark;
+  font: inherit;
+  font-weight: 500;
+  outline: none;
+  appearance: none;
+  cursor: default;
+}
+
+.select:hover {
+  background: var(--bg-hover);
+}
+
+.select:focus-visible {
+  border-color: var(--accent);
+}
+
+.chevron {
+  position: absolute;
+  right: 8px;
+  color: var(--text-muted);
+  pointer-events: none;
+}

@@ -1,23 +1,28 @@
 import {
   DEFAULT_COLUMNS,
   MAX_COLUMNS,
+  MAX_GIMMICKS,
   MIN_COLUMNS,
+  TRACK_COLOR_PATTERN,
+  freeGimmickOf,
   freeNoteErrors,
   freeNoteHead,
   freeNoteKey,
   freeNotesOverlap,
+  gimmickNameError,
   slideSpanAt,
   type FlickDirection,
   type FlickMode,
   type FreeChart,
+  type FreeGimmick,
   type FreeNote,
   type SlideEase,
   type SlidePoint
 } from '@rcm/core'
 import { getFreeChart, replaceChart, type ProjectDoc } from '../state/doc'
 
-/** 자유형에서 그릴 노트 종류 */
-export type FreeNoteType = 'tap' | 'trace' | 'flick' | 'slide'
+/** 자유형에서 그릴 노트 종류. 'gimmick'이면 고른 기믹 종류로 그린다 */
+export type FreeNoteType = 'tap' | 'trace' | 'flick' | 'slide' | 'gimmick'
 
 /** 복사한 자유형 노트 묶음. 첫 노트의 tick이 0이 되도록 옮긴 사본이다. */
 export interface FreeClip {
@@ -40,7 +45,7 @@ export function compareFreeNotes(a: FreeNote, b: FreeNote): number {
 }
 
 function valid(note: FreeNote, chart: FreeChart): boolean {
-  return freeNoteErrors(note, chart.columns, chart.flickMode).length === 0
+  return freeNoteErrors(note, chart.columns, chart.flickMode, chart.gimmicks).length === 0
 }
 
 /** moved를 나머지 노트(rest)에 합친다. 규칙 위반이나 겹침(moved끼리 포함)이면 null. */
@@ -179,7 +184,7 @@ export function setFreeNoteWidth(doc: ProjectDoc, file: string, keys: ReadonlySe
   )
 }
 
-/** 탭·트레이스·플릭 사이에서 종류를 바꾼다. 슬라이드는 바꾸지 않는다. */
+/** 탭·트레이스·플릭·기믹 사이에서 종류를 바꾼다. 슬라이드는 바꾸지 않는다. */
 export function changeFreeType(
   doc: ProjectDoc,
   file: string,
@@ -194,6 +199,76 @@ export function changeFreeType(
     if (n.type === 'flick') return n
     return chart.flickMode === 'directional' ? { ...base, type, direction } : { ...base, type }
   })
+}
+
+/**
+ * 단발 노트를 기믹 종류 gimmick의 노트로, 기믹 슬라이드는 종류만 바꾼다. 치는 슬라이드는 바꾸지 않는다.
+ */
+export function changeToGimmick(doc: ProjectDoc, file: string, keys: ReadonlySet<string>, gimmick: string): Result {
+  return transform(doc, file, keys, (n) => {
+    if (n.type === 'slide') return n.gimmick === undefined ? n : { ...n, gimmick }
+    if (n.type === 'gimmick') return { ...n, gimmick }
+    return { tick: n.tick, type: 'gimmick', gimmick, x: n.x, width: n.width }
+  })
+}
+
+/** 새 기믹 종류에 차례로 붙이는 색 (이미 쓴 색은 건너뛴다) */
+export const GIMMICK_COLORS = ['#ef4444', '#a78bfa', '#f97316', '#22d3ee', '#a3e635', '#e879f9', '#94a3b8', '#fbbf24']
+
+/** 채보에서 아직 안 쓴 첫 기믹 색. 다 썼으면 개수 순으로 돌려 쓴다. */
+export function nextGimmickColor(chart: FreeChart): string {
+  const used = new Set((chart.gimmicks ?? []).map((g) => g.color))
+  return GIMMICK_COLORS.find((c) => !used.has(c)) ?? GIMMICK_COLORS[(chart.gimmicks?.length ?? 0) % GIMMICK_COLORS.length]
+}
+
+/** 기믹 종류 이름·색의 문제 (사용자에게 보이는 문장). 없으면 null. except는 고치는 중인 원래 이름. */
+export function gimmickError(chart: FreeChart, g: FreeGimmick, except?: string): string | null {
+  const name = g.name.trim()
+  if (name === '') return '이름을 입력해 주세요'
+  if (gimmickNameError(name)) return '이름이 너무 길어요'
+  if (name !== except && (chart.gimmicks ?? []).some((o) => o.name === name)) return '같은 이름의 기믹 노트가 있어요'
+  if (!TRACK_COLOR_PATTERN.test(g.color)) return '색이 올바르지 않아요'
+  return null
+}
+
+function withGimmicks(doc: ProjectDoc, file: string, chart: FreeChart, gimmicks: FreeGimmick[], notes = chart.notes): ProjectDoc {
+  const { gimmicks: _g, ...rest } = chart
+  return replaceChart(doc, file, gimmicks.length > 0 ? { ...rest, gimmicks, notes } : { ...rest, notes })
+}
+
+/** 기믹 종류를 목록 끝에 더한다 (이름 앞뒤 공백은 지운다). 문제가 있으면 null. */
+export function addGimmick(doc: ProjectDoc, file: string, g: FreeGimmick): ProjectDoc | null {
+  const chart = getFreeChart(doc, file)
+  if ((chart.gimmicks?.length ?? 0) >= MAX_GIMMICKS || gimmickError(chart, g)) return null
+  return withGimmicks(doc, file, chart, [...(chart.gimmicks ?? []), { name: g.name.trim(), color: g.color.toLowerCase() }])
+}
+
+/** 기믹 종류 name의 이름·색을 바꾼다. 이름이 바뀌면 그 종류의 노트도 따라간다. 바뀐 게 없거나 문제가 있으면 null. */
+export function updateGimmick(doc: ProjectDoc, file: string, name: string, next: FreeGimmick): ProjectDoc | null {
+  const chart = getFreeChart(doc, file)
+  const list = chart.gimmicks ?? []
+  const index = list.findIndex((g) => g.name === name)
+  if (index < 0 || gimmickError(chart, next, name)) return null
+  const g = { name: next.name.trim(), color: next.color.toLowerCase() }
+  if (g.name === list[index].name && g.color === list[index].color) return null
+  const gimmicks = list.map((o, i) => (i === index ? g : o))
+  const notes =
+    g.name === name ? chart.notes : chart.notes.map((n) => (freeGimmickOf(n) === name ? { ...n, gimmick: g.name } : n))
+  return withGimmicks(doc, file, chart, gimmicks, notes)
+}
+
+/** 기믹 종류 name을 지운다. 그 종류의 노트(기믹 슬라이드 포함)도 함께 지운다. */
+export function removeGimmick(doc: ProjectDoc, file: string, name: string): ProjectDoc | null {
+  const chart = getFreeChart(doc, file)
+  const list = chart.gimmicks ?? []
+  if (!list.some((g) => g.name === name)) return null
+  const notes = chart.notes.filter((n) => freeGimmickOf(n) !== name)
+  return withGimmicks(doc, file, chart, list.filter((g) => g.name !== name), notes)
+}
+
+/** 기믹 종류 name인 노트 수 (기믹 슬라이드 포함) */
+export function gimmickNoteCount(chart: FreeChart, name: string): number {
+  return chart.notes.filter((n) => freeGimmickOf(n) === name).length
 }
 
 /** 플릭 방향을 바꾼다 (플릭과 끝 플릭 슬라이드만). */
@@ -212,7 +287,8 @@ export function setSlideEndFlick(
   direction: FlickDirection
 ): Result {
   return transform(doc, file, new Set([key]), (n, chart) => {
-    if (n.type !== 'slide') return null
+    // 기믹 슬라이드는 판정이 없어 끝 플릭도 없다
+    if (n.type !== 'slide' || n.gimmick !== undefined) return null
     const { endFlick: _e, direction: _d, ...rest } = n
     if (!endFlick) return rest
     return chart.flickMode === 'directional' ? { ...rest, endFlick: true, direction } : { ...rest, endFlick: true }

@@ -91,6 +91,8 @@ export class FreePlayState {
 
   constructor(chart: FreeChart, tm: TimingMap, fromMs: number) {
     for (const n of chart.notes) {
+      // 기믹 노트·기믹 슬라이드는 판정하지 않는다 (그리기는 freeGimmickNotes)
+      if (n.type === 'gimmick' || (n.type === 'slide' && n.gimmick !== undefined)) continue;
       if (n.type !== 'slide') {
         const startMs = tm.tickToMs(n.tick);
         if (startMs < fromMs) continue;

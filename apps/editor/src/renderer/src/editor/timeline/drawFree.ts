@@ -9,6 +9,7 @@ import {
   type TimingMap
 } from '@rcm/core'
 import { FREE_NOTE_COLORS } from '@rcm/playfield'
+import { fitText } from './drawTimeline'
 import type { FreeRect } from './freeHitTest'
 import { NOTE_HEIGHT } from './hitTest'
 import { msToY, yToMs, type TimelineLayout, type TimelineView } from './view'
@@ -40,6 +41,11 @@ const NOTE_INSET = 1
 const TRACE_HEIGHT = 6
 const MID_POINT_HEIGHT = 6
 const BODY_ALPHA = 0.32
+/** 기믹 노트: 판정이 없으므로 흐린 채우기 + 테두리, 위에 종류 이름 */
+const GIMMICK_FILL_ALPHA = 0.3
+const GIMMICK_FONT = '600 10px "Pretendard Variable", Pretendard, system-ui, sans-serif'
+/** 종류가 지워진 기믹 노트 색 */
+const GIMMICK_FALLBACK = '#9ca3af'
 const GUIDE_ALPHA = 0.8
 const PREVIEW_ALPHA = 0.5
 const SELECTED_BORDER = 2
@@ -104,6 +110,14 @@ function drawNote(
   const xOf = (col: number) => layout.tracksX + col * layout.colPx
   const yOf = (tick: number) => msToY(view, tm.tickToMs(tick))
   ctx.globalAlpha = alpha
+  const gimmickColor = (name: string) => p.chart.gimmicks?.find((g) => g.name === name)?.color ?? GIMMICK_FALLBACK
+
+  if (note.type === 'gimmick') {
+    const color = override ?? gimmickColor(note.gimmick)
+    gimmickHead(ctx, xOf(note.x), xOf(note.x + note.width), yOf(note.tick), note.gimmick, color, alpha, selected)
+    ctx.globalAlpha = 1
+    return
+  }
 
   if (note.type !== 'slide') {
     const color = override ?? FREE_NOTE_COLORS[note.type]
@@ -116,7 +130,9 @@ function drawNote(
     return
   }
 
-  const color = override ?? FREE_NOTE_COLORS.slide
+  // 기믹 슬라이드는 종류의 색으로, 지점은 판정 없는 테두리 모양으로 그린다
+  const gimmick = note.gimmick
+  const color = override ?? (gimmick === undefined ? FREE_NOTE_COLORS.slide : gimmickColor(gimmick))
   const { points } = note
   const times = points.map((pt) => tm.tickToMs(pt.tick))
   const yHead = msToY(view, times[0])
@@ -181,6 +197,10 @@ function drawNote(
       ctx.setLineDash([])
       return
     }
+    if (gimmick !== undefined) {
+      gimmickHead(ctx, x0, x1, y, i === 0 ? gimmick : '', color, alpha, selected)
+      return
+    }
     if (i === last && note.endFlick) {
       const flick = override ?? FREE_NOTE_COLORS.flick
       head(ctx, x0, x1, y, NOTE_HEIGHT, flick, selected)
@@ -210,6 +230,33 @@ function head(
     ctx.lineWidth = SELECTED_BORDER
     ctx.stroke()
   }
+}
+
+function gimmickHead(
+  ctx: CanvasRenderingContext2D,
+  x0: number,
+  x1: number,
+  y: number,
+  name: string,
+  color: string,
+  alpha: number,
+  selected: boolean
+): void {
+  const w = Math.max(1, x1 - x0 - NOTE_INSET * 2)
+  ctx.beginPath()
+  ctx.roundRect(x0 + NOTE_INSET + 0.5, y - NOTE_HEIGHT / 2 + 0.5, w - 1, NOTE_HEIGHT - 1, NOTE_RADIUS)
+  ctx.globalAlpha = alpha * GIMMICK_FILL_ALPHA
+  ctx.fillStyle = color
+  ctx.fill()
+  ctx.globalAlpha = alpha
+  ctx.strokeStyle = selected ? COLORS.selected : color
+  ctx.lineWidth = selected ? SELECTED_BORDER : 1
+  ctx.stroke()
+  ctx.font = GIMMICK_FONT
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'bottom'
+  ctx.fillStyle = color
+  ctx.fillText(fitText(ctx, name, w), x0 + NOTE_INSET + 1, y - NOTE_HEIGHT / 2 - 1)
 }
 
 /** 플릭 화살표: 머리 위 (x, y)에서 방향으로. 방향이 없으면(방향 무관) 위쪽 꺾쇠 두 개. */

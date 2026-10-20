@@ -16,6 +16,12 @@ export function freeNoteEndTick(note: FreeNote): number {
   return note.type === 'slide' ? note.points[note.points.length - 1].tick : note.tick;
 }
 
+/** 판정 없는 기믹 노트(단발 또는 기믹 슬라이드)의 종류 이름. 치는 노트면 null. */
+export function freeGimmickOf(note: FreeNote): string | null {
+  if (note.type === 'gimmick') return note.gimmick;
+  return note.type === 'slide' && note.gimmick !== undefined ? note.gimmick : null;
+}
+
 /**
  * 채보 안에서 유일한 노트 키. 같은 tick에서 가로로 겹치는 노트는 없으므로 시작 tick과 왼쪽 x로 충분하다.
  */

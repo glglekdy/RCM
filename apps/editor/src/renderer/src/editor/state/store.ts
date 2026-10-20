@@ -27,6 +27,8 @@ export interface EditorState {
   clipboard: Clip | FreeClip | null
   /** 자유형 채보에서 그릴 노트 종류 */
   freeType: FreeNoteType
+  /** freeType이 'gimmick'일 때 그릴 기믹 종류 이름 */
+  freeGimmick: string | null
   /** 자유형 채보에서 새 플릭의 방향 (flickMode가 directional일 때) */
   flickDirection: FlickDirection
   /** 자유형 채보에서 클릭으로 그릴 노트 폭(칸). 드래그로 폭을 정하면 그 폭을 기억한다 */
@@ -63,6 +65,7 @@ export class EditorStore {
       taps: [],
       clipboard: null,
       freeType: 'tap',
+      freeGimmick: null,
       flickDirection: DEFAULT_FLICK_DIRECTION,
       freeWidth: 3,
       fieldFocused: false

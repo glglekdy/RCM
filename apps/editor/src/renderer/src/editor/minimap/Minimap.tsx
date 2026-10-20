@@ -87,7 +87,9 @@ function drawFreeStatic(
   ctx.globalAlpha = NOTE_ALPHA
   for (const note of chart.notes) {
     if (note.type === 'slide') {
-      ctx.fillStyle = FREE_NOTE_COLORS.slide
+      const gimmick = note.gimmick === undefined ? undefined : chart.gimmicks?.find((g) => g.name === note.gimmick)
+      ctx.fillStyle = gimmick ? gimmick.color : FREE_NOTE_COLORS.slide
+      ctx.globalAlpha = gimmick ? NOTE_ALPHA * GIMMICK_ALPHA : NOTE_ALPHA
       ctx.beginPath()
       note.points.forEach((pt, i) => {
         const yy = y(tm.tickToMs(pt.tick))
@@ -102,7 +104,14 @@ function drawFreeStatic(
       ctx.fill()
       continue
     }
-    ctx.fillStyle = FREE_NOTE_COLORS[note.type]
+    if (note.type === 'gimmick') {
+      // 기믹 노트는 판정 대상이 아니므로 흐리게
+      ctx.fillStyle = chart.gimmicks?.find((g) => g.name === note.gimmick)?.color ?? FREE_NOTE_COLORS.tap
+      ctx.globalAlpha = NOTE_ALPHA * GIMMICK_ALPHA
+    } else {
+      ctx.fillStyle = FREE_NOTE_COLORS[note.type]
+      ctx.globalAlpha = NOTE_ALPHA
+    }
     const start = Math.round(y(tm.tickToMs(note.tick)))
     ctx.fillRect(xOf(note.x), start - TAP_HEIGHT / 2, Math.max(1, note.width * scale - TRACK_GAP), TAP_HEIGHT)
   }

@@ -40,6 +40,14 @@ describe('hitEffectPrompt', () => {
     expect(text).toContain('레퍼런스는 없어')
     expect(text).not.toContain('먼저 나에게 레퍼런스')
   })
+
+  it('특정 게임 이름을 넣지 않고, 기존 게임 이펙트를 베끼지 말라고 한다', () => {
+    for (const hasReference of [false, true]) {
+      const text = hitEffectPrompt({ ...base, hasReference })
+      expect(text).not.toMatch(/DJMAX|디제이맥스|디맥/i)
+    }
+    expect(hitEffectPrompt(base)).toContain('베끼지 말고')
+  })
 })
 
 describe('suggestedFps', () => {

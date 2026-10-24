@@ -24,6 +24,10 @@ const BLENDS: { value: HitEffectBlend; label: string }[] = [
   { value: 'add', label: '더하기' }
 ]
 
+/** 프롬프트로 만들 시트: 한 변이 8192px(16칸 × 512px)을 넘지 않게 */
+const PROMPT_GRID = { min: 1, max: 16 }
+const PROMPT_FRAME = { min: 64, max: 512 }
+
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, Math.round(v)))
 
 function describe(source: HitEffectSource | undefined): string {
@@ -40,7 +44,8 @@ export function HitEffectSettings() {
   const { size, grid, fps } = HIT_EFFECT_LIMITS
   const off = !settings.enabled
   const [hasReference, setHasReference] = useState(false)
-  const prompt = hitEffectPrompt(hasReference)
+  const [sheet, setSheet] = useState({ cols: 4, rows: 4, frameSize: 256 })
+  const prompt = hitEffectPrompt({ hasReference, ...sheet })
 
   const copyPrompt = async () => {
     try {
@@ -88,6 +93,34 @@ export function HitEffectSettings() {
             {hasReference ? 'AI가 먼저 레퍼런스 이미지를 달라고 해요' : 'AI가 묻지 않고 직접 디자인해요'}
           </span>
         </label>
+        <div className={styles.numbers}>
+          <label className={styles.number}>
+            <span>칸</span>
+            <NumberField
+              value={sheet.cols}
+              onCommit={(v) => setSheet({ ...sheet, cols: clamp(v, PROMPT_GRID.min, PROMPT_GRID.max) })}
+            />
+          </label>
+          <label className={styles.number}>
+            <span>줄</span>
+            <NumberField
+              value={sheet.rows}
+              onCommit={(v) => setSheet({ ...sheet, rows: clamp(v, PROMPT_GRID.min, PROMPT_GRID.max) })}
+            />
+          </label>
+          <label className={styles.number}>
+            <span>칸 크기</span>
+            <NumberField
+              value={sheet.frameSize}
+              suffix="px"
+              onCommit={(v) => setSheet({ ...sheet, frameSize: clamp(v, PROMPT_FRAME.min, PROMPT_FRAME.max) })}
+            />
+          </label>
+        </div>
+        <span className={styles.desc}>
+          {sheet.cols}×{sheet.rows} 시트 · {sheet.cols * sheet.rows}프레임 · 시트 전체 {sheet.cols * sheet.frameSize}×
+          {sheet.rows * sheet.frameSize}px
+        </span>
         <pre className={styles.prompt}>{prompt}</pre>
         <div className={styles.buttons}>
           <Button variant="ghost" onClick={() => void copyPrompt()}>

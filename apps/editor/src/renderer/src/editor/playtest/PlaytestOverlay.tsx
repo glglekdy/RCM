@@ -13,6 +13,7 @@ import { resolveKeymap } from '../../../../shared/presets'
 import { getPresets } from '../../presets/presetStore'
 import { getChart } from '../state/doc'
 import { useEditor } from '../state/useStore'
+import { getHitEffects, useHitEffects } from '../../gameplay/hitEffectStore'
 import { getLayout } from '../../gameplay/layoutStore'
 import { getPlaytestSpeed, setPlaytestSpeed } from './speedStore'
 import styles from './PlaytestOverlay.module.css'
@@ -60,6 +61,7 @@ export function PlaytestOverlay({ fromMs, tm, getTimeMs, autoplay, onExit }: Pla
   speedRef.current = speed
   const autoplayRef = useRef(autoplay)
   autoplayRef.current = autoplay
+  const hitEffects = useHitEffects()
   const [stats, setStats] = useState<Stats>({
     counts: { perfect: 0, great: 0, good: 0, miss: 0 },
     maxCombo: 0
@@ -68,7 +70,15 @@ export function PlaytestOverlay({ fromMs, tm, getTimeMs, autoplay, onExit }: Pla
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const common = { tm, getTimeMs, fromMs, speed: speedRef.current, layout: getLayout(), autoplay: autoplayRef.current }
+    const common = {
+      tm,
+      getTimeMs,
+      fromMs,
+      speed: speedRef.current,
+      layout: getLayout(),
+      autoplay: autoplayRef.current,
+      hitEffects: getHitEffects()
+    }
     const pf = isFreeChart(chart)
       ? new FreePlayfield(canvas, { ...common, chart, aspect: aspectRef.current })
       : new Playfield(canvas, { ...common, chart, keymap: resolveKeymap(chart.tracks, getPresets()).keys })
@@ -96,6 +106,11 @@ export function PlaytestOverlay({ fromMs, tm, getTimeMs, autoplay, onExit }: Pla
   useEffect(() => {
     playfieldRef.current?.setAutoplay(autoplay)
   }, [autoplay])
+
+  // 이펙트 이미지는 늦게 읽힐 수 있어 바뀌면 바로 넘긴다
+  useEffect(() => {
+    playfieldRef.current?.setHitEffects(hitEffects)
+  }, [hitEffects])
 
   useEffect(() => {
     const pf = playfieldRef.current

@@ -240,6 +240,10 @@ export function UserGuidePage() {
               <kbd>F5</kbd>를 누르면 같은 위치에서 다시 시작하고, <kbd>F4</kbd>로 자동 플레이를 켜고 끌 수 있어요. 곡이
               끝나도 결과가 남아 있고, <kbd>Esc</kbd>로 돌아와요.
             </li>
+            <li>
+              <b>타격 이펙트</b>: <b>설정 → 타격 이펙트</b>에서 노트를 칠 때 터지는 이펙트를 PNG로 바꿀 수 있어요. 시트 한
+              장(칸 · 줄 입력)이나 프레임별 PNG 여러 장을 넣고, PERFECT와 GREAT · GOOD에 따로 정해요.
+            </li>
           </ul>
         </Section>
 

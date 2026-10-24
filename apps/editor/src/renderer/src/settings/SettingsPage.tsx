@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Maximize2 } from 'lucide-react'
 import { GameplaySettings } from '../gameplay/GameplaySettings'
+import { HitEffectSettings } from '../gameplay/HitEffectSettings'
 import { LayoutPreview } from '../gameplay/LayoutPreview'
 import { useLayout } from '../gameplay/layoutStore'
 import { PreviewFullscreen } from '../gameplay/PreviewFullscreen'
@@ -59,6 +60,7 @@ export function SettingsPage() {
             </div>
           </Card>
           <GameplaySettings />
+          <HitEffectSettings />
         </div>
         <aside className={styles.preview}>
           <span className={styles.previewTitle}>미리보기</span>

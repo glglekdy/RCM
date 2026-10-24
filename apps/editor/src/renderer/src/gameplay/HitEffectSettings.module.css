@@ -1,0 +1,96 @@
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 40px;
+}
+
+.disabled {
+  opacity: 0.5;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.label {
+  white-space: nowrap;
+}
+
+.desc {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 280px;
+  flex: none;
+}
+
+.slots {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.slot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.slotHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.slotTitle {
+  font-weight: 600;
+}
+
+.preview {
+  flex: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.number {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.number > :last-child {
+  width: 96px;
+}

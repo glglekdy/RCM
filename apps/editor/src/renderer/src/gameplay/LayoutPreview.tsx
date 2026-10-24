@@ -3,6 +3,7 @@ import { Playfield, type PlayfieldLayout } from '@rcm/playfield'
 import { resolveKeymap } from '../../../shared/presets'
 import { getPlaytestSpeed } from '../editor/playtest/speedStore'
 import { getPresets } from '../presets/presetStore'
+import { getHitEffects, useHitEffects } from './hitEffectStore'
 import { previewChart } from './previewChart'
 
 /** 시작 전 준비 시간 (첫 노트가 위에서부터 내려오도록) */
@@ -26,6 +27,7 @@ export function LayoutPreview({ layout, className, fit = false }: LayoutPreviewP
   const playfieldRef = useRef<Playfield | null>(null)
   const layoutRef = useRef(layout)
   layoutRef.current = layout
+  const hitEffects = useHitEffects()
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -46,6 +48,7 @@ export function LayoutPreview({ layout, className, fit = false }: LayoutPreviewP
         layout: layoutRef.current,
         input: false,
         autoplay: true,
+        hitEffects: getHitEffects(),
         viewHeight: fit ? playViewHeight : undefined
       })
       playfieldRef.current = pf
@@ -63,6 +66,10 @@ export function LayoutPreview({ layout, className, fit = false }: LayoutPreviewP
   useEffect(() => {
     playfieldRef.current?.setLayout(layout)
   }, [layout])
+
+  useEffect(() => {
+    playfieldRef.current?.setHitEffects(hitEffects)
+  }, [hitEffects])
 
   return <canvas ref={canvasRef} className={className} />
 }

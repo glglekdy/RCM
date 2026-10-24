@@ -47,7 +47,10 @@
   max-width: 640px;
 }
 
+/* 페이지를 내려도 미리보기가 위에 붙어 따라온다 */
 .preview {
+  position: sticky;
+  top: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;

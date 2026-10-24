@@ -4,6 +4,7 @@ import { DEFAULT_LAYOUT, sanitizeLayout, type PlayfieldLayout } from './layout';
 import { DEFAULT_PLAYFIELD_COLORS, type PlayfieldColors } from './Playfield';
 import { FreePlayState, type FreeJudgeEvent, type FreePlayNote } from './freePlayState';
 import { freeGimmickNotes, type FreeGimmickNote } from './gimmick';
+import { DEFAULT_HIT_EFFECTS, HitEffectLayer, HoldRepeater, slotFor, type HitEffects } from './hitEffects';
 import { freeFieldRect, pointToCell, type FreeAspect, type FreeFieldRect } from './freeView';
 import {
   clampSpeed,
@@ -37,6 +38,8 @@ export interface FreePlayfieldOptions {
   input?: boolean;
   autoplay?: boolean;
   aspect?: FreeAspect;
+  /** 타격 이펙트 (없으면 DEFAULT_HIT_EFFECTS). `setHitEffects`로 바꿀 수 있다 */
+  hitEffects?: HitEffects;
 }
 
 const FRAME_COLOR = '#1b1b1b';
@@ -88,6 +91,13 @@ export class FreePlayfield {
   /** 마지막으로 그린 판 배치 (포인터 좌표 변환용) */
   private rect: FreeFieldRect | null = null;
   private last: { judgement: Judgement; ms: number; timing?: Timing } | null = null;
+  private hitEffects: HitEffects;
+  private readonly effectLayer = new HitEffectLayer();
+  private readonly holdRepeat = new HoldRepeater<number>();
+  /** 노트별 머리 판정. 잡고 있는 슬라이드의 반복 이펙트가 따른다 */
+  private readonly headJudgement = new Map<number, Judgement>();
+  /** 다음 그리기에서 터뜨릴 판정 (화면 위치는 그릴 때 정해진다) */
+  private pendingBursts: { note: number; judgement: Judgement; ms: number }[] = [];
   private raf = 0;
   private running = false;
 
@@ -111,6 +121,7 @@ export class FreePlayfield {
     this.layout = sanitizeLayout(opts.layout ?? DEFAULT_LAYOUT);
     this.autoplay = opts.autoplay === true;
     this.aspect = opts.aspect ?? 'portrait';
+    this.hitEffects = opts.hitEffects ?? DEFAULT_HIT_EFFECTS;
   }
 
   start(): void {
@@ -137,6 +148,8 @@ export class FreePlayfield {
     this.canvas.removeEventListener('pointercancel', this.onPointerUp);
     window.removeEventListener('blur', this.onBlur);
     cancelAnimationFrame(this.raf);
+    this.pendingBursts = [];
+    this.effectLayer.clear();
   }
 
   setSpeed(speed: number): void {
@@ -155,6 +168,10 @@ export class FreePlayfield {
 
   setAspect(aspect: FreeAspect): void {
     this.aspect = aspect;
+  }
+
+  setHitEffects(hitEffects: HitEffects): void {
+    this.hitEffects = hitEffects;
   }
 
   private cell(e: PointerEvent): { col: number; row: number } | null {
@@ -191,6 +208,10 @@ export class FreePlayfield {
   };
 
   private show(events: FreeJudgeEvent[]): void {
+    for (const e of events) {
+      if (e.part === 'head') this.headJudgement.set(e.note, e.judgement);
+      if (slotFor(e.judgement)) this.pendingBursts.push(e);
+    }
     const e = events[events.length - 1];
     if (e) this.last = { judgement: e.judgement, ms: e.ms, timing: e.timing };
   }
@@ -238,6 +259,7 @@ export class FreePlayfield {
     ctx.fillStyle = colors.judgeLine;
     const t = this.layout.judgeLineThickness;
     ctx.fillRect(fieldX, Math.round(judgeY - t / 2), fieldWidth, t);
+    this.drawEffects(now, rect, judgeY);
 
     ctx.fillStyle = TOUCH_COLOR;
     for (const p of this.state.touches()) {
@@ -294,6 +316,32 @@ export class FreePlayfield {
       if (n.tailJudged) continue;
       this.drawSlide(i, n, now, yAt, xOf);
     }
+  }
+
+  /**
+   * 판정 난 노트를 그 시각의 가로 가운데(슬라이드는 경로 위치)에서 터뜨리고,
+   * 잡고 있는 슬라이드는 머리 판정을 따라 일정 간격으로 지금 위치에서 다시 터뜨린다.
+   */
+  private drawEffects(now: number, rect: FreeFieldRect, judgeY: number): void {
+    const notes = this.state.notes;
+    const spawn = (i: number, judgement: Judgement, ms: number) => {
+      if (judgement === 'miss') return;
+      const n = notes[i];
+      const span = n.kind === 'slide' ? this.state.slideSpan(n, ms) : n;
+      this.effectLayer.spawn(rect.fieldX + (span.x + span.width / 2) * rect.colPx, judgeY, judgement, ms);
+    };
+    for (const b of this.pendingBursts) spawn(b.note, b.judgement, b.ms);
+    this.pendingBursts = [];
+    const nowPos = this.scroll.positionAt(now);
+    for (let i = firstAtOrAbove(this.startPos, nowPos - this.maxHoldSpanPos); i < notes.length; i++) {
+      if (this.startPos[i] > nowPos) break;
+      const n = notes[i];
+      if (n.kind !== 'slide' || !n.headJudged || n.tailJudged) continue;
+      const held = this.state.isHeld(i) || (this.autoplay && this.state.autoHolding(i));
+      if (held && this.holdRepeat.tick(i, now)) spawn(i, this.headJudgement.get(i) ?? 'perfect', now);
+    }
+    this.holdRepeat.sweep();
+    this.effectLayer.draw(this.ctx, now, this.hitEffects, this.colors);
   }
 
   /** 기믹 노트는 치는 노트 아래에 테두리로만 그린다 */

@@ -3,6 +3,7 @@ import { HOLD_RELEASE_TOLERANCE, type JudgeEvent, type Judgement, type Timing } 
 import { HeldKeys, keysLabel, trackForCode, trackForKey, type TrackKeymap } from './keymap';
 import { autoplayStep } from './autoplay';
 import { gimmickNotes, type GimmickNote } from './gimmick';
+import { DEFAULT_HIT_EFFECTS, HitEffectLayer, HoldRepeater, slotFor, type HitEffects } from './hitEffects';
 import { DEFAULT_LAYOUT, sanitizeLayout, type PlayfieldLayout } from './layout';
 import { PlayState } from './playState';
 import {
@@ -83,6 +84,8 @@ export interface PlayfieldOptions {
   viewHeight?: () => number;
   /** true면 모든 노트를 노트 시각에 자동으로 친다 (미리보기). 기본 false. `setAutoplay`로 바꿀 수 있다 */
   autoplay?: boolean;
+  /** 타격 이펙트 (없으면 DEFAULT_HIT_EFFECTS). `setHitEffects`로 바꿀 수 있다 */
+  hitEffects?: HitEffects;
 }
 
 const NOTE_RADIUS = 3;
@@ -132,6 +135,13 @@ export class Playfield {
   private layout: PlayfieldLayout;
   private autoplay: boolean;
   private last: { judgement: Judgement; ms: number; timing?: Timing } | null = null;
+  private hitEffects: HitEffects;
+  private readonly effectLayer = new HitEffectLayer();
+  private readonly holdRepeat = new HoldRepeater<number>();
+  /** 레인별 마지막 머리 판정. 잡고 있는 롱노트의 반복 이펙트가 따른다 */
+  private readonly holdJudgement: (Judgement | undefined)[] = [];
+  /** 다음 그리기에서 터뜨릴 판정 (레인 위치는 그릴 때 정해진다) */
+  private pendingBursts: { lane: number; judgement: Judgement; ms: number }[] = [];
   private raf = 0;
   private running = false;
 
@@ -158,6 +168,7 @@ export class Playfield {
     this.speed = clampSpeed(opts.speed);
     this.layout = sanitizeLayout(opts.layout ?? DEFAULT_LAYOUT);
     this.autoplay = opts.autoplay === true;
+    this.hitEffects = opts.hitEffects ?? DEFAULT_HIT_EFFECTS;
   }
 
   /** 그리기 루프와 키 입력을 시작한다. */
@@ -179,6 +190,8 @@ export class Playfield {
     window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('blur', this.onBlur);
     cancelAnimationFrame(this.raf);
+    this.pendingBursts = [];
+    this.effectLayer.clear();
   }
 
   setSpeed(speed: number): void {
@@ -196,6 +209,10 @@ export class Playfield {
    */
   setAutoplay(on: boolean): void {
     this.autoplay = on;
+  }
+
+  setHitEffects(hitEffects: HitEffects): void {
+    this.hitEffects = hitEffects;
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
@@ -234,9 +251,14 @@ export class Playfield {
   }
 
   private show(events: JudgeEvent[]): void {
+    for (const e of events) {
+      if (e.part === 'head') this.holdJudgement[e.lane] = e.judgement;
+      if (slotFor(e.judgement)) this.pendingBursts.push(e);
+    }
     const e = events[events.length - 1];
     if (e) this.last = { judgement: e.judgement, ms: e.ms, timing: e.timing };
   }
+
 
   private readonly frame = (): void => {
     this.raf = requestAnimationFrame(this.frame);
@@ -296,6 +318,8 @@ export class Playfield {
     const t = layout.judgeLineThickness;
     // 픽셀 경계에 맞춘다 (기본 3px이면 예전과 같은 judgeY - 1)
     ctx.fillRect(left, Math.round(judgeY - t / 2), fieldWidth, t);
+
+    this.drawEffects(now, cols, judgeY);
 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -403,6 +427,23 @@ export class Playfield {
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
+  }
+
+  /** 판정 난 레인과 잡고 있는 롱노트(머리 판정을 따라 일정 간격으로)를 판정선 가운데에서 터뜨린다 */
+  private drawEffects(now: number, cols: readonly { x: number; width: number }[], judgeY: number): void {
+    const spawn = (lane: number, judgement: Judgement, ms: number) => {
+      if (judgement === 'miss') return;
+      this.effectLayer.spawn(cols[lane].x + cols[lane].width / 2, judgeY, judgement, ms);
+    };
+    for (const b of this.pendingBursts) spawn(b.lane, b.judgement, b.ms);
+    this.pendingBursts = [];
+    for (let lane = 0; lane < this.lanes; lane++) {
+      if (this.state.heldNote(lane) >= 0 && this.holdRepeat.tick(lane, now)) {
+        spawn(lane, this.holdJudgement[lane] ?? 'perfect', now);
+      }
+    }
+    this.holdRepeat.sweep();
+    this.effectLayer.draw(this.ctx, now, this.hitEffects, this.colors);
   }
 
   /** 키를 누르고 있거나 자동 플레이가 롱노트를 잡고 있는 레인 (키빔) */

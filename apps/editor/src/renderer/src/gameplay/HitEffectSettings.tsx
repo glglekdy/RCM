@@ -1,7 +1,10 @@
+import { useState } from 'react'
+import { Copy, Sparkles } from 'lucide-react'
 import type { HitEffectBlend, HitEffectSlot } from '@rcm/playfield'
 import { HIT_EFFECT_LIMITS, type HitEffectSource } from '../../../shared/hitEffects'
 import { Button, Card, NumberField, SegmentedControl, Slider, Switch, useToast } from '../ui'
 import { HitEffectPreview } from './HitEffectPreview'
+import { hitEffectPrompt } from './hitEffectPrompt'
 import {
   clearHitEffect,
   pickHitEffect,
@@ -36,6 +39,17 @@ export function HitEffectSettings() {
   const toast = useToast()
   const { size, grid, fps } = HIT_EFFECT_LIMITS
   const off = !settings.enabled
+  const [hasReference, setHasReference] = useState(false)
+  const prompt = hitEffectPrompt(hasReference)
+
+  const copyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(prompt)
+      toast('프롬프트를 복사했어요')
+    } catch {
+      toast('클립보드에 복사하지 못했어요')
+    }
+  }
 
   const setSource = (slot: HitEffectSlot, source: HitEffectSource) => updateHitEffectSettings({ ...settings, [slot]: source })
 
@@ -58,6 +72,29 @@ export function HitEffectSettings() {
 
   return (
     <Card title="타격 이펙트">
+      <div className={styles.ai}>
+        <div className={styles.text}>
+          <span className={styles.slotTitle}>
+            <Sparkles size={14} /> AI로 이펙트 만들기
+          </span>
+          <span className={styles.desc}>
+            아래 프롬프트를 AI(ChatGPT, Claude 등)에게 주면 이 에디터에 바로 넣을 수 있는 이펙트 PNG를 만들어 줘요.
+          </span>
+        </div>
+        <label className={styles.check}>
+          <input type="checkbox" checked={hasReference} onChange={(e) => setHasReference(e.target.checked)} />
+          <span>레퍼런스가 있어요</span>
+          <span className={styles.desc}>
+            {hasReference ? 'AI가 먼저 레퍼런스 이미지를 달라고 해요' : 'AI가 묻지 않고 직접 디자인해요'}
+          </span>
+        </label>
+        <pre className={styles.prompt}>{prompt}</pre>
+        <div className={styles.buttons}>
+          <Button variant="ghost" onClick={() => void copyPrompt()}>
+            <Copy size={16} /> 프롬프트 복사
+          </Button>
+        </div>
+      </div>
       <div className={styles.row}>
         <div className={styles.text}>
           <span>이펙트 켜기</span>

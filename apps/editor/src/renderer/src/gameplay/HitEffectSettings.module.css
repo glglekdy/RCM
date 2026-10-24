@@ -94,3 +94,49 @@
 .number > :last-child {
   width: 96px;
 }
+
+/* 맨 위: AI에게 줄 이펙트 제작 프롬프트 */
+.ai {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.ai .slotTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.check input {
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.prompt {
+  max-height: 200px;
+  margin: 0;
+  overflow: auto;
+  padding: 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  user-select: text;
+}

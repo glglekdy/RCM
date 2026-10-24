@@ -236,7 +236,7 @@ export function UserGuidePage() {
             </li>
             <li>
               <b>테스트 플레이 (F5)</b>: 재생선 위치부터 실제 게임처럼 플레이하며 판정과 콤보를 확인해요.{' '}
-              <kbd>Shift+F5</kbd>는 처음부터, <kbd>↑</kbd> <kbd>↓</kbd>로 노트 속도를 바꿔요. 플레이 중{' '}
+              <kbd>Shift+F5</kbd>는 처음부터, <kbd>↑</kbd> <kbd>↓</kbd>로 배속(노트가 내려오는 빠르기)을 바꿔요. 플레이 중{' '}
               <kbd>F5</kbd>를 누르면 같은 위치에서 다시 시작하고, <kbd>F4</kbd>로 자동 플레이를 켜고 끌 수 있어요. 곡이
               끝나도 결과가 남아 있고, <kbd>Esc</kbd>로 돌아와요.
             </li>

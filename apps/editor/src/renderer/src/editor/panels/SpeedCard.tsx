@@ -54,11 +54,11 @@ export function SpeedCard({ tm }: { tm: TimingMap }) {
     const tick = Math.round(snapTick(map, Math.max(0, map.msToTick(playheadMs)), snap))
     const target = getChart(doc, activeChart)
     if (target.speeds?.some((p) => p.tick === tick)) {
-      toast('이미 이 위치에 속도 변경이 있어요')
+      toast('이미 이 위치에 변속이 있어요')
       return
     }
     const speed = defaultSpeedAt(target, map, tick)
-    store.apply('속도 추가', addSpeedPoint(doc, activeChart, tick, speed), activeChart)
+    store.apply('변속 추가', addSpeedPoint(doc, activeChart, tick, speed), activeChart)
   }
 
   return (
@@ -79,7 +79,7 @@ export function SpeedCard({ tm }: { tm: TimingMap }) {
                   <IconButton
                     icon={Trash2}
                     label="삭제"
-                    onClick={() => edit('속도 삭제', point.tick, (doc, i) => removeSpeedPoint(doc, file, i))}
+                    onClick={() => edit('변속 삭제', point.tick, (doc, i) => removeSpeedPoint(doc, file, i))}
                   />
                 </div>
                 <div className={styles.pointRow}>
@@ -91,7 +91,7 @@ export function SpeedCard({ tm }: { tm: TimingMap }) {
                       step={0.1}
                       suffix="×"
                       onCommit={(speed) =>
-                        edit('속도 수정', point.tick, (doc, i) => updateSpeedPoint(doc, file, i, { speed }))
+                        edit('변속 수정', point.tick, (doc, i) => updateSpeedPoint(doc, file, i, { speed }))
                       }
                     />
                   </div>
@@ -100,7 +100,7 @@ export function SpeedCard({ tm }: { tm: TimingMap }) {
                       options={first ? FIRST_EASE_OPTIONS : EASE_OPTIONS}
                       value={first ? 'instant' : (point.ease ?? 'instant')}
                       onChange={(ease) =>
-                        edit('속도 수정', point.tick, (doc, i) => updateSpeedPoint(doc, file, i, { ease }))
+                        edit('변속 수정', point.tick, (doc, i) => updateSpeedPoint(doc, file, i, { ease }))
                       }
                     />
                   </div>

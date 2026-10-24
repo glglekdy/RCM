@@ -131,7 +131,7 @@ export function PlaytestOverlay({ fromMs, tm, getTimeMs, autoplay, onExit }: Pla
       <canvas ref={canvasRef} className={styles.canvas} />
       <div className={styles.hud}>
         <div className={styles.controls}>
-          <span>속도 {speed.toFixed(1)} (↑/↓)</span>
+          <span>배속 {speed.toFixed(1)} (↑/↓)</span>
           <span className={styles.dot}>·</span>
           <span>F5 다시 시작</span>
           <span className={styles.dot}>·</span>

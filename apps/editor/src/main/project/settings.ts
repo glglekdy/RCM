@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import { MAX_SPEED, MIN_SPEED, sanitizeLayout, type PlayfieldLayout } from '@rcm/playfield'
 import { MAX_PRESET_ID_LENGTH, sanitizePresets, type TrackPreset } from '../../shared/presets'
+import { sanitizeHitEffectSettings, type HitEffectSettings } from '../../shared/hitEffects'
 import { sanitizeGuidePaths } from '../guide/guideFiles'
 import { writeFileAtomic } from './atomicWrite'
 
@@ -21,6 +22,8 @@ export interface Settings {
   playtestSpeed?: number
   /** 게임플레이 레이아웃. 없으면 기본값을 쓴다 */
   gameplay?: PlayfieldLayout
+  /** 테스트 플레이 타격 이펙트. 없으면 기본값을 쓴다 */
+  hitEffects?: HitEffectSettings
   /** 업데이트 내역을 마지막으로 확인한 앱 버전 (X.Y.Z) */
   lastSeenVersion?: string
   /** 홈에서 닫은 공지 id 목록 */
@@ -76,6 +79,7 @@ function parseSettings(raw: unknown): Settings {
     discordPresence?: unknown
     playtestSpeed?: unknown
     gameplay?: unknown
+    hitEffects?: unknown
     lastSeenVersion?: unknown
     dismissedNotices?: unknown
     guideFiles?: unknown
@@ -97,6 +101,7 @@ function parseSettings(raw: unknown): Settings {
   if (typeof obj.discordPresence === 'boolean') settings.discordPresence = obj.discordPresence
   if (isPlaytestSpeed(obj.playtestSpeed)) settings.playtestSpeed = obj.playtestSpeed
   if (obj.gameplay !== undefined) settings.gameplay = sanitizeLayout(obj.gameplay)
+  if (obj.hitEffects !== undefined) settings.hitEffects = sanitizeHitEffectSettings(obj.hitEffects)
   if (isVersion(obj.lastSeenVersion)) settings.lastSeenVersion = obj.lastSeenVersion
   if (Array.isArray(obj.dismissedNotices)) settings.dismissedNotices = obj.dismissedNotices.filter(isNoticeId)
   if (obj.guideFiles !== undefined) settings.guideFiles = sanitizeGuidePaths(obj.guideFiles)

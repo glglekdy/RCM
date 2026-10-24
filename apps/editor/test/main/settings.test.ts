@@ -81,6 +81,15 @@ describe('settings', () => {
     expect((await loadSettings(file)).gameplay).toBeUndefined()
   })
 
+  it('hitEffects: 깨진 값은 정리하고, 없으면 비워 둠', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
+    const file = path.join(tmp, 'settings.json')
+    await fs.writeFile(file, JSON.stringify({ recent: [], hitEffects: { size: 9999 } }))
+    expect((await loadSettings(file)).hitEffects).toEqual({ enabled: true, size: 512, blend: 'normal' })
+    await fs.writeFile(file, JSON.stringify({ recent: [] }))
+    expect((await loadSettings(file)).hitEffects).toBeUndefined()
+  })
+
   it('lastSeenVersion: X.Y.Z 형식만 읽음', async () => {
     tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
     const file = path.join(tmp, 'settings.json')

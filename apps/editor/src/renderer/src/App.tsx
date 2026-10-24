@@ -3,6 +3,7 @@ import type { ProjectFiles } from '../../shared/api'
 import { EditorScreen } from './editor/EditorScreen'
 import { HomeScreen } from './home/HomeScreen'
 import { loadPlaytestSpeed } from './editor/playtest/speedStore'
+import { loadHitEffects } from './gameplay/hitEffectStore'
 import { loadLayout } from './gameplay/layoutStore'
 import { loadPresets } from './presets/presetStore'
 import { DialogProvider, TitleBar, ToastProvider } from './ui'
@@ -28,6 +29,9 @@ export function App() {
     })
     loadLayout().catch(() => {
       // 설정을 못 읽으면 기본 레이아웃으로 계속한다
+    })
+    loadHitEffects().catch(() => {
+      // 설정을 못 읽으면 기본 타격 이펙트로 계속한다
     })
     checkWhatsNew().catch(() => {
       // 업데이트 내역을 못 띄워도 앱은 그대로 쓴다

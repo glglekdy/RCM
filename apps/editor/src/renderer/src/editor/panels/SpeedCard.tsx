@@ -62,8 +62,8 @@ export function SpeedCard({ tm }: { tm: TimingMap }) {
   }
 
   return (
-    <Card title={`노트 속도 — ${chart.name}`}>
-      <fieldset className={styles.speedList} disabled={locked}>
+    <Card title={`변속 — ${chart.name}`}>
+      <fieldset className={styles.pointList} disabled={locked}>
         {speeds.length === 0 ? (
           <p className={styles.hint}>변속 없음 (×1)</p>
         ) : (
@@ -71,8 +71,8 @@ export function SpeedCard({ tm }: { tm: TimingMap }) {
             const { measure, beat, offset } = measureBeatAt(tm, point.tick)
             const first = point.tick === 0
             return (
-              <div key={point.tick} className={styles.speedPoint}>
-                <div className={styles.speedRow}>
+              <div key={point.tick} className={styles.point}>
+                <div className={styles.pointRow}>
                   <span className={styles.position}>
                     {measure}마디 {beat}박{offset > 0 ? ` +${offset}` : ''}
                   </span>
@@ -82,8 +82,8 @@ export function SpeedCard({ tm }: { tm: TimingMap }) {
                     onClick={() => edit('속도 삭제', point.tick, (doc, i) => removeSpeedPoint(doc, file, i))}
                   />
                 </div>
-                <div className={styles.speedRow}>
-                  <div className={styles.speedValue}>
+                <div className={styles.pointRow}>
+                  <div className={styles.pointValue}>
                     <NumberField
                       value={point.speed}
                       min={0}

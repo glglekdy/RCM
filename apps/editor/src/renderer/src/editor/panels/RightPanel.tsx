@@ -1,5 +1,5 @@
-import { PanelRight } from 'lucide-react'
-import { IconButton, SegmentedControl } from '../../ui'
+import { Gauge, LayoutGrid, Music, PanelRight, type LucideIcon } from 'lucide-react'
+import { IconButton } from '../../ui'
 import type { EditorState } from '../state/store'
 import { useEditor, useStore } from '../state/useStore'
 import { ChartPanel } from './ChartPanel'
@@ -7,10 +7,10 @@ import { SongPanel } from './SongPanel'
 import { TimingPanel } from './TimingPanel'
 import styles from './RightPanel.module.css'
 
-const TABS: { value: EditorState['panelTab']; label: string }[] = [
-  { value: 'song', label: '곡' },
-  { value: 'timing', label: '타이밍' },
-  { value: 'chart', label: '채보' }
+const TABS: { value: EditorState['panelTab']; label: string; icon: LucideIcon }[] = [
+  { value: 'song', label: '곡', icon: Music },
+  { value: 'timing', label: 'BPM · 변속', icon: Gauge },
+  { value: 'chart', label: '채보', icon: LayoutGrid }
 ]
 
 export function RightPanel() {
@@ -20,7 +20,21 @@ export function RightPanel() {
   return (
     <aside className={styles.panel}>
       <div className={styles.head}>
-        <SegmentedControl options={TABS} value={tab} onChange={(panelTab) => store.set({ panelTab })} />
+        <div className={styles.tabs} role="tablist">
+          {TABS.map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={value === tab}
+              className={`${styles.tab} ${value === tab ? styles.selected : ''}`}
+              onClick={() => store.set({ panelTab: value })}
+            >
+              <Icon size={16} strokeWidth={1.75} />
+              {label}
+            </button>
+          ))}
+        </div>
         <IconButton icon={PanelRight} label="패널 접기" onClick={() => store.set({ panelOpen: false })} />
       </div>
       <div className={styles.body}>

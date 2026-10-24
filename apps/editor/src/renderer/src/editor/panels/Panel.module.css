@@ -70,8 +70,8 @@
   padding: 2px 0;
 }
 
-/* 노트 속도 카드 */
-.speedList {
+/* BPM·변속 카드의 지점 목록 */
+.pointList {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -81,19 +81,19 @@
   border: 0;
 }
 
-/* 변속 지점 하나: 위치·삭제 줄 + 배율·방식 줄 */
-.speedPoint {
+/* 지점 하나: 위치·삭제 줄 + 값 줄 */
+.point {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.speedPoint + .speedPoint {
+.point + .point {
   padding-top: 4px;
   border-top: 1px solid var(--border);
 }
 
-.speedRow {
+.pointRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -101,12 +101,12 @@
   height: 32px;
 }
 
-.speedValue {
+.pointValue {
   flex: 1;
   min-width: 0;
 }
 
-.speedValue > label {
+.pointValue > label {
   width: 100%;
 }
 
@@ -115,8 +115,8 @@
 }
 
 /* 막힌 동안 (재생·녹음·테스트 플레이 중) */
-.speedList:disabled .speedValue,
-.speedList:disabled .speedEase {
+.pointList:disabled .pointValue,
+.pointList:disabled .speedEase {
   opacity: 0.4;
 }
 

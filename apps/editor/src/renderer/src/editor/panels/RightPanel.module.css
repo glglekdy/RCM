@@ -15,6 +15,49 @@
   padding: 12px 12px 8px;
 }
 
+/* 패널 탭: 폭을 꽉 채우고, 고른 탭은 강조색 밑줄 */
+.tabs {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  height: 36px;
+  margin-bottom: -1px;
+  padding: 0 4px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: default;
+}
+
+/* 글자가 길어도 아이콘은 줄지 않게 */
+.tab svg {
+  flex: none;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.selected,
+.selected:hover {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
 .body {
   flex: 1;
   min-height: 0;

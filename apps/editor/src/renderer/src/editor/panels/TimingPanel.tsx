@@ -56,56 +56,65 @@ export function TimingPanel() {
 
   return (
     <>
-      {song.timing.map((point, i) => {
-          const seg = tm.segmentAt(point.tick)
-          const { measure, beat } = measureBeatAt(tm, point.tick)
-          return (
-            <Card key={point.tick} title={`변경 지점 ${i + 1}`}>
-              <Row label="위치">
-                <span className={styles.position}>
-                  {measure}마디 {beat}박
-                </span>
-                {i > 0 && (
-                  <IconButton
-                    icon={Trash2}
-                    label="삭제"
-                    onClick={() =>
-                      store.apply('BPM 삭제', removeTimingPoint(store.getState().doc, i))
-                    }
-                  />
-                )}
-              </Row>
-              <Row label="BPM">
-                <NumberField
-                  value={seg.bpm}
-                  min={1}
-                  max={999}
-                  step={0.1}
-                  onCommit={(bpm) =>
-                    store.apply('BPM 수정', updateTimingPoint(store.getState().doc, i, { bpm }))
-                  }
-                />
-              </Row>
-              <Row label="박자 수">
-                <NumberField
-                  value={seg.beatsPerMeasure}
-                  min={1}
-                  max={16}
-                  suffix="박"
-                  onCommit={(beatsPerMeasure) =>
-                    store.apply(
-                      'BPM 수정',
-                      updateTimingPoint(store.getState().doc, i, { beatsPerMeasure })
-                    )
-                  }
-                />
-              </Row>
-            </Card>
-          )
-        })}
-      <Card>
-        <Button onClick={addAtPlayhead}>변경 위치 추가</Button>
+      <Card title="BPM">
+        <div className={styles.pointList}>
+          {song.timing.map((point, i) => {
+            const seg = tm.segmentAt(point.tick)
+            const { measure, beat } = measureBeatAt(tm, point.tick)
+            return (
+              <div key={point.tick} className={styles.point}>
+                <div className={styles.pointRow}>
+                  <span className={styles.position}>
+                    {measure}마디 {beat}박
+                  </span>
+                  {/* 첫 지점은 곡의 기본 BPM이라 지울 수 없다 */}
+                  {i > 0 && (
+                    <IconButton
+                      icon={Trash2}
+                      label="삭제"
+                      onClick={() =>
+                        store.apply('BPM 삭제', removeTimingPoint(store.getState().doc, i))
+                      }
+                    />
+                  )}
+                </div>
+                <div className={styles.pointRow}>
+                  <div className={styles.pointValue}>
+                    <NumberField
+                      value={seg.bpm}
+                      min={1}
+                      max={999}
+                      step={0.1}
+                      suffix="BPM"
+                      onCommit={(bpm) =>
+                        store.apply('BPM 수정', updateTimingPoint(store.getState().doc, i, { bpm }))
+                      }
+                    />
+                  </div>
+                  <div className={styles.pointValue}>
+                    <NumberField
+                      value={seg.beatsPerMeasure}
+                      min={1}
+                      max={16}
+                      suffix="박"
+                      onCommit={(beatsPerMeasure) =>
+                        store.apply(
+                          'BPM 수정',
+                          updateTimingPoint(store.getState().doc, i, { beatsPerMeasure })
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+          <div className={styles.buttons}>
+            <Button onClick={addAtPlayhead}>현재 위치에 BPM 변경 추가</Button>
+          </div>
+        </div>
       </Card>
+      <SpeedCard tm={tm} />
       <Card title="탭 BPM">
         {est ? (
           <>
@@ -169,7 +178,6 @@ export function TimingPanel() {
           ))
         )}
       </Card>
-      <SpeedCard tm={tm} />
     </>
   )
 }

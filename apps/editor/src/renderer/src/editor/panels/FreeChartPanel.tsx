@@ -112,7 +112,7 @@ export function FreeChartPanel() {
             선택 도구(V)로 노트를 고르면 종류·방향·슬라이드 지점을 여기서 바꿀 수 있어요. 노트 양 끝을 끌면 폭이 바뀌어요.
           </p>
         ) : (
-          <fieldset className={styles.speedList} disabled={locked}>
+          <fieldset className={styles.pointList} disabled={locked}>
             <Row label={slide ? '폭 (전체)' : '폭'}>
               <NumberField
                 value={commonWidth ?? headWidth(selected[0])}
@@ -187,8 +187,8 @@ export function FreeChartPanel() {
                   const last = i === slide.points.length - 1
                   const mid = i > 0 && !last
                   return (
-                    <div key={`${i}-${pt.tick}`} className={styles.speedPoint}>
-                      <div className={styles.speedRow}>
+                    <div key={`${i}-${pt.tick}`} className={styles.point}>
+                      <div className={styles.pointRow}>
                         <span className={styles.position}>
                           지점 {i + 1}
                           {i === 0 ? ' · 시작' : last ? ' · 끝' : ''}
@@ -214,7 +214,7 @@ export function FreeChartPanel() {
                         )}
                       </div>
                       {!last && (
-                        <div className={styles.speedRow}>
+                        <div className={styles.pointRow}>
                           <SegmentedControl
                             options={SLIDE_EASE_OPTIONS}
                             value={pt.ease ?? 'linear'}

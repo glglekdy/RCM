@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Copy, Sparkles } from 'lucide-react'
+import { Check, Copy, Sparkles } from 'lucide-react'
 import type { HitEffectBlend, HitEffectSlot } from '@rcm/playfield'
 import { HIT_EFFECT_LIMITS, type HitEffectSource } from '../../../shared/hitEffects'
 import { Button, Card, NumberField, SegmentedControl, Slider, Switch, useToast } from '../ui'
@@ -86,13 +86,21 @@ export function HitEffectSettings() {
             아래 프롬프트를 AI(ChatGPT, Claude 등)에게 주면 이 에디터에 바로 넣을 수 있는 이펙트 PNG를 만들어 줘요.
           </span>
         </div>
-        <label className={styles.check}>
-          <input type="checkbox" checked={hasReference} onChange={(e) => setHasReference(e.target.checked)} />
-          <span>레퍼런스가 있어요</span>
+        <div className={styles.checkRow}>
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={hasReference}
+            className={styles.check}
+            onClick={() => setHasReference(!hasReference)}
+          >
+            <span className={styles.checkBox}>{hasReference && <Check size={12} strokeWidth={3} />}</span>
+            레퍼런스가 있어요
+          </button>
           <span className={styles.desc}>
             {hasReference ? 'AI가 먼저 레퍼런스 이미지를 달라고 해요' : 'AI가 묻지 않고 직접 디자인해요'}
           </span>
-        </label>
+        </div>
         <div className={styles.numbers}>
           <label className={styles.number}>
             <span>칸</span>
@@ -123,7 +131,7 @@ export function HitEffectSettings() {
         </span>
         <pre className={styles.prompt}>{prompt}</pre>
         <div className={styles.buttons}>
-          <Button variant="ghost" onClick={() => void copyPrompt()}>
+          <Button onClick={() => void copyPrompt()}>
             <Copy size={16} /> 프롬프트 복사
           </Button>
         </div>

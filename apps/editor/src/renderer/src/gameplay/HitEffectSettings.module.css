@@ -112,18 +112,52 @@
   gap: 6px;
 }
 
-.check {
+.checkRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  cursor: pointer;
+  gap: 10px;
 }
 
-.check input {
-  margin: 0;
-  accent-color: var(--accent);
-  cursor: pointer;
+/* 다른 버튼과 같은 회색 바탕의 둥근 토글 버튼. 켜면 체크 칸이 강조색으로 찬다 */
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 12px 0 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background var(--dur-fast);
+}
+
+.check:hover {
+  background: var(--bg-hover);
+}
+
+.check[aria-checked='true'] {
+  background: var(--accent-soft);
+}
+
+.checkBox {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--text-muted);
+  border-radius: 5px;
+  color: #fff;
+  transition: background var(--dur-fast), border-color var(--dur-fast);
+}
+
+.check[aria-checked='true'] .checkBox {
+  border-color: var(--accent);
+  background: var(--accent);
 }
 
 .prompt {

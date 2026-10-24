@@ -81,11 +81,12 @@
   border: 0;
 }
 
-/* 지점 하나: 위치·삭제 줄 + 값 줄 */
+/* 지점 하나: 위치·이동·삭제 줄 + 값 줄. 타임라인 칩으로 고르면 잠시 강조된다 (focusPoint.ts) */
 .point {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .point + .point {

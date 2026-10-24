@@ -8,6 +8,7 @@ import { useEditor, useStore } from '../state/useStore'
 import { drawFreeNotes } from './drawFree'
 import { drawTimeline } from './drawTimeline'
 import { createFreeToolController } from './freeTools'
+import { chipAt, type TimelineChip } from './hitTest'
 import { createToolController, type ToolGeometry, type ToolPointer } from './tools'
 import {
   clampPlayheadMs,
@@ -55,6 +56,8 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
   const propsRef = useRef({ tm, durationMs, peaks, recordingRef })
   propsRef.current = { tm, durationMs, peaks, recordingRef }
   const drawRef = useRef<() => void>(() => {})
+  /** 마지막으로 그린 BPM·변속 칩 (클릭·커서용) */
+  const chipsRef = useRef<TimelineChip[]>([])
   // 스크롤 맵은 채보의 speeds나 tm이 바뀔 때만 새로 만든다 (재생 중에는 매 프레임 그린다)
   const scrollRef = useRef<ScrollCache | null>(null)
   const tool = useEditor((s) => s.tool)
@@ -104,7 +107,7 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
         ? { preview: NO_NOTES, previewInvalid: false, hiddenKeys: undefined, selectRect: null }
         : laneTools.overlay()
       const freeOverlay = free ? freeTools.overlay() : null
-      drawTimeline(ctx, {
+      chipsRef.current = drawTimeline(ctx, {
         view,
         layout,
         tm,
@@ -208,7 +211,19 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
       drawRef.current()
     }
 
+  /** 이벤트 위치의 BPM·변속 칩 */
+  const chipUnder = (e: React.PointerEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    return chipAt(chipsRef.current, e.clientX - rect.left, e.clientY - rect.top)
+  }
+
   const onPointerDown = (e: React.PointerEvent) => {
+    // 칩을 누르면 BPM · 변속 탭을 열고 그 지점을 강조한다 (도구에는 넘기지 않는다)
+    const chip = e.button === 0 ? chipUnder(e) : null
+    if (chip) {
+      store.set({ panelOpen: true, panelTab: 'timing', focusPoint: { kind: chip.kind, tick: chip.tick } })
+      return
+    }
     // 드래그가 캔버스 밖으로 나가도 이어지도록 포인터를 붙잡는다 (오른쪽 버튼은 그리기 도구의 지우기 드래그)
     if (e.button === 0 || e.button === 2) e.currentTarget.setPointerCapture(e.pointerId)
     forward(tools().onPointerDown)(e)
@@ -218,6 +233,10 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.buttons !== 0) {
       forward(tools().onPointerMove)(e)
+      return
+    }
+    if (chipUnder(e)) {
+      e.currentTarget.style.cursor = 'pointer'
       return
     }
     const rect = e.currentTarget.getBoundingClientRect()

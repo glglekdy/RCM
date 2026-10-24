@@ -97,3 +97,22 @@ export function notesInRect(
   }
   return keys
 }
+
+/** 타임라인 오른쪽의 BPM·변속 라벨 칩. 그릴 때 실제 위치를 남겨 클릭을 받는다 (y는 칩 위쪽). */
+export interface TimelineChip {
+  kind: 'bpm' | 'speed'
+  tick: number
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** 좌표 아래의 칩 (테두리 포함). 겹치면 나중에 그린(위에 보이는) 칩. */
+export function chipAt(chips: readonly TimelineChip[], x: number, y: number): TimelineChip | null {
+  for (let i = chips.length - 1; i >= 0; i--) {
+    const c = chips[i]
+    if (x >= c.x && x <= c.x + c.width && y >= c.y && y <= c.y + c.height) return c
+  }
+  return null
+}

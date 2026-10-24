@@ -11,6 +11,7 @@ import {
 import { removeMarker, renameMarker } from '../commands/markers'
 import { applyTapFromHere, applyTapWhole } from '../commands/tap'
 import { useEditor, useStore } from '../state/useStore'
+import { useFocusPoint } from './focusPoint'
 import { SpeedCard } from './SpeedCard'
 import styles from './Panel.module.css'
 
@@ -31,6 +32,7 @@ export function TimingPanel() {
   const markers = useEditor((s) => s.doc.editorData.markers)
   const est = useMemo(() => estimateTempo(taps), [taps])
   const tm = useMemo(() => new TimingMap(song.timing, song.offsetMs), [song.timing, song.offsetMs])
+  const bpmListRef = useFocusPoint<HTMLDivElement>('bpm')
 
   const addAtPlayhead = () => {
     const { playheadMs, snap, doc } = store.getState()
@@ -57,26 +59,33 @@ export function TimingPanel() {
   return (
     <>
       <Card title="BPM">
-        <div className={styles.pointList}>
+        <div ref={bpmListRef} className={styles.pointList}>
           {song.timing.map((point, i) => {
             const seg = tm.segmentAt(point.tick)
             const { measure, beat } = measureBeatAt(tm, point.tick)
             return (
-              <div key={point.tick} className={styles.point}>
+              <div key={point.tick} className={styles.point} data-tick={point.tick}>
                 <div className={styles.pointRow}>
                   <span className={styles.position}>
                     {measure}마디 {beat}박
                   </span>
-                  {/* 첫 지점은 곡의 기본 BPM이라 지울 수 없다 */}
-                  {i > 0 && (
+                  <div className={styles.trackActions}>
                     <IconButton
-                      icon={Trash2}
-                      label="삭제"
-                      onClick={() =>
-                        store.apply('BPM 삭제', removeTimingPoint(store.getState().doc, i))
-                      }
+                      icon={CornerDownRight}
+                      label="이 위치로 이동"
+                      onClick={() => store.set({ playheadMs: tm.tickToMs(point.tick) })}
                     />
-                  )}
+                    {/* 첫 지점은 곡의 기본 BPM이라 지울 수 없다 */}
+                    {i > 0 && (
+                      <IconButton
+                        icon={Trash2}
+                        label="삭제"
+                        onClick={() =>
+                          store.apply('BPM 삭제', removeTimingPoint(store.getState().doc, i))
+                        }
+                      />
+                    )}
+                  </div>
                 </div>
                 <div className={styles.pointRow}>
                   <div className={styles.pointValue}>

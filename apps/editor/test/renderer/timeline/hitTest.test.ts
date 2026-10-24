@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { TimingMap, basicTracks, type Note } from '@rcm/core'
 import {
+  chipAt,
   hitTestNote,
   notesInRect,
   pointerToCell
@@ -77,5 +78,32 @@ describe('notesInRect', () => {
     const tracks = basicTracks(4)
     expect(notesInRect(notes, tracks, 3, 1, 960, 240)).toEqual(new Set(['Note_3:480', 'Note_4:960']))
     expect(notesInRect(notes, tracks, 0, 0, 480, 1920)).toEqual(new Set())
+  })
+})
+
+describe('timeline chip hit-test', () => {
+  const chips = [
+    { kind: 'bpm' as const, tick: 0, x: 700, y: 590, width: 60, height: 20 },
+    { kind: 'speed' as const, tick: 0, x: 700, y: 612, width: 40, height: 20 },
+    { kind: 'speed' as const, tick: 960, x: 700, y: 360, width: 40, height: 20 }
+  ]
+
+  it('좌표가 들어간 칩 (모서리 포함)', () => {
+    expect(chipAt(chips, 700, 590)).toEqual(chips[0])
+    expect(chipAt(chips, 760, 610)).toEqual(chips[0])
+    expect(chipAt(chips, 720, 620)).toEqual(chips[1])
+    expect(chipAt(chips, 710, 370)).toEqual(chips[2])
+  })
+
+  it('칩 밖이면 null', () => {
+    expect(chipAt(chips, 699, 600)).toBeNull()
+    expect(chipAt(chips, 761, 600)).toBeNull()
+    expect(chipAt(chips, 720, 500)).toBeNull()
+    expect(chipAt([], 720, 600)).toBeNull()
+  })
+
+  it('겹치면 나중에 그린(위에 보이는) 칩', () => {
+    const overlap = [chips[0], { ...chips[1], y: 600 }]
+    expect(chipAt(overlap, 720, 605)).toEqual(overlap[1])
   })
 })

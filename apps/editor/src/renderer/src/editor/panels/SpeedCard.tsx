@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react'
+import { CornerDownRight, Trash2 } from 'lucide-react'
 import { snapTick, TimingMap, type SpeedEase } from '@rcm/core'
 import { Button, Card, IconButton, NumberField, SegmentedControl, useToast } from '../../ui'
 import {
@@ -10,6 +10,7 @@ import {
 import { measureBeatAt } from '../commands/timing'
 import { getChart, type ProjectDoc } from '../state/doc'
 import { useEditor, useStore } from '../state/useStore'
+import { useFocusPoint } from './focusPoint'
 import styles from './Panel.module.css'
 
 const EASE_OPTIONS: { value: SpeedEase; label: string }[] = [
@@ -28,6 +29,7 @@ export function SpeedCard({ tm }: { tm: TimingMap }) {
   // 재생·녹음·테스트 플레이 중에는 고치지 않는다
   const locked = useEditor((s) => s.playing || s.mode !== 'edit')
   const speeds = chart.speeds ?? []
+  const listRef = useFocusPoint<HTMLFieldSetElement>('speed')
 
   const isLocked = () => {
     const s = store.getState()
@@ -63,7 +65,7 @@ export function SpeedCard({ tm }: { tm: TimingMap }) {
 
   return (
     <Card title={`변속 — ${chart.name}`}>
-      <fieldset className={styles.pointList} disabled={locked}>
+      <fieldset ref={listRef} className={styles.pointList} disabled={locked}>
         {speeds.length === 0 ? (
           <p className={styles.hint}>변속 없음 (×1)</p>
         ) : (
@@ -71,16 +73,23 @@ export function SpeedCard({ tm }: { tm: TimingMap }) {
             const { measure, beat, offset } = measureBeatAt(tm, point.tick)
             const first = point.tick === 0
             return (
-              <div key={point.tick} className={styles.point}>
+              <div key={point.tick} className={styles.point} data-tick={point.tick}>
                 <div className={styles.pointRow}>
                   <span className={styles.position}>
                     {measure}마디 {beat}박{offset > 0 ? ` +${offset}` : ''}
                   </span>
-                  <IconButton
-                    icon={Trash2}
-                    label="삭제"
-                    onClick={() => edit('변속 삭제', point.tick, (doc, i) => removeSpeedPoint(doc, file, i))}
-                  />
+                  <div className={styles.trackActions}>
+                    <IconButton
+                      icon={CornerDownRight}
+                      label="이 위치로 이동"
+                      onClick={() => store.set({ playheadMs: tm.tickToMs(point.tick) })}
+                    />
+                    <IconButton
+                      icon={Trash2}
+                      label="삭제"
+                      onClick={() => edit('변속 삭제', point.tick, (doc, i) => removeSpeedPoint(doc, file, i))}
+                    />
+                  </div>
                 </div>
                 <div className={styles.pointRow}>
                   <div className={styles.pointValue}>

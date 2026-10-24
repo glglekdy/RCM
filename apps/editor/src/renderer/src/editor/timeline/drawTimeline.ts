@@ -9,7 +9,7 @@ import {
   type TimingPoint
 } from '@rcm/core'
 import { peakInRange, type WaveformPeaks } from '../audio/waveform'
-import { NOTE_HEIGHT, type SelectRect } from './hitTest'
+import { NOTE_HEIGHT, type SelectRect, type TimelineChip } from './hitTest'
 import {
   SPEED_GRAPH_WIDTH,
   TRACK_NAME_HEIGHT,
@@ -106,7 +106,8 @@ const FONT = '500 12px "Pretendard Variable", Pretendard, system-ui, sans-serif'
 /** 1px 선이 픽셀 경계에 걸쳐 흐려지지 않도록 반 픽셀에 맞춘다. */
 const crisp = (v: number) => Math.round(v) + 0.5
 
-export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void {
+/** 그리고, 그린 BPM·변속 칩의 위치를 돌려준다 (칩 클릭용). */
+export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): TimelineChip[] {
   const { view, layout, tm } = p
   const left = layout.tracksX
   const right = layout.tracksX + layout.totalWidth
@@ -158,6 +159,9 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
   drawSpeedGraph(ctx, p)
 
   // BPM 변경 지점: 주황 선 + 라벨 칩
+  const chips: TimelineChip[] = []
+  const pushChip = (kind: TimelineChip['kind'], tick: number, y: number, width: number) =>
+    chips.push({ kind, tick, x: layout.labelX, y: y - CHIP_HEIGHT / 2, width, height: CHIP_HEIGHT })
   ctx.font = FONT
   ctx.textBaseline = 'middle'
   for (const point of p.timing) {
@@ -169,7 +173,8 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
     ctx.moveTo(left, y)
     ctx.lineTo(layout.labelX, y)
     ctx.stroke()
-    drawChip(ctx, layout.labelX, y, `${formatBpm(point.bpm)} BPM`, COLORS.bpmChip, COLORS.bpm)
+    const width = drawChip(ctx, layout.labelX, y, `${formatBpm(point.bpm)} BPM`, COLORS.bpmChip, COLORS.bpm)
+    pushChip('bpm', point.tick, y, width)
   }
 
   // 변속 지점: 초록 선 + 라벨 칩. 같은 tick에 BPM 칩이 있으면 그 아래에 놓는다
@@ -185,7 +190,8 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
     ctx.lineTo(layout.labelX, crisp(y))
     ctx.stroke()
     const chipY = bpmTicks.has(point.tick) ? y + CHIP_HEIGHT + 2 : y
-    drawChip(ctx, layout.labelX, chipY, speedLabel(point), COLORS.speedChip, COLORS.speed)
+    const width = drawChip(ctx, layout.labelX, chipY, speedLabel(point), COLORS.speedChip, COLORS.speed)
+    pushChip('speed', point.tick, chipY, width)
   }
 
   // 가이드 마커: 청록 점선 (트랙 + 파형 영역)
@@ -245,9 +251,10 @@ export function drawTimeline(ctx: CanvasRenderingContext2D, p: DrawParams): void
   ctx.moveTo(layout.waveX, py)
   ctx.lineTo(right, py)
   ctx.stroke()
+  return chips
 }
 
-/** x에서 시작해 세로 가운데가 y인 라벨 칩. */
+/** x에서 시작해 세로 가운데가 y인 라벨 칩. 칩 폭을 돌려준다. */
 function drawChip(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -255,7 +262,7 @@ function drawChip(
   text: string,
   background: string,
   color: string
-): void {
+): number {
   const w = Math.ceil(ctx.measureText(text).width) + 16
   ctx.fillStyle = background
   ctx.beginPath()
@@ -263,6 +270,7 @@ function drawChip(
   ctx.fill()
   ctx.fillStyle = color
   ctx.fillText(text, x + 8, y + 0.5)
+  return w
 }
 
 /** 트랙 오른쪽 속도 그래프 띠: 화면 1px 행마다 그 시각의 속도를 왼쪽부터 채운 막대 (×4에서 꽉 참). */

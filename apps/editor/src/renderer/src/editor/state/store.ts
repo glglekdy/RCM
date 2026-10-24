@@ -21,6 +21,8 @@ export interface EditorState {
   selection: ReadonlySet<string>
   panelOpen: boolean
   panelTab: 'song' | 'timing' | 'chart'
+  /** 타임라인 칩을 눌러 패널에서 강조할 BPM·변속 지점. 패널이 강조한 뒤 null로 비운다 */
+  focusPoint: { kind: 'bpm' | 'speed'; tick: number } | null
   hitsoundVolume: number
   musicVolume: number
   taps: number[]
@@ -60,6 +62,7 @@ export class EditorStore {
       selection: new Set(),
       panelOpen: true,
       panelTab: 'song',
+      focusPoint: null,
       hitsoundVolume: 0.6,
       musicVolume: 1,
       taps: [],

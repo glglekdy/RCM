@@ -137,6 +137,27 @@ describe('HitEffectLayer', () => {
     expect(raw.globalCompositeOperation).toBe('source-over');
   });
 
+  it('그리다 예외가 나도 restore로 합치기 방식을 되돌림', () => {
+    const layer = new HitEffectLayer();
+    const { ctx, raw, log } = fakeCtx();
+    raw.drawImage.mockImplementation(() => {
+      throw new Error('InvalidStateError');
+    });
+    layer.spawn(0, 0, 'perfect', 0);
+    const effects = withSprite({ blend: 'add', perfect: { frames: sheetFrames(img, 100, 100, 1, 1, 1), fps: 1 } });
+    expect(() => layer.draw(ctx, 10, effects, colors)).toThrow();
+    expect(log.ops[log.ops.length - 1]).toBe('restore');
+  });
+
+  it('닫힌(크기 0) 이미지 프레임은 건너뜀', () => {
+    const layer = new HitEffectLayer();
+    const { ctx, raw } = fakeCtx();
+    const closed = { width: 0, height: 0 } as unknown as CanvasImageSource;
+    layer.spawn(0, 0, 'perfect', 0);
+    layer.draw(ctx, 10, withSprite({ perfect: { frames: [{ image: closed, sx: 0, sy: 0, sw: 10, sh: 10 }], fps: 1 } }), colors);
+    expect(raw.drawImage).not.toHaveBeenCalled();
+  });
+
   it('enabled false면 그리지 않음', () => {
     const layer = new HitEffectLayer();
     const { ctx, raw } = fakeCtx();

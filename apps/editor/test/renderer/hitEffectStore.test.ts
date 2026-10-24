@@ -143,6 +143,36 @@ describe('타격 이펙트 store', () => {
     await expect(store.pickHitEffect('perfect', 'sheet')).rejects.toThrow('PNG 파일만 쓸 수 있어요')
   })
 
+  it('pickHitEffect 오류는 IPC 접두사를 떼고 던짐', async () => {
+    const store = await freshStore()
+    api.pickHitEffect.mockRejectedValue(
+      new Error("Error invoking remote method 'rcm:pick-hit-effect': Error: 프레임은 120장까지 넣을 수 있어요")
+    )
+    await expect(store.pickHitEffect('normal', 'frames')).rejects.toThrow(/^프레임은 120장까지 넣을 수 있어요$/)
+  })
+
+  it('겹친 불러오기는 나중에 시작한 것이 이기고, 늦게 끝난 옛 결과는 닫음', async () => {
+    const store = await freshStore()
+    const oldBmp = bitmap(400, 200)
+    const newBmp = bitmap(400, 200)
+    let releaseOld!: (v: Uint8Array[]) => void
+    api.readHitEffectImages
+      .mockImplementationOnce(() => new Promise((r) => (releaseOld = r)))
+      .mockResolvedValueOnce([new Uint8Array([2])])
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(async (blob: Blob) => ((await blob.arrayBuffer()).byteLength === 1 && new Uint8Array(await blob.arrayBuffer())[0] === 2 ? newBmp : oldBmp))
+    )
+    api.pickHitEffect.mockResolvedValue({ ...base, perfect: sheet })
+    const first = store.pickHitEffect('perfect', 'sheet')
+    await store.pickHitEffect('perfect', 'sheet')
+    releaseOld([new Uint8Array([1])])
+    await first
+    expect(store.getHitEffects().perfect?.frames[0].image).toBe(newBmp)
+    expect(oldBmp.close).toHaveBeenCalled()
+    expect(newBmp.close).not.toHaveBeenCalled()
+  })
+
   it('clearHitEffect: 슬롯과 오류를 비움', async () => {
     const store = await freshStore()
     api.getHitEffects.mockResolvedValue({ ...base, perfect: sheet })

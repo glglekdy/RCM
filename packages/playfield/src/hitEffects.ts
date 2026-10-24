@@ -105,7 +105,16 @@ export class HitEffectLayer {
       return;
     }
     ctx.save();
-    if (effects.blend === 'add') ctx.globalCompositeOperation = 'lighter';
+    // 그리다 예외가 나도 합치기 방식이 다음 프레임 배경까지 번지지 않게 되돌린다
+    try {
+      if (effects.blend === 'add') ctx.globalCompositeOperation = 'lighter';
+      this.drawLive(ctx, ms, effects, colors);
+    } finally {
+      ctx.restore();
+    }
+  }
+
+  private drawLive(ctx: CanvasRenderingContext2D, ms: number, effects: HitEffects, colors: EffectColors): void {
     this.live = this.live.filter(e => {
       const age = ms - e.ms;
       if (age < 0) return false;
@@ -117,6 +126,8 @@ export class HitEffectLayer {
       }
       const f = frameAt(sprite, age);
       if (!f) return false;
+      // 닫힌 ImageBitmap은 크기가 0이고 그리면 예외가 난다 (새 이미지로 바뀌는 사이)
+      if ((f.image as { width?: unknown }).width === 0) return true;
       const k = effects.size / Math.max(f.sw, f.sh);
       const w = f.sw * k;
       const h = f.sh * k;
@@ -124,7 +135,6 @@ export class HitEffectLayer {
       ctx.drawImage(f.image, f.sx, f.sy, f.sw, f.sh, e.x - w / 2, e.y - h / 2, w, h);
       return true;
     });
-    ctx.restore();
   }
 }
 

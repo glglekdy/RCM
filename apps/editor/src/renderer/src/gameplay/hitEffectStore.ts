@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { DEFAULT_HIT_EFFECTS, sheetFrames, type HitEffects, type HitEffectSlot, type HitEffectSprite } from '@rcm/playfield'
 import { DEFAULT_HIT_EFFECT_SETTINGS, HIT_EFFECT_SLOTS, type HitEffectSettings, type HitEffectSource } from '../../../shared/hitEffects'
+import { ipcErrorMessage } from '../home/importZips'
 
 /** 숫자 입력을 끄는 동안에는 화면만 바꾸고, 멈춘 뒤 마지막 값만 설정 파일에 쓴다 */
 const SAVE_DELAY_MS = 300
@@ -15,6 +16,8 @@ let effects: HitEffects = { ...DEFAULT_HIT_EFFECTS }
 let errors: SlotErrors = {}
 /** 슬롯별로 읽어 둔 이미지. 칸·줄·fps만 바뀌면 다시 읽지 않는다 */
 const images: Partial<Record<HitEffectSlot, ImageBitmap[]>> = {}
+/** 슬롯별 마지막으로 시작한 읽기 번호. 늦게 끝난 옛 읽기 결과는 버린다 */
+const loads: Record<HitEffectSlot, number> = { perfect: 0, normal: 0 }
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 const listeners = new Set<() => void>()
 
@@ -68,20 +71,31 @@ function setError(slot: HitEffectSlot, message: string | undefined): void {
 
 /** 슬롯 이미지를 다시 읽는다. 못 읽으면 그 슬롯은 기본 이펙트와 오류 문구 */
 async function loadSlot(slot: HitEffectSlot): Promise<void> {
+  const load = ++loads[slot]
   if (!settings[slot]) {
     setImages(slot, undefined)
     setError(slot, undefined)
     return
   }
+  let bitmaps: ImageBitmap[] | undefined
+  let failed: unknown
   try {
     const bytes = await window.rcm.readHitEffectImages(slot)
-    const bitmaps = await Promise.all(
+    bitmaps = await Promise.all(
       bytes.map((b) => createImageBitmap(new Blob([b as Uint8Array<ArrayBuffer>], { type: 'image/png' })))
     )
+  } catch (err) {
+    failed = err
+  }
+  if (load !== loads[slot]) {
+    for (const b of bitmaps ?? []) b.close()
+    return
+  }
+  if (bitmaps) {
     setImages(slot, bitmaps)
     setError(slot, undefined)
-  } catch (err) {
-    console.warn('타격 이펙트 파일을 읽지 못했어요', err)
+  } else {
+    console.warn('타격 이펙트 파일을 읽지 못했어요', failed)
     setImages(slot, undefined)
     setError(slot, READ_ERROR)
   }
@@ -130,9 +144,14 @@ export function updateHitEffectSettings(next: HitEffectSettings): void {
   }, SAVE_DELAY_MS)
 }
 
-/** 파일을 골라 슬롯에 넣는다. 취소하면 그대로, 파일이 맞지 않으면 throw (문구는 그대로 보여 줄 수 있다) */
+/** 파일을 골라 슬롯에 넣는다. 취소하면 그대로, 파일이 맞지 않으면 throw (IPC 접두사를 뗀 문구라 그대로 보여 줄 수 있다) */
 export async function pickHitEffect(slot: HitEffectSlot, type: 'sheet' | 'frames'): Promise<void> {
-  const next = await window.rcm.pickHitEffect(slot, type)
+  let next: HitEffectSettings | null
+  try {
+    next = await window.rcm.pickHitEffect(slot, type)
+  } catch (err) {
+    throw new Error(ipcErrorMessage(err))
+  }
   if (!next) return
   settings = next
   await loadSlot(slot)
@@ -142,6 +161,7 @@ export async function pickHitEffect(slot: HitEffectSlot, type: 'sheet' | 'frames
 /** 슬롯을 비워 기본 이펙트로 되돌린다 */
 export async function clearHitEffect(slot: HitEffectSlot): Promise<void> {
   settings = await window.rcm.clearHitEffect(slot)
+  loads[slot]++
   setImages(slot, undefined)
   setError(slot, undefined)
   rebuild()

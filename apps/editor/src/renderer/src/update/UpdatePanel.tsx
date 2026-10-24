@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
+import { RotateCw } from 'lucide-react'
 import { Button } from '../ui'
 import { hasNotesFor, openWhatsNew } from '../whatsNew/whatsNewStore'
 import { useUpdateState } from './updateStore'
-import { updateStatusText } from './updateText'
+import { updateButtonAction, updateStatusText } from './updateText'
 import styles from './UpdatePanel.module.css'
 
 export function UpdatePanel() {
@@ -37,14 +38,20 @@ export function UpdatePanel() {
           </button>
         )}
       </div>
-      <Button
-        disabled={!packaged || busy}
-        onClick={() => {
-          window.rcm.checkForUpdates().catch(() => {})
-        }}
-      >
-        업데이트 확인
-      </Button>
+      {updateButtonAction(state) === 'restart' ? (
+        <Button variant="primary" onClick={() => window.rcm.installUpdate()}>
+          <RotateCw size={14} /> 재시작해서 업데이트
+        </Button>
+      ) : (
+        <Button
+          disabled={!packaged || busy}
+          onClick={() => {
+            window.rcm.checkForUpdates().catch(() => {})
+          }}
+        >
+          업데이트 확인
+        </Button>
+      )}
       {text && (
         <div className={styles.status} title={state.kind === 'error' ? state.message : undefined}>
           {text}

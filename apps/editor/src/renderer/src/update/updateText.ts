@@ -17,3 +17,8 @@ export function updateStatusText(s: UpdateState): string | null {
       return '확인하지 못했어요'
   }
 }
+
+/** 패널 버튼이 할 일: 새 버전을 다 받았으면 재시작해서 설치, 아니면 업데이트 확인 */
+export function updateButtonAction(s: UpdateState): 'check' | 'restart' {
+  return s.kind === 'ready' ? 'restart' : 'check'
+}

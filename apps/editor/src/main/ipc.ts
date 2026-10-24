@@ -3,8 +3,21 @@ import { dirname, join } from 'node:path'
 import { DEFAULT_LAYOUT, sanitizeLayout } from '@rcm/playfield'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { CreateProjectOptions, RecentProject } from '../shared/api'
+import {
+  DEFAULT_HIT_EFFECT_SETTINGS,
+  isHitEffectSlot,
+  sanitizeHitEffectSettings,
+  type HitEffectSettings
+} from '../shared/hitEffects'
 import { addGuidePath, sameGuidePath, syncGuideFiles } from './guide/guideFiles'
 import { chartFormatGuide } from './guide/guideText'
+import {
+  clearHitEffectFiles,
+  importHitEffectFiles,
+  readHitEffectFiles,
+  sourceWithFiles,
+  withStoredFiles
+} from './hitEffectFiles'
 import { writeFileAtomic } from './project/atomicWrite'
 import { importProjectZip } from './project/importZip'
 import {
@@ -33,6 +46,8 @@ import {
 
 export const settingsFile = (): string => join(app.getPath('userData'), 'settings.json')
 const defaultProjectDir = (): string => join(app.getPath('documents'), 'RCM Projects')
+/** 타격 이펙트 PNG를 복사해 두는 곳 */
+const hitEffectRoot = (): string => join(app.getPath('userData'), 'hit-effects')
 
 /** 최근 목록 갱신. 설정 파일을 읽지 못해도 프로젝트 열기·만들기는 실패시키지 않는다. */
 async function touch(dir: string, extra?: { defaultProjectDir: string }): Promise<void> {
@@ -218,6 +233,64 @@ export function registerProjectIpc(): void {
     return updateSettings(settingsFile(), (settings) => {
       settings.gameplay = layout
     })
+  })
+
+  const hitEffectsOf = (settings: { hitEffects?: HitEffectSettings }): HitEffectSettings =>
+    settings.hitEffects ?? { ...DEFAULT_HIT_EFFECT_SETTINGS }
+
+  const checkSlot = (raw: unknown) => {
+    if (!isHitEffectSlot(raw)) throw new Error('이펙트 슬롯이 올바르지 않아요')
+    return raw
+  }
+
+  ipcMain.handle('rcm:get-hit-effects', async () => hitEffectsOf(await loadSettings(settingsFile())))
+
+  // 숫자·켜기·합치기만 바꾼다. 슬롯 파일은 pick·clear로만 바뀐다
+  ipcMain.handle('rcm:set-hit-effects', async (_e, raw: unknown) => {
+    const incoming = sanitizeHitEffectSettings(raw)
+    return updateSettings(settingsFile(), (settings) => {
+      settings.hitEffects = withStoredFiles(settings.hitEffects, incoming)
+    })
+  })
+
+  ipcMain.handle('rcm:pick-hit-effect', async (e, rawSlot: unknown, type: unknown) => {
+    const slot = checkSlot(rawSlot)
+    if (type !== 'sheet' && type !== 'frames') throw new Error('이펙트 형식이 올바르지 않아요')
+    const options: Electron.OpenDialogOptions = {
+      title: type === 'sheet' ? '타격 이펙트 시트 고르기' : '타격 이펙트 프레임 고르기',
+      properties: type === 'sheet' ? ['openFile'] : ['openFile', 'multiSelections'],
+      filters: [{ name: 'PNG', extensions: ['png'] }]
+    }
+    const win = parentOf(e)
+    const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (r.canceled || r.filePaths.length === 0) return null
+    const names = await importHitEffectFiles(hitEffectRoot(), slot, type, r.filePaths)
+    let next: HitEffectSettings = { ...DEFAULT_HIT_EFFECT_SETTINGS }
+    await updateSettings(settingsFile(), (settings) => {
+      const current = hitEffectsOf(settings)
+      next = { ...current, [slot]: sourceWithFiles(current[slot], type, names) }
+      settings.hitEffects = next
+    })
+    return next
+  })
+
+  ipcMain.handle('rcm:clear-hit-effect', async (_e, rawSlot: unknown) => {
+    const slot = checkSlot(rawSlot)
+    await clearHitEffectFiles(hitEffectRoot(), slot)
+    let next: HitEffectSettings = { ...DEFAULT_HIT_EFFECT_SETTINGS }
+    await updateSettings(settingsFile(), (settings) => {
+      next = { ...hitEffectsOf(settings) }
+      delete next[slot]
+      settings.hitEffects = next
+    })
+    return next
+  })
+
+  ipcMain.handle('rcm:read-hit-effect-images', async (_e, rawSlot: unknown) => {
+    const slot = checkSlot(rawSlot)
+    const source = hitEffectsOf(await loadSettings(settingsFile()))[slot]
+    if (!source) return []
+    return readHitEffectFiles(hitEffectRoot(), slot, source.type === 'sheet' ? [source.file] : source.files)
   })
 
   ipcMain.handle('rcm:save-text-file', async (e, defaultName: string, text: string) => {

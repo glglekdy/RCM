@@ -60,7 +60,12 @@ const api: RcmApi = {
   getPlaytestSpeed: () => ipcRenderer.invoke('rcm:get-playtest-speed'),
   setPlaytestSpeed: (speed) => ipcRenderer.invoke('rcm:set-playtest-speed', speed),
   getGameplayLayout: () => ipcRenderer.invoke('rcm:get-gameplay-layout'),
-  setGameplayLayout: (layout) => ipcRenderer.invoke('rcm:set-gameplay-layout', layout)
+  setGameplayLayout: (layout) => ipcRenderer.invoke('rcm:set-gameplay-layout', layout),
+  getHitEffects: () => ipcRenderer.invoke('rcm:get-hit-effects'),
+  setHitEffects: (settings) => ipcRenderer.invoke('rcm:set-hit-effects', settings),
+  pickHitEffect: (slot, type) => ipcRenderer.invoke('rcm:pick-hit-effect', slot, type),
+  clearHitEffect: (slot) => ipcRenderer.invoke('rcm:clear-hit-effect', slot),
+  readHitEffectImages: (slot) => ipcRenderer.invoke('rcm:read-hit-effect-images', slot)
 }
 
 contextBridge.exposeInMainWorld('rcm', api)

@@ -1,5 +1,6 @@
 import type { FlickMode, Track } from '@rcm/core'
-import type { PlayfieldLayout } from '@rcm/playfield'
+import type { HitEffectSlot, PlayfieldLayout } from '@rcm/playfield'
+import type { HitEffectSettings } from './hitEffects'
 import type { UpdateState } from '../main/update/updateState'
 import type { PresenceInfo } from './presence'
 import type { TrackPreset } from './presets'
@@ -116,6 +117,16 @@ export interface RcmApi {
   getGameplayLayout(): Promise<PlayfieldLayout>
   /** 범위 밖 값은 범위로 잘라 저장한다. */
   setGameplayLayout(layout: PlayfieldLayout): Promise<void>
+  /** 타격 이펙트 설정 (저장된 값이 없으면 기본값). */
+  getHitEffects(): Promise<HitEffectSettings>
+  /** 켜기·크기·합치기와 슬롯 숫자만 저장한다. 슬롯 파일은 바뀌지 않는다. */
+  setHitEffects(settings: HitEffectSettings): Promise<void>
+  /** 대화상자에서 고른 PNG를 복사하고 새 설정값을 돌려준다. 취소하면 null, 파일이 맞지 않으면 reject. */
+  pickHitEffect(slot: HitEffectSlot, type: 'sheet' | 'frames'): Promise<HitEffectSettings | null>
+  /** 슬롯을 비워 기본 이펙트로 되돌리고 새 설정값을 돌려준다. */
+  clearHitEffect(slot: HitEffectSlot): Promise<HitEffectSettings>
+  /** 슬롯 이미지 바이트 (시트는 1개, 프레임은 순서대로). 슬롯이 비었으면 빈 배열, 파일이 없으면 reject. */
+  readHitEffectImages(slot: HitEffectSlot): Promise<Uint8Array[]>
 }
 
 declare global {

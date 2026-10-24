@@ -5,6 +5,7 @@ export * from './gimmick';
 export * from './view';
 export * from './layout';
 export * from './autoplay';
+export * from './hitEffects';
 export * from './freePlayState';
 export * from './freeView';
 export * from './FreePlayfield';

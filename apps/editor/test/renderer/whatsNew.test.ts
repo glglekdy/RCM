@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { parseInline, parseNotes } from '../../src/renderer/src/whatsNew/markdown'
 import { RELEASE_NOTES } from '../../src/renderer/src/whatsNew/notes'
-import { compareVersions, latestNotesVersion, whatsNewVersions } from '../../src/renderer/src/whatsNew/versions'
+import { compareVersions, latestNotesVersion, notesHistory, whatsNewVersions } from '../../src/renderer/src/whatsNew/versions'
 
 const available = ['0.4.0', '0.4.1', '0.5.0', '0.5.1', '0.5.2', '0.10.0']
 
@@ -29,6 +29,11 @@ describe('whatsNewVersions', () => {
     expect(latestNotesVersion(available, '0.5.2')).toBe('0.5.2')
     expect(latestNotesVersion(available, '0.9.0')).toBe('0.5.2')
     expect(latestNotesVersion(available, '0.3.0')).toBeNull()
+  })
+  it('지난 내역 전체: 지금 버전 이하, 최신부터', () => {
+    expect(notesHistory(available, '0.5.1')).toEqual(['0.5.1', '0.5.0', '0.4.1', '0.4.0'])
+    expect(notesHistory(available, '0.10.0')).toEqual(['0.10.0', '0.5.2', '0.5.1', '0.5.0', '0.4.1', '0.4.0'])
+    expect(notesHistory(available, '0.3.0')).toEqual([])
   })
   it('버전은 숫자로 비교', () => {
     expect(compareVersions('0.10.0', '0.9.9')).toBe(1)

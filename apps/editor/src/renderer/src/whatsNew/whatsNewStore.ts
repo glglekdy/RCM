@@ -1,11 +1,13 @@
 import { useSyncExternalStore } from 'react'
 import { RELEASE_NOTES } from './notes'
-import { latestNotesVersion, whatsNewVersions } from './versions'
+import { latestNotesVersion, notesHistory, whatsNewVersions } from './versions'
 
 export interface WhatsNewView {
   title: string
   /** 보여 줄 내역 버전들 (최신부터) */
   versions: string[]
+  /** 지난 내역 보기: 버전 버튼 목록부터 보이고, 누른 버전의 내역을 보여 준다 */
+  history?: boolean
 }
 
 let view: WhatsNewView | null = null
@@ -49,8 +51,8 @@ export function hasNotesFor(current: string): boolean {
   return latestNotesVersion([...RELEASE_NOTES.keys()], current) !== null
 }
 
-/** 지금 버전 이하에서 가장 최신 내역을 띄운다 */
+/** 지금 버전 이하의 내역을 버전 버튼 목록으로 띄운다 */
 export function openWhatsNew(current: string): void {
-  const version = latestNotesVersion([...RELEASE_NOTES.keys()], current)
-  if (version !== null) set({ title: `${version} 업데이트 내역`, versions: [version] })
+  const versions = notesHistory([...RELEASE_NOTES.keys()], current)
+  if (versions.length > 0) set({ title: '업데이트 내역', versions, history: true })
 }

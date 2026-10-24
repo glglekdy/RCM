@@ -29,8 +29,12 @@ export function whatsNewVersions(available: readonly string[], current: string, 
   return shown.sort((a, b) => compareVersions(b, a))
 }
 
-/** 지금 버전 이하에서 가장 최신 내역 (사이드바에서 다시 볼 때). 없으면 null */
+/** 지금 버전 이하의 내역 전부, 최신부터 (사이드바에서 지난 내역까지 볼 때) */
+export function notesHistory(available: readonly string[], current: string): string[] {
+  return available.filter((v) => compareVersions(v, current) <= 0).sort((a, b) => compareVersions(b, a))
+}
+
+/** 지금 버전 이하에서 가장 최신 내역. 없으면 null */
 export function latestNotesVersion(available: readonly string[], current: string): string | null {
-  const older = available.filter((v) => compareVersions(v, current) <= 0).sort((a, b) => compareVersions(b, a))
-  return older[0] ?? null
+  return notesHistory(available, current)[0] ?? null
 }

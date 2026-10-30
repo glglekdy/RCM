@@ -50,6 +50,8 @@ interface BottomToolbarProps {
   onNewProject: () => void
   onOpenProject: () => void
   onSave: () => void
+  onImportCharts: () => void
+  onExportChart: () => void
   onHome: () => void
   /** 테스트 플레이 화면에 덮여 있는 동안 포커스·클릭을 받지 않는다 */
   inert?: boolean
@@ -63,6 +65,8 @@ export function BottomToolbar({
   onNewProject,
   onOpenProject,
   onSave,
+  onImportCharts,
+  onExportChart,
   onHome,
   inert
 }: BottomToolbarProps) {
@@ -241,6 +245,8 @@ export function BottomToolbar({
               { label: '새 프로젝트', onSelect: onNewProject },
               { label: '열기', onSelect: onOpenProject },
               { label: '저장', onSelect: onSave },
+              { label: '채보 불러오기', onSelect: onImportCharts },
+              { label: '채보 내보내기', onSelect: onExportChart },
               { label: '홈으로', onSelect: onHome }
             ]}
           />

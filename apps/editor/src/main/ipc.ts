@@ -19,6 +19,7 @@ import {
   withStoredFiles
 } from './hitEffectFiles'
 import { writeFileAtomic } from './project/atomicWrite'
+import { chartExportName, readChartFile } from './project/chartFiles'
 import { importProjectZip } from './project/importZip'
 import {
   assertDirectory,
@@ -147,6 +148,33 @@ export function registerProjectIpc(): void {
   ipcMain.handle('rcm:import-project-audio', (_e, dir: string, source: string) =>
     importProjectAudio(dir, source)
   )
+
+  ipcMain.handle('rcm:pick-chart-files', async (e) => {
+    const options: Electron.OpenDialogOptions = {
+      title: '채보 불러오기',
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'RCM 채보', extensions: ['json'] }]
+    }
+    const win = parentOf(e)
+    const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    return r.canceled ? [] : r.filePaths
+  })
+
+  ipcMain.handle('rcm:read-chart-file', (_e, file: unknown) => readChartFile(file))
+
+  ipcMain.handle('rcm:export-chart', async (e, name: unknown, text: unknown) => {
+    if (typeof text !== 'string') throw new Error('채보 내용이 올바르지 않아요')
+    const options: Electron.SaveDialogOptions = {
+      title: '채보 내보내기',
+      defaultPath: join(app.getPath('downloads'), chartExportName(name)),
+      filters: [{ name: 'RCM 채보', extensions: ['json'] }]
+    }
+    const win = parentOf(e)
+    const r = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
+    if (r.canceled || !r.filePath) return null
+    await writeFileAtomic(r.filePath, text)
+    return r.filePath
+  })
 
   ipcMain.handle(
     'rcm:write-project-files',

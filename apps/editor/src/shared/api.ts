@@ -65,6 +65,12 @@ export interface RcmApi {
   readAudio(path: string): Promise<ArrayBuffer>
   /** 음악 파일을 프로젝트 폴더에 새 이름으로 복사하고 그 파일 이름(song.json의 `audio` 값)을 돌려준다. */
   importProjectAudio(dir: string, source: string): Promise<string>
+  /** 대화상자에서 고른 채보 파일 경로들. 취소하면 빈 배열. */
+  pickChartFiles(): Promise<string[]>
+  /** 프로젝트 밖의 채보 파일(`.json`)을 읽는다. */
+  readChartFile(path: string): Promise<string>
+  /** 저장 대화상자(기본 위치: 다운로드 폴더)로 채보를 내보낸다. 취소하면 null, 저장하면 그 경로. */
+  exportChart(defaultName: string, text: string): Promise<string | null>
   writeProjectFiles(dir: string, files: { name: string; text: string }[]): Promise<void>
   /** 프로젝트 폴더의 `*.chart.json` 파일을 지운다 (다른 이름은 거부). */
   deleteProjectFiles(dir: string, names: string[]): Promise<void>

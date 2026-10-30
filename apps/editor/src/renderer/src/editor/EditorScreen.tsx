@@ -1,11 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { PanelRight } from 'lucide-react'
-import { isFreeChart, noteStartTicks, TimingMap } from '@rcm/core'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type DragEvent
+} from 'react'
+import { FileMusic, PanelRight } from 'lucide-react'
+import { isFreeChart, noteStartTicks, serializeChart, serializeFreeChart, TimingMap } from '@rcm/core'
 import { trackForCode, trackForKey, type TrackKeymap } from '@rcm/playfield'
 import type { ProjectFiles } from '../../../shared/api'
 import { resolveKeymap } from '../../../shared/presets'
+import { ipcErrorMessage } from '../home/importZips'
 import { NewProjectDialog } from '../home/NewProjectDialog'
 import { getPresets } from '../presets/presetStore'
+import { importCharts } from './commands/charts'
 import { addMarker, neighborMarkerMs } from './commands/markers'
 import { applyRecording, recordingMessage, type RecordSession } from './commands/record'
 import { runEditAction } from './commands/editActions'
@@ -488,6 +498,86 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     [stop, store]
   )
 
+  // ---- 채보 불러오기·내보내기 ----
+  /** 채보 파일들을 새 난이도로 붙이고(Undo 한 번) 마지막으로 붙인 채보를 연다. 읽지 못한 파일은 모아 알린다. */
+  const importChartFiles = useCallback(
+    async (files: readonly { name: string; path: string }[]) => {
+      const read: { name: string; text: string }[] = []
+      const failed: string[] = []
+      for (const f of files) {
+        try {
+          if (f.path === '') throw new Error('채보 파일(.chart.json)만 불러올 수 있어요')
+          read.push({ name: f.name, text: await window.rcm.readChartFile(f.path) })
+        } catch (err) {
+          failed.push(`${f.name}: ${ipcErrorMessage(err)}`)
+        }
+      }
+      // 녹음 중이면 녹음한 노트부터 합친 뒤에 붙인다
+      stop()
+      const r = importCharts(store.getState().doc, read)
+      failed.push(...r.failed)
+      const last = r.added.at(-1)
+      if (last) {
+        store.apply('채보 불러오기', r.doc, last)
+        selectChart(last)
+      }
+      const n = r.added.length
+      if (failed.length > 0) {
+        await dialogs.alert(
+          n > 0 ? `채보 ${n}개를 불러왔지만, 불러오지 못한 파일이 있어요` : '채보를 불러오지 못했어요',
+          failed
+        )
+      } else if (n > 0) {
+        toast(`채보 ${n}개를 불러왔어요. 저장하면 프로젝트에 들어가요`)
+      }
+    },
+    [store, stop, selectChart, dialogs, toast]
+  )
+
+  const pickChartFiles = useCallback(async () => {
+    const paths = await window.rcm.pickChartFiles()
+    await importChartFiles(paths.map((path) => ({ name: path.split(/[\\/]/).pop() ?? path, path })))
+  }, [importChartFiles])
+
+  /** 지금 보고 있는 난이도의 채보를 (저장하지 않은 변경까지) 파일로 내보낸다. */
+  const exportChart = useCallback(async () => {
+    commitFocusedField()
+    const s = store.getState()
+    const chart = getChart(s.doc, s.activeChart)
+    const text = isFreeChart(chart) ? serializeFreeChart(chart) : serializeChart(chart)
+    try {
+      if (await window.rcm.exportChart(s.activeChart, text)) toast(`${chart.name} 채보를 내보냈어요`)
+    } catch (err) {
+      await dialogs.alert('채보를 내보내지 못했어요', ipcErrorMessage(err))
+    }
+  }, [store, toast, dialogs])
+
+  // 편집 화면에 채보 파일을 끌어다 놓으면 불러온다 (테스트 플레이 중에는 받지 않는다)
+  const [dropping, setDropping] = useState(false)
+  const dragDepth = useRef(0)
+  const acceptsDrop = (e: DragEvent) =>
+    e.dataTransfer.types.includes('Files') && store.getState().mode !== 'playtest'
+
+  const onDragEnter = (e: DragEvent) => {
+    if (!acceptsDrop(e)) return
+    dragDepth.current++
+    setDropping(true)
+  }
+
+  const onDragLeave = (e: DragEvent) => {
+    if (!acceptsDrop(e)) return
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDropping(false)
+  }
+
+  const onDrop = (e: DragEvent) => {
+    dragDepth.current = 0
+    setDropping(false)
+    if (!acceptsDrop(e)) return
+    const files = [...e.dataTransfer.files].map((f) => ({ name: f.name, path: window.rcm.pathForFile(f) }))
+    if (files.length > 0) void importChartFiles(files)
+  }
+
   // ---- 단축키 ----
   const runAction = (action: Action) => {
     if (typeof action === 'object') {
@@ -633,7 +723,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   }, [store, engine])
 
   return (
-    <div className={styles.screen}>
+    <div className={styles.screen} onDragEnter={onDragEnter} onDragLeave={onDragLeave} onDrop={onDrop}>
       <TitleBar title={title} dirty={dirty} />
       {/* 테스트 플레이 화면 아래의 편집 화면은 Tab 등으로 포커스되지 않게 한다 */}
       <div className={styles.main} inert={playtestFromMs !== null}>
@@ -665,9 +755,20 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
         onNewProject={() => void newProject()}
         onOpenProject={() => void openProject()}
         onSave={() => void save()}
+        onImportCharts={() => void pickChartFiles()}
+        onExportChart={() => void exportChart()}
         onHome={() => void goHome()}
         inert={playtestFromMs !== null}
       />
+      {dropping && (
+        <div className={`${styles.dropOverlay} enter-fade`} aria-live="polite">
+          <div className={`${styles.dropBox} enter-pop`}>
+            <FileMusic size={36} />
+            <p className={styles.dropTitle}>놓으면 채보를 불러와요</p>
+            <p className={styles.dropHint}>채보 파일(.chart.json) · 여러 개도 돼요 · 새 난이도로 들어가요</p>
+          </div>
+        </div>
+      )}
       {playtestFromMs !== null && (
         <PlaytestOverlay
           key={playtestRun}

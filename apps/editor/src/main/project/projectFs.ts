@@ -30,13 +30,18 @@ export const isAudioFile = (file: string): boolean => AUDIO_EXTENSIONS.includes(
 
 const isAudioPath = (v: unknown): v is string => typeof v === 'string' && path.isAbsolute(v) && isAudioFile(v)
 
-/** 에디터가 프로젝트에 복사해 넣는 음악 파일 이름: `audio.ogg`, `audio-2.mp3` … */
-const PROJECT_AUDIO_NAME = /^audio(-\d+)?\.(ogg|mp3|wav)$/i
+/**
+ * 에디터가 프로젝트에 복사해 넣는 음악 파일 이름: `곡 (RCM).ogg`, `곡 (2) (RCM).mp3` …
+ * 예전 버전이 만든 `audio.ogg`, `audio-2.mp3` …도 포함한다.
+ */
+const PROJECT_AUDIO_NAME = /( \(\d+\))? \(RCM\)\.(ogg|mp3|wav)$|^audio(-\d+)?\.(ogg|mp3|wav)$/i
 
-/** `dir`에 아직 없는 `audio[-n].<ext>` 이름. */
-function uniqueAudioName(dir: string, ext: string): string {
+/** 원래 파일 이름 뒤에 ` (RCM)`을 붙인, `dir`에 아직 없는 이름. 이미 붙어 있던 표시는 떼고 다시 붙인다. */
+function uniqueAudioName(dir: string, source: string): string {
+  const ext = path.extname(source).toLowerCase()
+  const stem = path.basename(source, path.extname(source)).replace(/( \(\d+\))? \(RCM\)$/i, '')
   for (let n = 1; ; n++) {
-    const name = n === 1 ? `audio${ext}` : `audio-${n}${ext}`
+    const name = n === 1 ? `${stem} (RCM)${ext}` : `${stem} (${n}) (RCM)${ext}`
     if (!existsSync(path.join(dir, name))) return name
   }
 }
@@ -116,7 +121,7 @@ export async function createProject(raw: CreateProjectOptions): Promise<string> 
   try {
     let audio = ''
     if (opts.audioPath !== null) {
-      audio = `audio${path.extname(opts.audioPath).toLowerCase()}`
+      audio = uniqueAudioName(dir, opts.audioPath)
       await fs.copyFile(opts.audioPath, path.join(dir, audio))
     }
     await fs.writeFile(
@@ -243,15 +248,14 @@ export async function isProjectDir(dir: string): Promise<boolean> {
 }
 
 /**
- * 음악 파일을 프로젝트 폴더에 새 이름(`audio[-n].<ext>`)으로 복사하고 그 이름을 돌려준다.
+ * 음악 파일을 프로젝트 폴더에 원래 이름 + ` (RCM)`(`곡 (RCM).mp3`)으로 복사하고 그 이름을 돌려준다.
  * 이전 음악 파일은 Undo로 돌아갈 수 있으므로 지우지 않는다 (다음에 열 때 {@link removeUnusedAudio}가 정리).
  */
 export async function importProjectAudio(dir: string, source: string): Promise<string> {
   if (!isAudioPath(source)) throw new Error('음악 파일은 ogg, mp3, wav만 쓸 수 있어요')
   await assertDirectory(dir)
-  const ext = path.extname(source).toLowerCase()
   for (;;) {
-    const name = uniqueAudioName(dir, ext)
+    const name = uniqueAudioName(dir, source)
     try {
       await fs.copyFile(source, path.join(dir, name), fsConstants.COPYFILE_EXCL)
       return name
@@ -262,7 +266,7 @@ export async function importProjectAudio(dir: string, source: string): Promise<s
 }
 
 /**
- * song.json이 가리키지 않는, 에디터가 복사해 넣은 음악 파일(`audio[-n].<ext>`)을 지운다.
+ * song.json이 가리키지 않는, 에디터가 복사해 넣은 음악 파일(`… (RCM).<ext>`, 예전 `audio[-n].<ext>`)을 지운다.
  * 음악을 바꾸고 저장하지 않았거나 바꾼 뒤 저장해 남은 파일들이다. song.json을 읽지 못하면 아무것도 지우지 않는다.
  */
 export async function removeUnusedAudio(dir: string, songText: string): Promise<void> {

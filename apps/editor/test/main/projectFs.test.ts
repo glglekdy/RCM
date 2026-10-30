@@ -37,8 +37,8 @@ describe('projectFs', () => {
     expect(path.basename(dir)).toBe('진격의 승리_ Remix_')
     const files = await openProjectFiles(dir)
     const song = parseSong(files.songText)
-    expect(song.ok && song.value.audio).toBe('audio.mp3')
-    expect(existsSync(path.join(dir, 'audio.mp3'))).toBe(true)
+    expect(song.ok && song.value.audio).toBe('x (RCM).mp3')
+    expect(existsSync(path.join(dir, 'x (RCM).mp3'))).toBe(true)
     expect(song.ok && song.value.timing).toEqual([{ tick: 0, bpm: 150, beatsPerMeasure: 4 }])
     expect(files.charts.map((c) => c.file)).toEqual(['normal.chart.json'])
     const chart = parseChart(files.charts[0].text, 'normal.chart.json')
@@ -71,36 +71,52 @@ describe('projectFs', () => {
     expect(song.ok && song.value.audio).toBe('')
     expect((await fs.readdir(dir)).sort()).toEqual(['editor.json', 'normal.chart.json', 'song.json'])
   })
-  it('음악을 새 이름으로 복사해 넣고, 이전 파일은 남김', async () => {
+  it('음악을 원래 이름 + (RCM)으로 복사해 넣고, 이전 파일은 남김', async () => {
     const dir = await createProject({ ...opts, title: 'swap' })
-    const ogg = path.join(tmp, 'y.ogg')
+    const ogg = path.join(tmp, '내 노래.OGG')
     await fs.writeFile(ogg, Buffer.from([4, 5]))
-    expect(await importProjectAudio(dir, ogg)).toBe('audio.ogg')
-    expect(await importProjectAudio(dir, mp3)).toBe('audio-2.mp3')
-    expect(await importProjectAudio(dir, mp3)).toBe('audio-3.mp3')
-    expect(await fs.readFile(path.join(dir, 'audio.mp3'))).toEqual(Buffer.from([1, 2, 3]))
-    expect(await fs.readFile(path.join(dir, 'audio.ogg'))).toEqual(Buffer.from([4, 5]))
+    expect(await importProjectAudio(dir, ogg)).toBe('내 노래 (RCM).ogg')
+    expect(await importProjectAudio(dir, mp3)).toBe('x (2) (RCM).mp3')
+    expect(await importProjectAudio(dir, mp3)).toBe('x (3) (RCM).mp3')
+    expect(await fs.readFile(path.join(dir, 'x (RCM).mp3'))).toEqual(Buffer.from([1, 2, 3]))
+    expect(await fs.readFile(path.join(dir, '내 노래 (RCM).ogg'))).toEqual(Buffer.from([4, 5]))
+    // 이미 (RCM)이 붙은 파일은 한 번만 붙인다
+    expect(await importProjectAudio(dir, path.join(dir, 'x (2) (RCM).mp3'))).toBe('x (4) (RCM).mp3')
     await expect(importProjectAudio(dir, path.join(tmp, 'x.exe'))).rejects.toThrow('음악 파일')
     await expect(importProjectAudio(dir, 'x.mp3')).rejects.toThrow('음악 파일')
     await expect(importProjectAudio(path.join(tmp, 'gone'), mp3)).rejects.toThrow('폴더')
   })
   it('song.json이 가리키지 않는 에디터 음악 파일만 정리', async () => {
     const dir = await createProject({ ...opts, title: 'clean' })
-    for (const f of ['audio.ogg', 'audio-2.mp3', 'AUDIO-3.WAV', 'my song.mp3', 'audio-x.mp3', 'audio.txt']) {
+    for (const f of [
+      'audio.ogg',
+      'audio-2.mp3',
+      'AUDIO-3.WAV',
+      'my song.mp3',
+      'audio-x.mp3',
+      'audio.txt',
+      'y (2) (RCM).ogg',
+      'z (rcm).WAV',
+      'keep (RCM).mp3',
+      'w (RCM).txt',
+      'v(RCM).mp3'
+    ]) {
       await fs.writeFile(path.join(dir, f), 'x')
     }
     const songText = (await openProjectFiles(dir)).songText
-    await removeUnusedAudio(dir, songText.replace('"audio.mp3"', '"audio-2.mp3"'))
+    await removeUnusedAudio(dir, songText.replace('"x (RCM).mp3"', '"keep (RCM).mp3"'))
     expect((await fs.readdir(dir)).filter((f) => !f.endsWith('.json')).sort()).toEqual([
-      'audio-2.mp3',
       'audio-x.mp3',
       'audio.txt',
-      'my song.mp3'
+      'keep (RCM).mp3',
+      'my song.mp3',
+      'v(RCM).mp3',
+      'w (RCM).txt'
     ])
     // song.json을 읽지 못하면 아무것도 지우지 않는다
     await removeUnusedAudio(dir, '{')
     await removeUnusedAudio(dir, '{"audio": "audio-2.mp3"}')
-    expect(existsSync(path.join(dir, 'audio-2.mp3'))).toBe(true)
+    expect(existsSync(path.join(dir, 'keep (RCM).mp3'))).toBe(true)
   })
   it('잘못된 트랙이면 만들지 않음', async () => {
     await expect(createProject({ ...opts, title: 'bad', tracks: [{ id: 'A' }, { id: 'A' }] })).rejects.toThrow()

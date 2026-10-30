@@ -31,7 +31,8 @@
 
 ```
 <곡 폴더>/
-  audio.ogg           음악 파일 (ogg/mp3/wav). 이름은 song.json의 "audio" 값 (audio-2.mp3 등일 수 있음)
+  곡 (RCM).ogg        음악 파일 (ogg/mp3/wav). 이름은 song.json의 "audio" 값. 에디터는 원래 파일 이름 뒤에 " (RCM)"을 붙여 복사한다
+                      (예전 버전에서 만든 프로젝트는 audio.ogg, audio-2.mp3 등일 수 있음)
   song.json           곡 정보 + 타이밍 (모든 난이도 공통)
   normal.chart.json   난이도별 채보. 파일 이름은 아무거나 가능, 확장자는 반드시 .chart.json
   hard.chart.json
@@ -53,7 +54,7 @@
   "formatVersion": 1,
   "title": "곡 제목",
   "artist": "아티스트",          // 빈 문자열 가능
-  "audio": "audio.ogg",          // 같은 폴더 안의 음악 파일 이름. 빈 문자열 = 아직 음악 없음
+  "audio": "곡 (RCM).ogg",       // 같은 폴더 안의 음악 파일 이름. 빈 문자열 = 아직 음악 없음
   "offsetMs": 120,               // 음악 파일에서 tick 0(첫 박)이 있는 시각(ms). 음수 가능, 소수 가능
   "previewStartMs": 30000,       // 곡 선택 화면 미리듣기 시작 위치(ms)
   "timing": [                    // BPM 변경 지점. tick 오름차순, 첫 항목은 반드시 tick 0

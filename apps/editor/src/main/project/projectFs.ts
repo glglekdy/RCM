@@ -232,6 +232,16 @@ export async function assertDirectory(dir: string): Promise<void> {
   if (!stat?.isDirectory()) throw new Error('폴더를 찾을 수 없어요')
 }
 
+/** 휴지통으로 보내도 되는 프로젝트 폴더인지: song.json이 있는 폴더(절대 경로)만. 다른 폴더를 통째로 지우지 않도록. */
+export async function isProjectDir(dir: string): Promise<boolean> {
+  if (typeof dir !== 'string' || !path.isAbsolute(dir)) return false
+  const [folder, song] = await Promise.all([
+    fs.stat(dir).catch(() => null),
+    fs.stat(path.join(dir, 'song.json')).catch(() => null)
+  ])
+  return !!folder?.isDirectory() && !!song?.isFile()
+}
+
 /**
  * 음악 파일을 프로젝트 폴더에 새 이름(`audio[-n].<ext>`)으로 복사하고 그 이름을 돌려준다.
  * 이전 음악 파일은 Undo로 돌아갈 수 있으므로 지우지 않는다 (다음에 열 때 {@link removeUnusedAudio}가 정리).

@@ -13,6 +13,10 @@
   padding: 0 12px;
 }
 
+.selecting .row {
+  grid-template-columns: 16px minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 2fr) 90px;
+}
+
 .head {
   height: 32px;
   flex: none;
@@ -62,6 +66,84 @@
   text-align: right;
 }
 
-.missing {
+/* 흐리게는 글자만: 다시 연결·제거 버튼은 또렷하게 */
+.missing .name,
+.missing .artist,
+.missing .time {
   opacity: 0.45;
+}
+
+.lost {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lostLabel {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  color: var(--danger);
+}
+
+.lostActions {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  margin-left: auto;
+}
+
+/* 다른 버튼과 같은 회색 둥근 버튼, 표 줄에 맞게 조금 작게 */
+.lostBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.lostBtn:hover {
+  background: var(--bg-hover);
+}
+
+.lostBtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.checked,
+.checked:hover {
+  background: var(--accent-soft);
+}
+
+.checkCell {
+  display: flex;
+}
+
+/* 효과 설정의 체크 칸과 같은 모양. 고르면 강조색으로 찬다 */
+.checkBox {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--text-muted);
+  border-radius: 5px;
+  color: #fff;
+  transition: background var(--dur-fast), border-color var(--dur-fast);
+}
+
+.checked .checkBox {
+  border-color: var(--accent);
+  background: var(--accent);
 }

@@ -45,6 +45,19 @@
   cursor: default;
 }
 
+.item:has(.mark) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 6px;
+}
+
+.mark {
+  display: inline-flex;
+  width: 14px;
+  color: var(--accent);
+}
+
 .item:hover:not(:disabled) {
   background: var(--bg-hover);
 }

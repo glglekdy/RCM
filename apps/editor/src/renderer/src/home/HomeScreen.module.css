@@ -54,11 +54,50 @@
   flex: none;
   padding: 16px 12px;
   border-right: 1px solid var(--border);
+  overflow: hidden;
+  transition: width var(--dur) var(--ease-out);
 }
 
 .sidebar button {
   justify-content: flex-start;
   height: 34px;
+}
+
+/* 접기 버튼: 접어도 펼쳐도 같은 자리에 있다 */
+.sidebarTop {
+  display: flex;
+  margin: -4px 0 4px;
+}
+
+.sidebarTop button {
+  justify-content: center;
+  height: 32px;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 접으면 아이콘만 남는다. 이름은 마우스를 올리면 보인다 */
+.collapsed {
+  width: 56px;
+}
+
+.collapsed .label {
+  display: none;
+}
+
+.collapsed button {
+  justify-content: center;
+  padding: 0;
+}
+
+.collapsed .navBadge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
 }
 
 .divider {
@@ -82,7 +121,6 @@
   height: 34px;
   border-radius: var(--radius-sm);
   background: var(--bg-card);
-  box-shadow: inset 3px 0 0 var(--accent);
   transition: transform var(--dur) var(--ease-out);
   pointer-events: none;
 }
@@ -121,11 +159,11 @@
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
 }
 
+/* 고른 항목은 글자와 아이콘이 강조색. 바탕은 .navIndicator가 그린다 */
 .navActive,
 .navActive:hover {
-  /* 바탕과 보라 막대는 .navIndicator가 그린다 */
   background: transparent;
-  color: var(--text);
+  color: var(--accent);
   font-weight: 500;
 }
 
@@ -212,9 +250,32 @@
   color: var(--text-muted);
 }
 
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .search {
   position: relative;
   width: 220px;
+  margin-right: 4px;
+}
+
+/* 삭제 모드에서 표 위에 뜨는 줄: 고른 개수와 삭제 버튼 */
+.selectBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 6px 6px 6px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+
+.selectCount {
+  flex: 1;
+  color: var(--text-muted);
 }
 
 .search input {

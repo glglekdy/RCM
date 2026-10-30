@@ -45,6 +45,12 @@ export interface RecentProject {
   charts: { name: string; trackCount: number; columns?: number }[]
 }
 
+/** 휴지통으로 보내지 못한 프로젝트와 그 이유 */
+export interface TrashFailure {
+  dir: string
+  error: string
+}
+
 export interface RcmApi {
   pickAudioFile(): Promise<string | null>
   pickFolder(defaultPath?: string): Promise<string | null>
@@ -64,6 +70,10 @@ export interface RcmApi {
   deleteProjectFiles(dir: string, names: string[]): Promise<void>
   getRecentProjects(): Promise<RecentProject[]>
   removeRecentProject(dir: string): Promise<void>
+  /** 찾을 수 없는 프로젝트(`from`)를 옮겨 간 폴더(`to`)에 다시 연결한다. `to`가 프로젝트 폴더가 아니면 reject. */
+  relinkRecentProject(from: string, to: string): Promise<void>
+  /** 최근 목록의 프로젝트 폴더들을 휴지통으로 보내고 목록에서 뺀다. 실패한 것만 돌려준다. */
+  trashProjects(dirs: string[]): Promise<TrashFailure[]>
   showInExplorer(dir: string): Promise<void>
   /** 저장 대화상자(기본 위치: 다운로드 폴더)로 텍스트 파일을 저장한다. 취소하면 null, 저장하면 그 경로. */
   saveTextFile(defaultName: string, text: string): Promise<string | null>

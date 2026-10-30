@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
-import { RotateCw } from 'lucide-react'
-import { Button } from '../ui'
+import { RefreshCw, RotateCw } from 'lucide-react'
+import { Button, IconButton } from '../ui'
 import { hasNotesFor, openWhatsNew } from '../whatsNew/whatsNewStore'
 import { useUpdateState } from './updateStore'
 import { updateButtonAction, updateStatusText } from './updateText'
 import styles from './UpdatePanel.module.css'
 
-export function UpdatePanel() {
+interface UpdatePanelProps {
+  /** 접은 사이드바: 버전 글자 없이 아이콘 버튼 하나만. 상태 글은 마우스를 올리면 보인다 */
+  compact?: boolean
+}
+
+export function UpdatePanel({ compact }: UpdatePanelProps) {
   const state = useUpdateState()
   const [version, setVersion] = useState('')
   const [packaged, setPackaged] = useState<boolean | null>(null)
@@ -24,6 +29,26 @@ export function UpdatePanel() {
 
   const busy = state.kind === 'checking' || state.kind === 'downloading'
   const text = updateStatusText(state)
+  const restart = updateButtonAction(state) === 'restart'
+
+  if (compact) {
+    return (
+      <div className={`${styles.panel} ${restart ? styles.restart : ''}`}>
+        {restart ? (
+          <IconButton icon={RotateCw} label="재시작해서 업데이트" onClick={() => window.rcm.installUpdate()} />
+        ) : (
+          <IconButton
+            icon={RefreshCw}
+            label={[version && `v${version}`, text || '업데이트 확인'].filter(Boolean).join(' · ')}
+            disabled={!packaged || busy}
+            onClick={() => {
+              window.rcm.checkForUpdates().catch(() => {})
+            }}
+          />
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className={styles.panel}>
@@ -38,7 +63,7 @@ export function UpdatePanel() {
           </button>
         )}
       </div>
-      {updateButtonAction(state) === 'restart' ? (
+      {restart ? (
         <Button variant="primary" onClick={() => window.rcm.installUpdate()}>
           <RotateCw size={14} /> 재시작해서 업데이트
         </Button>

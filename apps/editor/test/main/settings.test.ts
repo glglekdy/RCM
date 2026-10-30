@@ -7,6 +7,7 @@ import { DEFAULT_PRESETS, type TrackPreset } from '../../src/shared/presets'
 import {
   loadSettings,
   presetsOf,
+  relinkRecent,
   saveSettings,
   touchRecent,
   updateSettings,
@@ -24,6 +25,29 @@ describe('settings', () => {
     expect(next[0]).toEqual({ dir: 'd5', lastOpened: 100 })
     expect(next.filter((e) => e.dir === 'd5')).toHaveLength(1)
     expect(touchRecent(list, 'new', 100)).toHaveLength(20)
+  })
+  it('찾을 수 없는 프로젝트를 다른 폴더에 다시 연결', () => {
+    const list = [
+      { dir: 'a', lastOpened: 3 },
+      { dir: 'gone', lastOpened: 2 },
+      { dir: 'b', lastOpened: 1 }
+    ]
+    expect(relinkRecent(list, 'gone', 'moved')).toEqual([
+      { dir: 'a', lastOpened: 3 },
+      { dir: 'moved', lastOpened: 2 },
+      { dir: 'b', lastOpened: 1 }
+    ])
+    // 이미 목록에 있는 폴더로 연결하면 하나로 합치고 더 최근 시간을 남긴다
+    expect(relinkRecent(list, 'gone', 'a')).toEqual([
+      { dir: 'a', lastOpened: 3 },
+      { dir: 'b', lastOpened: 1 }
+    ])
+    expect(relinkRecent(list, 'gone', 'b')).toEqual([
+      { dir: 'a', lastOpened: 3 },
+      { dir: 'b', lastOpened: 2 }
+    ])
+    expect(relinkRecent(list, 'nope', 'x')).toBe(list)
+    expect(relinkRecent(list, 'gone', 'gone')).toBe(list)
   })
 
   let tmp = ''

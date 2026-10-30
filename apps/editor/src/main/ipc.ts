@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, isAbsolute, join } from 'node:path'
 import { DEFAULT_LAYOUT, sanitizeLayout } from '@rcm/playfield'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
-import type { CreateProjectOptions, RecentProject } from '../shared/api'
+import type { CreateProjectOptions, RecentProject, TrashFailure } from '../shared/api'
 import {
   DEFAULT_HIT_EFFECT_SETTINGS,
   isHitEffectSlot,
@@ -25,6 +25,7 @@ import {
   createProject,
   deleteProjectFiles,
   importProjectAudio,
+  isProjectDir,
   openProjectFiles,
   readAudioFile,
   removeUnusedAudio,
@@ -35,6 +36,7 @@ import {
 import {
   loadSettings,
   presetsOf,
+  relinkRecent,
   touchRecent,
   updateSettings,
   validateLastPresetId,
@@ -168,6 +170,43 @@ export function registerProjectIpc(): void {
       settings.recent = settings.recent.filter((r) => r.dir !== dir)
     })
   )
+
+  ipcMain.handle('rcm:relink-recent-project', async (_e, from: unknown, to: unknown) => {
+    if (typeof from !== 'string' || typeof to !== 'string' || !isAbsolute(to)) {
+      throw new Error('폴더 경로가 올바르지 않아요')
+    }
+    if ((await summarizeProject(to)).missing) {
+      throw new Error('RCM 프로젝트 폴더가 아니에요. song.json이 있는 프로젝트 폴더를 골라 주세요.')
+    }
+    await updateSettings(settingsFile(), (settings) => {
+      settings.recent = relinkRecent(settings.recent, from, to)
+    })
+  })
+
+  ipcMain.handle('rcm:trash-projects', async (_e, dirs: unknown): Promise<TrashFailure[]> => {
+    if (!Array.isArray(dirs) || !dirs.every((d) => typeof d === 'string')) {
+      throw new Error('프로젝트 목록이 올바르지 않아요')
+    }
+    // 최근 목록에 있는 폴더만 지운다
+    const { recent } = await loadSettings(settingsFile())
+    const known = new Set(recent.map((r) => r.dir))
+    const removed = new Set<string>()
+    const failed: TrashFailure[] = []
+    for (const dir of dirs) {
+      if (!known.has(dir)) continue
+      try {
+        // 이미 없거나 프로젝트가 아닌 폴더는 지우지 않고 목록에서만 뺀다
+        if (await isProjectDir(dir)) await shell.trashItem(dir)
+        removed.add(dir)
+      } catch (err) {
+        failed.push({ dir, error: err instanceof Error ? err.message : String(err) })
+      }
+    }
+    await updateSettings(settingsFile(), (settings) => {
+      settings.recent = settings.recent.filter((r) => !removed.has(r.dir))
+    })
+    return failed
+  })
 
   ipcMain.handle('rcm:get-presets', async () => presetsOf(await loadSettings(settingsFile())))
 

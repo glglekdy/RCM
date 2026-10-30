@@ -1,30 +1,35 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import {
+  ArrowDownUp,
   BookOpen,
   Bot,
   FileArchive,
   FolderOpen,
   House,
   Megaphone,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Search,
   Settings,
   SlidersHorizontal,
+  Trash2,
   X,
   type LucideIcon
 } from 'lucide-react'
-import type { ProjectFiles, RecentProject } from '../../../shared/api'
+import type { ProjectFiles, RecentProject, TrashFailure } from '../../../shared/api'
 import { AiGuidePage } from '../guide/AiGuidePage'
 import { AI_GUIDE_NOTICE_ID } from '../guide/chartFormatGuide'
 import { UserGuidePage } from '../guide/UserGuidePage'
 import { PresetsPage } from '../presets/PresetsPage'
 import { SettingsPage } from '../settings/SettingsPage'
 import { UpdatePanel } from '../update/UpdatePanel'
-import { Button, IconButton, TextField, useDialogs, useToast } from '../ui'
+import { Button, IconButton, Menu, TextField, useDialogs, useToast } from '../ui'
 import { nextGreeting } from './greeting'
 import { importZips } from './importZips'
 import { NewProjectDialog } from './NewProjectDialog'
 import { RecentTable } from './RecentTable'
+import { PROJECT_SORTS, sortProjects, type ProjectSort } from './sortProjects'
 import styles from './HomeScreen.module.css'
 
 type Page = 'home' | 'presets' | 'userGuide' | 'aiGuide' | 'settings'
@@ -49,7 +54,11 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
   const toast = useToast()
   const [recent, setRecent] = useState<RecentProject[] | null>(null)
   const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<ProjectSort>('recent')
+  // 삭제 모드에서 고른 프로젝트 폴더들. null이면 삭제 모드가 아니다
+  const [selected, setSelected] = useState<Set<string> | null>(null)
   const [creating, setCreating] = useState(false)
+  const [collapsed, setCollapsed] = useState(readSidebarCollapsed)
   const [page, setPage] = useState<Page>('home')
   const [drop, setDrop] = useState<'none' | 'over' | 'importing'>('none')
   // 닫은 공지 id 목록. 읽기 전(null)에는 공지도 알림도 그리지 않는다: 닫아 둔 것이 잠깐 보였다 사라지지 않게
@@ -58,13 +67,17 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
   const dragDepth = useRef(0)
 
   const refresh = useCallback(async () => {
-    const list = await window.rcm.getRecentProjects()
-    setRecent([...list].sort((a, b) => b.lastOpened - a.lastOpened))
+    setRecent(await window.rcm.getRecentProjects())
   }, [])
 
+  // 홈으로 돌아오거나 창으로 돌아올 때마다 다시 읽는다: 탐색기에서 폴더를 옮기거나 지운 것이 바로 보이게
   useEffect(() => {
+    if (page !== 'home') return
     void refresh()
-  }, [refresh])
+    const onFocus = () => void refresh()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [page, refresh])
 
   useEffect(() => {
     let alive = true
@@ -82,6 +95,12 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
   const dismiss = (id: string) => {
     setDismissed((list) => (list === null || list.includes(id) ? list : [...list, id]))
     void window.rcm.dismissNotice(id).catch(() => {})
+  }
+
+  const toggleSidebar = () => {
+    const next = !collapsed
+    setCollapsed(next)
+    writeSidebarCollapsed(next)
   }
 
   const goTo = (p: Page) => {
@@ -109,15 +128,32 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
     [refresh]
   )
 
+  /** 찾을 수 없는 프로젝트를 옮겨 간 폴더에 다시 연결한다 */
+  const relink = async (p: RecentProject) => {
+    const dir = await window.rcm.pickFolder()
+    if (!dir) return
+    try {
+      await window.rcm.relinkRecentProject(p.dir, dir)
+      toast('프로젝트를 다시 연결했어요')
+    } catch (err) {
+      await dialogs.alert('다시 연결할 수 없어요', err instanceof Error ? err.message : String(err))
+    }
+    await refresh()
+  }
+
   const openRecent = async (p: RecentProject) => {
     if (p.missing) {
-      const ok = await dialogs.confirm({
+      const choice = await dialogs.choose({
         title: '프로젝트를 찾을 수 없어요',
-        message: '목록에서 제거할까요?',
-        confirmLabel: '제거',
-        danger: true
+        message: `${p.dir}\n폴더가 옮겨졌다면 다시 연결하고, 아니면 목록에서 제거하세요.`,
+        choices: [
+          { value: 'cancel', label: '취소' },
+          { value: 'remove', label: '목록에서 제거', variant: 'danger' },
+          { value: 'relink', label: '다시 연결', variant: 'primary' }
+        ]
       })
-      if (ok) await removeFromList(p)
+      if (choice === 'remove') await removeFromList(p)
+      else if (choice === 'relink') await relink(p)
       return
     }
     await openDir(p.dir)
@@ -171,9 +207,55 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!recent || !q) return recent ?? []
-    return recent.filter((p) => p.title.toLowerCase().includes(q) || p.artist.toLowerCase().includes(q))
-  }, [recent, query])
+    const found = q
+      ? (recent ?? []).filter((p) => p.title.toLowerCase().includes(q) || p.artist.toLowerCase().includes(q))
+      : (recent ?? [])
+    return sortProjects(found, sort)
+  }, [recent, query, sort])
+
+  // 검색으로 가려진 프로젝트는 고른 것으로 치지 않는다 (보이지 않는 것을 지우지 않게)
+  const picked = selected ? shown.filter((p) => selected.has(p.dir)) : []
+  const allPicked = shown.length > 0 && picked.length === shown.length
+
+  const toggleSelected = (p: RecentProject) =>
+    setSelected((s) => {
+      if (!s) return s
+      const next = new Set(s)
+      if (!next.delete(p.dir)) next.add(p.dir)
+      return next
+    })
+
+  const trashPicked = async () => {
+    const n = picked.length
+    if (n === 0) return
+    const ok = await dialogs.confirm({
+      title: `프로젝트 ${n}개를 삭제할까요?`,
+      message: '프로젝트 폴더를 휴지통으로 보내요. 휴지통에서 되살릴 수 있어요.',
+      confirmLabel: '삭제',
+      danger: true
+    })
+    if (!ok) return
+    let failed: TrashFailure[]
+    try {
+      failed = await window.rcm.trashProjects(picked.map((p) => p.dir))
+    } catch (err) {
+      await dialogs.alert('프로젝트를 삭제하지 못했어요', err instanceof Error ? err.message : String(err))
+      return
+    } finally {
+      await refresh()
+    }
+    setSelected(null)
+    if (failed.length > 0) {
+      await dialogs.alert(
+        n > failed.length
+          ? `프로젝트 ${n - failed.length}개를 삭제했지만, 삭제하지 못한 프로젝트가 있어요`
+          : '프로젝트를 삭제하지 못했어요',
+        failed.map((f) => `${f.dir}: ${f.error}`)
+      )
+    } else {
+      toast(`프로젝트 ${n}개를 휴지통으로 보냈어요`)
+    }
+  }
 
   return (
     <div
@@ -182,12 +264,21 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
       onDragLeave={onDragLeave}
       onDrop={(e) => void onDrop(e)}
     >
-      <aside className={styles.sidebar}>
-        <Button variant="primary" onClick={() => setCreating(true)}>
-          <Plus size={16} /> 새 프로젝트
+      <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
+        <div className={styles.sidebarTop}>
+          <IconButton
+            icon={collapsed ? PanelLeftOpen : PanelLeftClose}
+            label={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
+            onClick={toggleSidebar}
+          />
+        </div>
+        <Button variant="primary" title={collapsed ? '새 프로젝트' : undefined} onClick={() => setCreating(true)}>
+          <Plus size={16} />
+          <span className={styles.label}>새 프로젝트</span>
         </Button>
-        <Button variant="ghost" onClick={() => void pickAndOpen()}>
-          <FolderOpen size={16} /> 프로젝트 열기
+        <Button variant="ghost" title={collapsed ? '프로젝트 열기' : undefined} onClick={() => void pickAndOpen()}>
+          <FolderOpen size={16} />
+          <span className={styles.label}>프로젝트 열기</span>
         </Button>
         <div className={styles.divider} />
         <nav className={styles.nav}>
@@ -203,16 +294,19 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
               type="button"
               className={`${styles.navItem} ${page === p ? styles.navActive : ''}`}
               aria-current={page === p}
+              title={collapsed ? label : undefined}
+              aria-label={collapsed ? label : undefined}
               onClick={() => goTo(p)}
             >
-              <Icon size={16} /> {label}
+              <Icon size={16} />
+              <span className={styles.label}>{label}</span>
               {p === 'aiGuide' && isNew(AI_GUIDE_NOTICE_ID) && (
                 <span className={`${styles.navBadge} enter-fade`} title="가이드가 바뀌었어요" aria-label="새 내용" />
               )}
             </button>
           ))}
         </nav>
-        <UpdatePanel />
+        <UpdatePanel compact={collapsed} />
       </aside>
       <main className={styles.main}>
         {page === 'presets' ? (
@@ -238,14 +332,53 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
               <>
                 <div className={styles.listHead}>
                   <h2 className={styles.sectionTitle}>최근 프로젝트</h2>
-                  <div className={styles.search}>
-                    <Search size={14} className={styles.searchIcon} />
-                    <TextField value={query} onChange={setQuery} placeholder="검색" />
+                  <div className={styles.tools}>
+                    <div className={styles.search}>
+                      <Search size={14} className={styles.searchIcon} />
+                      <TextField value={query} onChange={setQuery} placeholder="검색" />
+                    </div>
+                    <Menu
+                      align="right"
+                      trigger={<IconButton icon={ArrowDownUp} label="정렬" />}
+                      items={PROJECT_SORTS.map((s) => ({
+                        label: s.label,
+                        checked: s.value === sort,
+                        onSelect: () => setSort(s.value)
+                      }))}
+                    />
+                    <IconButton
+                      icon={Trash2}
+                      label={selected ? '삭제 그만하기' : '삭제'}
+                      active={selected !== null}
+                      onClick={() => setSelected((s) => (s ? null : new Set()))}
+                    />
                   </div>
                 </div>
+                {selected && (
+                  <div className={`${styles.selectBar} enter-fade`}>
+                    <span className={styles.selectCount}>
+                      {picked.length > 0 ? `${picked.length}개 선택됨` : '지울 프로젝트를 골라 주세요'}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      disabled={shown.length === 0}
+                      onClick={() => setSelected(allPicked ? new Set() : new Set(shown.map((p) => p.dir)))}
+                    >
+                      {allPicked ? '선택 해제' : '모두 선택'}
+                    </Button>
+                    <Button variant="default" onClick={() => setSelected(null)}>
+                      취소
+                    </Button>
+                    <Button variant="danger" disabled={picked.length === 0} onClick={() => void trashPicked()}>
+                      <Trash2 size={14} /> 삭제
+                    </Button>
+                  </div>
+                )}
                 {recent !== null && (
                   <RecentTable
                     projects={shown}
+                    selected={selected ?? undefined}
+                    onToggle={toggleSelected}
                     onOpen={(p) => void openRecent(p)}
                     onShowInExplorer={(p) =>
                       void window.rcm.showInExplorer(p.dir).catch(async (err: unknown) => {
@@ -256,6 +389,7 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
                       })
                     }
                     onRemove={(p) => void removeFromList(p)}
+                    onRelink={(p) => void relink(p)}
                   />
                 )}
               </>
@@ -284,6 +418,28 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
       />
     </div>
   )
+}
+
+/**
+ * 사이드바를 접어 둔 상태. 편집기에서 돌아와도 처음부터 접힌 채로 그리도록(펼쳐졌다 접히지 않게)
+ * 설정 파일 대신 바로 읽히는 localStorage에 둔다. 읽거나 쓸 수 없으면 펼친 채로 둔다.
+ */
+const SIDEBAR_KEY = 'rcm.sidebarCollapsed'
+
+function readSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function writeSidebarCollapsed(collapsed: boolean): void {
+  try {
+    localStorage.setItem(SIDEBAR_KEY, collapsed ? '1' : '0')
+  } catch {
+    // 저장하지 못해도 이번 실행 동안은 접힌 채로 쓴다
+  }
 }
 
 /** 홈 페이지가 보일 때마다 새로 마운트되어 문구를 다시 고른다. */

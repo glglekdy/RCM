@@ -8,6 +8,7 @@ import {
   createProject,
   deleteProjectFiles,
   importProjectAudio,
+  isProjectDir,
   openProjectFiles,
   readAudioFile,
   removeUnusedAudio,
@@ -239,6 +240,14 @@ describe('projectFs', () => {
     await expect(assertDirectory(path.join(tmp, 'gone'))).rejects.toThrow('폴더')
     await expect(assertDirectory('relative')).rejects.toThrow('폴더')
     await expect(assertDirectory(42 as unknown as string)).rejects.toThrow('폴더')
+  })
+  it('휴지통으로 보낼 폴더는 song.json이 있는 프로젝트 폴더여야 함', async () => {
+    expect(await isProjectDir(await createProject(opts))).toBe(true)
+    expect(await isProjectDir(tmp)).toBe(false)
+    expect(await isProjectDir(mp3)).toBe(false)
+    expect(await isProjectDir(path.join(tmp, 'gone'))).toBe(false)
+    expect(await isProjectDir('relative')).toBe(false)
+    expect(await isProjectDir(42 as unknown as string)).toBe(false)
   })
   it('실패해도 이미 있던 폴더는 남김', async () => {
     await fs.mkdir(path.join(tmp, 'keep'))

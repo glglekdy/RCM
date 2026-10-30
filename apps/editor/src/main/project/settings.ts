@@ -38,6 +38,20 @@ export function touchRecent(list: RecentEntry[], dir: string, now: number): Rece
   return [{ dir, lastOpened: now }, ...list.filter((e) => e.dir !== dir)].slice(0, MAX_RECENT)
 }
 
+/**
+ * 찾을 수 없는 프로젝트(`from`)를 옮겨 간 폴더(`to`)에 다시 연결한다. 순서와 열람 시간은 그대로 둔다.
+ * `to`가 이미 목록에 있으면 하나로 합치고 더 최근 시간을 남긴다.
+ */
+export function relinkRecent(list: RecentEntry[], from: string, to: string): RecentEntry[] {
+  const old = list.find((e) => e.dir === from)
+  const existing = list.find((e) => e.dir === to)
+  if (!old || from === to) return list
+  const lastOpened = Math.max(old.lastOpened, existing?.lastOpened ?? 0)
+  return list.flatMap((e) =>
+    e.dir === from ? [{ dir: to, lastOpened }] : e.dir === to ? [] : [e]
+  )
+}
+
 /** 설정 파일 내용이 깨짐 (JSON이 아니거나 형식이 틀림). 읽기 오류와 구별한다. */
 class SettingsFormatError extends Error {}
 

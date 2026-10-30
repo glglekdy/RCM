@@ -39,3 +39,8 @@
   color: var(--text-muted);
   font-size: 12px;
 }
+
+/* 접은 사이드바에서 업데이트가 준비되면 아이콘을 강조색으로 */
+.restart button {
+  color: var(--accent);
+}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Check } from 'lucide-react'
 import styles from './Menu.module.css'
 
 interface MenuItem {
@@ -6,6 +7,8 @@ interface MenuItem {
   onSelect: () => void
   disabled?: boolean
   danger?: boolean
+  /** 고르는 메뉴(정렬 등)에서 지금 고른 항목. 정하면 앞에 체크 칸이 생긴다 */
+  checked?: boolean
 }
 
 interface MenuProps {
@@ -53,7 +56,8 @@ export function Menu({ trigger, items, placement = 'down', align = 'left' }: Men
             <button
               key={item.label}
               type="button"
-              role="menuitem"
+              role={item.checked === undefined ? 'menuitem' : 'menuitemradio'}
+              aria-checked={item.checked}
               className={`${styles.item} ${item.danger ? styles.danger : ''}`}
               disabled={item.disabled}
               onClick={() => {
@@ -61,6 +65,9 @@ export function Menu({ trigger, items, placement = 'down', align = 'left' }: Men
                 item.onSelect()
               }}
             >
+              {item.checked !== undefined && (
+                <span className={styles.mark}>{item.checked && <Check size={14} />}</span>
+              )}
               {item.label}
             </button>
           ))}

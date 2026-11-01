@@ -855,6 +855,8 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
             getTimeMs={getTimeMs}
             autoplay={playtestAuto}
             onExit={exitPlaytest}
+            onRestart={() => runActionRef.current('playtestRestart')}
+            onToggleAutoplay={() => runActionRef.current('playtestAuto')}
           />
         )}
         {addingChart && (

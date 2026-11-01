@@ -16,6 +16,9 @@ import { useEditor } from '../state/useStore'
 import { getHitEffects, useHitEffects } from '../../gameplay/hitEffectStore'
 import { getJudgeOffset } from '../../gameplay/judgeOffsetStore'
 import { getLayout } from '../../gameplay/layoutStore'
+import { useLayoutMode } from '../../ui'
+import { caps } from '../../ui/platform'
+import { enterPlaytestScreen, orientationTarget } from './playtestScreen'
 import { getPlaytestSpeed, setPlaytestSpeed } from './speedStore'
 import styles from './PlaytestOverlay.module.css'
 
@@ -33,6 +36,10 @@ interface PlaytestOverlayProps {
   /** 자동 플레이 (F4로 켜고 끈다) */
   autoplay: boolean
   onExit: () => void
+  /** 처음부터 다시 시작 (F5와 같다) */
+  onRestart: () => void
+  /** 자동 플레이 켜기·끄기 (F4와 같다) */
+  onToggleAutoplay: () => void
 }
 
 interface Stats {
@@ -40,15 +47,27 @@ interface Stats {
   maxCombo: number
 }
 
-const ROWS: { key: Judgement; label: string }[] = [
-  { key: 'perfect', label: 'PERFECT' },
-  { key: 'great', label: 'GREAT' },
-  { key: 'good', label: 'GOOD' },
-  { key: 'miss', label: 'MISS' }
+const ROWS: { key: Judgement; label: string; short: string }[] = [
+  { key: 'perfect', label: 'PERFECT', short: 'P' },
+  { key: 'great', label: 'GREAT', short: 'G' },
+  { key: 'good', label: 'GOOD', short: 'G' },
+  { key: 'miss', label: 'MISS', short: 'M' }
 ]
 
 /** 편집 화면 위를 덮는 테스트 플레이 화면 (5.11절). 결과는 저장하지 않는다. */
-export function PlaytestOverlay({ fromMs, tm, getTimeMs, autoplay, onExit }: PlaytestOverlayProps) {
+export function PlaytestOverlay({
+  fromMs,
+  tm,
+  getTimeMs,
+  autoplay,
+  onExit,
+  onRestart,
+  onToggleAutoplay
+}: PlaytestOverlayProps) {
+  const phone = useLayoutMode() !== 'desktop'
+  // 웹에는 타이틀바가 없어 화면 맨 위부터 덮는다. 전체 화면·방향 고정은 웹 폰에서만 쓴다
+  const web = !caps().windowControls
+  const phoneScreen = web && phone
   const chart = useEditor((s) => getChart(s.doc, s.activeChart))
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const playfieldRef = useRef<Playfield | FreePlayfield | null>(null)
@@ -120,6 +139,29 @@ export function PlaytestOverlay({ fromMs, tm, getTimeMs, autoplay, onExit }: Pla
     lastAspect = aspect
   }, [aspect])
 
+  // 폰: 전체 화면·화면 꺼짐 방지·방향 고정. 자유형에서 방향을 바꾸면 정리하고 새 방향으로 다시 건다.
+  // 레인형은 시작할 때의 화면 방향만 따른다 (돌려도 다시 걸지 않는다)
+  const lockKey = free ? aspect : 'lane'
+  useEffect(() => {
+    if (!phoneScreen) return
+    const target = orientationTarget(free, aspectRef.current, {
+      width: window.innerWidth,
+      height: window.innerHeight
+    })
+    return enterPlaytestScreen(target)
+    // free는 lockKey에 이미 담겨 있다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phoneScreen, lockKey])
+
+  const changeSpeed = (step: number) => {
+    const next = clampSpeed(speedRef.current + step)
+    setSpeed(next)
+    setPlaytestSpeed(next)
+  }
+  const changeSpeedRef = useRef(changeSpeed)
+  changeSpeedRef.current = changeSpeed
+  const toggleAspect = () => setAspect((a) => (a === 'portrait' ? 'landscape' : 'portrait'))
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       // 타이틀바 버튼 등으로 포커스가 옮겨 가 키 입력이 엉뚱한 곳에 들어가지 않게 한다
@@ -134,17 +176,73 @@ export function PlaytestOverlay({ fromMs, tm, getTimeMs, autoplay, onExit }: Pla
       }
       if (e.code !== 'ArrowUp' && e.code !== 'ArrowDown') return
       e.preventDefault()
-      const step = e.code === 'ArrowUp' ? SPEED_STEP : -SPEED_STEP
-      const next = clampSpeed(speedRef.current + step)
-      setSpeed(next)
-      setPlaytestSpeed(next)
+      changeSpeedRef.current(e.code === 'ArrowUp' ? SPEED_STEP : -SPEED_STEP)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
+  const overlayClass = web ? `${styles.overlay} ${styles.overlayWeb}` : styles.overlay
+
+  if (phone) {
+    return (
+      <div className={overlayClass}>
+        <canvas ref={canvasRef} className={styles.canvas} />
+        <div className={styles.phoneHud}>
+          <div className={styles.phoneButtons}>
+            <button type="button" className={styles.phoneButton} onClick={onExit}>
+              종료
+            </button>
+            <button type="button" className={styles.phoneButton} onClick={onRestart}>
+              다시
+            </button>
+            <button
+              type="button"
+              className={`${styles.phoneButton} ${autoplay ? styles.phoneButtonOn : ''}`}
+              aria-pressed={autoplay}
+              onClick={onToggleAutoplay}
+            >
+              자동
+            </button>
+            <button
+              type="button"
+              className={styles.phoneButton}
+              aria-label="배속 내리기"
+              onClick={() => changeSpeed(-SPEED_STEP)}
+            >
+              배속 −
+            </button>
+            <span className={styles.phoneSpeed}>{speed.toFixed(1)}</span>
+            <button
+              type="button"
+              className={styles.phoneButton}
+              aria-label="배속 올리기"
+              onClick={() => changeSpeed(SPEED_STEP)}
+            >
+              배속 +
+            </button>
+            {free && (
+              <button type="button" className={styles.phoneButton} onClick={toggleAspect}>
+                {aspect === 'portrait' ? '세로' : '가로'}
+              </button>
+            )}
+          </div>
+          <p className={styles.phoneStats}>
+            {ROWS.map((r) => (
+              <span key={r.key}>
+                <span style={{ color: DEFAULT_PLAYFIELD_COLORS[r.key] }}>{r.short}</span> {stats.counts[r.key]}
+                {' · '}
+              </span>
+            ))}
+            <span>최대 콤보 {stats.maxCombo}</span>
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className={styles.overlay}>
+    <div className={overlayClass}>
       <canvas ref={canvasRef} className={styles.canvas} />
       <div className={styles.hud}>
         <div className={styles.controls}>
@@ -158,11 +256,7 @@ export function PlaytestOverlay({ fromMs, tm, getTimeMs, autoplay, onExit }: Pla
           {free && (
             <>
               <span className={styles.dot}>·</span>
-              <button
-                type="button"
-                className={styles.exit}
-                onClick={() => setAspect((a) => (a === 'portrait' ? 'landscape' : 'portrait'))}
-              >
+              <button type="button" className={styles.exit} onClick={toggleAspect}>
                 {aspect === 'portrait' ? '세로' : '가로'} 화면 (F6)
               </button>
             </>

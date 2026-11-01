@@ -3,18 +3,19 @@ import { Button, Card, NumberField, Row, TextField, useDialogs } from '../../ui'
 import { updateSong } from '../commands/meta'
 import { setOffset } from '../commands/timing'
 import { useEditor, useStore } from '../state/useStore'
+import { caps, oggHint } from '../../ui/platform'
 import styles from './Panel.module.css'
 
 const OFFSET_STEPS = [-10, -1, 1, 10]
 
-/** 고른 파일을 실제로 디코딩할 수 있는지 (프로젝트에 넣기 전에 확인한다). */
-async function canDecode(path: string): Promise<boolean> {
+/** 고른 파일을 실제로 디코딩할 수 있는지 (프로젝트에 넣기 전에 확인한다). 못 하면 그 오류. */
+async function decodeError(path: string): Promise<{ err: unknown } | null> {
   try {
     const data = await window.rcm.readAudio(path)
     await new OfflineAudioContext(1, 1, 44100).decodeAudioData(data)
-    return true
-  } catch {
-    return false
+    return null
+  } catch (err) {
+    return { err }
   }
 }
 
@@ -39,8 +40,14 @@ export function SongPanel() {
     try {
       const source = await window.rcm.pickAudioFile()
       if (!source) return
-      if (!(await canDecode(source))) {
-        await dialogs.alert('이 파일은 재생할 수 없어요', source)
+      const failed = await decodeError(source)
+      if (failed) {
+        // 웹의 경로는 `picked:<id>/<이름>`이라 파일 이름만 보여 주고, ogg를 못 읽는 브라우저에는 안내를 덧붙인다
+        const fileName = source.split(/[\\/]/).pop() ?? source
+        await dialogs.alert(
+          '이 파일은 재생할 수 없어요',
+          caps().windowControls ? source : (oggHint(fileName, failed.err) ?? fileName)
+        )
         return
       }
       const audio = await window.rcm.importProjectAudio(store.getState().dir, source)

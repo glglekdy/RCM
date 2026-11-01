@@ -6,9 +6,15 @@ describe('picked', () => {
   it('등록한 파일을 같은 객체로 돌려줘요', () => {
     const f = new File(['a'], 'a.png')
     const path = registerPicked(f)
-    expect(path).toMatch(/^picked:/)
+    expect(path).toMatch(/^picked:\d+\/a\.png$/)
     expect(isPickedPath(path)).toBe(true)
     expect(getPicked(path)).toBe(f)
+  })
+
+  it('화면이 경로 끝에서 파일 이름을 읽을 수 있어요', () => {
+    const path = registerPicked(new File(['{}'], 'Hard.chart.json'))
+    expect(path.split(/[\\/]/).pop()).toBe('Hard.chart.json')
+    expect(getPicked(path).name).toBe('Hard.chart.json')
   })
 
   it('없는 경로는 다시 고르라고 알려요', () => {

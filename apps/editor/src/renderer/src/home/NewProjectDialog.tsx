@@ -11,7 +11,7 @@ import {
   TextField,
   useDialogs
 } from '../ui'
-import { caps } from '../ui/platform'
+import { caps, oggHint } from '../ui/platform'
 import { DEFAULT_FLICK_MODE } from '../editor/commands/freeNotes'
 import { FLICK_MODE_OPTIONS } from '../editor/panels/freeLabels'
 import { presetToChartTracks } from '../../../shared/presets'
@@ -29,7 +29,7 @@ type Audio =
   | { state: 'none' }
   | { state: 'decoding'; path: string }
   | { state: 'ok'; path: string; buffer: AudioBuffer }
-  | { state: 'error'; path: string }
+  | { state: 'error'; path: string; hint?: string }
 
 const TITLE_MAX = 100
 
@@ -145,8 +145,10 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
       ctxRef.current ??= new AudioContext()
       const buffer = await ctxRef.current.decodeAudioData(data)
       if (token === pickToken.current) setAudio({ state: 'ok', path, buffer })
-    } catch {
-      if (token === pickToken.current) setAudio({ state: 'error', path })
+    } catch (err) {
+      // 브라우저에서만 ogg 안내를 덧붙인다 (PC는 문구 그대로)
+      const hint = caps().windowControls ? undefined : (oggHint(baseName(path), err) ?? undefined)
+      if (token === pickToken.current) setAudio({ state: 'error', path, hint })
     }
   }
 
@@ -272,7 +274,7 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
           </div>
         )}
         {audio.state === 'decoding' && <div className={styles.hint}>불러오는 중…</div>}
-        {audio.state === 'error' && <div className={styles.error}>이 파일은 재생할 수 없어요</div>}
+        {audio.state === 'error' && <div className={styles.error}>{audio.hint ?? '이 파일은 재생할 수 없어요'}</div>}
         <Row label="BPM">
           <NumberField value={bpm} onChange={setBpm} min={0.01} max={999} step={1} />
         </Row>

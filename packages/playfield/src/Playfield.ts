@@ -1,13 +1,15 @@
 import { DEFAULT_NOTE_COLOR, ScrollMap, type Chart, type TimingMap } from '@rcm/core';
-import { HOLD_RELEASE_TOLERANCE, type JudgeEvent, type Judgement, type Timing } from './judge';
+import { HOLD_RELEASE_TOLERANCE, judgeClockMs, type JudgeEvent, type Judgement, type Timing } from './judge';
 import { HeldKeys, keysLabel, trackForCode, trackForKey, type TrackKeymap } from './keymap';
 import { autoplayStep } from './autoplay';
 import { gimmickNotes, type GimmickNote } from './gimmick';
 import { DEFAULT_HIT_EFFECTS, HitEffectLayer, HoldRepeater, slotFor, type HitEffects } from './hitEffects';
 import { DEFAULT_LAYOUT, sanitizeLayout, type PlayfieldLayout } from './layout';
 import { PlayState } from './playState';
+import { TouchLanes, type LaneMove } from './touchInput';
 import {
   clampSpeed,
+  fitLaneWidth,
   fitScale,
   firstAtOrAbove,
   holdBodyWidth,
@@ -21,6 +23,7 @@ import {
   notePositions,
   noteY,
   pxPerMsForSpeed,
+  touchLaneAt,
   visibleScrollRange,
 } from './view';
 
@@ -86,6 +89,11 @@ export interface PlayfieldOptions {
   autoplay?: boolean;
   /** 타격 이펙트 (없으면 DEFAULT_HIT_EFFECTS). `setHitEffects`로 바꿀 수 있다 */
   hitEffects?: HitEffects;
+  /**
+   * 판정 보정(ms). 기기 지연만큼 입력이 늦게 들어오므로 판정 시계를 이만큼 늦춘다 (판정 시각 = 현재 시각 - 이 값).
+   * 그리기는 화면 시계 그대로. 없으면 0
+   */
+  judgeOffsetMs?: number;
 }
 
 const NOTE_RADIUS = 3;
@@ -142,6 +150,10 @@ export class Playfield {
   private readonly holdJudgement: (Judgement | undefined)[] = [];
   /** 다음 그리기에서 터뜨릴 판정 (레인 위치는 그릴 때 정해진다) */
   private pendingBursts: { lane: number; judgement: Judgement; ms: number }[] = [];
+  /** 손가락마다 누른 레인 (터치 입력) */
+  private readonly touches = new TouchLanes();
+  /** 마지막으로 그린 화면 배치 (터치 좌표 → 레인 변환용) */
+  private touchView: { cols: { x: number; width: number }[]; judgeY: number; height: number; scale: number } | null = null;
   private raf = 0;
   private running = false;
 
@@ -179,6 +191,12 @@ export class Playfield {
       window.addEventListener('keydown', this.onKeyDown);
       window.addEventListener('keyup', this.onKeyUp);
       window.addEventListener('blur', this.onBlur);
+      // 터치로 칠 때 화면이 스크롤·확대되지 않게 한다
+      this.canvas.style.touchAction = 'none';
+      this.canvas.addEventListener('pointerdown', this.onPointerDown);
+      this.canvas.addEventListener('pointermove', this.onPointerMove);
+      this.canvas.addEventListener('pointerup', this.onPointerUp);
+      this.canvas.addEventListener('pointercancel', this.onPointerUp);
     }
     this.raf = requestAnimationFrame(this.frame);
   }
@@ -189,6 +207,11 @@ export class Playfield {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('blur', this.onBlur);
+    this.canvas.removeEventListener('pointerdown', this.onPointerDown);
+    this.canvas.removeEventListener('pointermove', this.onPointerMove);
+    this.canvas.removeEventListener('pointerup', this.onPointerUp);
+    this.canvas.removeEventListener('pointercancel', this.onPointerUp);
+    this.touches.clear();
     cancelAnimationFrame(this.raf);
     this.pendingBursts = [];
     this.effectLayer.clear();
@@ -223,7 +246,7 @@ export class Playfield {
     e.preventDefault();
     if (e.repeat || this.autoplay || !this.held.down(id, e.code)) return;
     this.pressed[lane] = true;
-    this.show(this.state.press(lane, this.opts.getTimeMs()));
+    this.show(this.state.press(lane, this.clock()));
   };
 
   private readonly onKeyUp = (e: KeyboardEvent): void => {
@@ -238,8 +261,68 @@ export class Playfield {
     return id === null ? -1 : this.opts.chart.tracks.findIndex(t => t.id === id);
   }
 
+  /** 판정에 쓰는 시계: 화면 시계에서 판정 보정만큼 늦춘 값 */
+  private clock(): number {
+    return judgeClockMs(this.opts.getTimeMs(), this.opts.judgeOffsetMs ?? 0);
+  }
+
+  private trackKey(pointerId: number): string {
+    return 'touch:' + pointerId;
+  }
+
+  /** 손가락 하나의 변화를 키와 같은 길로 처리한다: 떼기 먼저, 그다음 누르기. */
+  private applyTouch(pointerId: number, move: LaneMove): void {
+    const code = this.trackKey(pointerId);
+    if (move.release !== null) {
+      const lane = move.release;
+      if (this.held.up(this.opts.chart.tracks[lane].id, code) && this.pressed[lane]) this.release(lane);
+    }
+    if (move.press !== null) {
+      const lane = move.press;
+      if (this.held.down(this.opts.chart.tracks[lane].id, code)) {
+        this.pressed[lane] = true;
+        this.show(this.state.press(lane, this.clock()));
+      }
+    }
+  }
+
+  /** 포인터 위치(화면 좌표)가 닿는 레인. 마지막으로 그린 배치를 따른다 (아직 안 그렸으면 -1). */
+  private touchLane(e: PointerEvent): number {
+    const view = this.touchView;
+    if (!view) return -1;
+    const box = this.canvas.getBoundingClientRect();
+    const touchable = this.opts.chart.tracks.map(t => t.kind !== 'gimmick');
+    return touchLaneAt(
+      (e.clientX - box.left) / view.scale,
+      (e.clientY - box.top) / view.scale,
+      view.cols,
+      view.judgeY,
+      view.height,
+      touchable,
+    );
+  }
+
+  private readonly onPointerDown = (e: PointerEvent): void => {
+    if (e.pointerType === 'mouse' || this.autoplay) return;
+    e.preventDefault();
+    this.canvas.setPointerCapture(e.pointerId);
+    // pointerup을 놓쳤으면 먼저 뗀 것으로 처리해 레인이 눌린 채 남지 않게 한다
+    if (this.touches.has(e.pointerId)) this.applyTouch(e.pointerId, this.touches.up(e.pointerId));
+    this.applyTouch(e.pointerId, this.touches.down(e.pointerId, this.touchLane(e)));
+  };
+
+  private readonly onPointerMove = (e: PointerEvent): void => {
+    if (this.autoplay || !this.touches.has(e.pointerId)) return;
+    this.applyTouch(e.pointerId, this.touches.move(e.pointerId, this.touchLane(e)));
+  };
+
+  private readonly onPointerUp = (e: PointerEvent): void => {
+    this.applyTouch(e.pointerId, this.touches.up(e.pointerId));
+  };
+
   /** 창이 포커스를 잃으면 keyup이 오지 않으므로 눌린 레인을 모두 뗀다. */
   private readonly onBlur = (): void => {
+    this.touches.clear();
     this.held.clear();
     for (let lane = 0; lane < this.lanes; lane++) if (this.pressed[lane]) this.release(lane);
   };
@@ -247,24 +330,27 @@ export class Playfield {
   private release(lane: number): void {
     this.pressed[lane] = false;
     // 누른 채로 자동 플레이를 켰으면 그 레인의 롱노트는 자동 플레이가 뗀다
-    if (!this.autoplay) this.show(this.state.release(lane, this.opts.getTimeMs()));
+    if (!this.autoplay) this.show(this.state.release(lane, this.clock()));
   }
 
+  /** 판정 이벤트의 시각은 판정 시계라, 판정 글자·이펙트는 화면 시계로 되돌려 시작한다. */
   private show(events: JudgeEvent[]): void {
+    const offset = this.opts.judgeOffsetMs ?? 0;
     for (const e of events) {
       if (e.part === 'head') this.holdJudgement[e.lane] = e.judgement;
-      if (slotFor(e.judgement)) this.pendingBursts.push(e);
+      if (slotFor(e.judgement)) this.pendingBursts.push({ ...e, ms: e.ms + offset });
     }
     const e = events[events.length - 1];
-    if (e) this.last = { judgement: e.judgement, ms: e.ms, timing: e.timing };
+    if (e) this.last = { judgement: e.judgement, ms: e.ms + offset, timing: e.timing };
   }
 
 
   private readonly frame = (): void => {
     this.raf = requestAnimationFrame(this.frame);
     const now = this.opts.getTimeMs();
-    if (this.autoplay) this.show(autoplayStep(this.state, now));
-    this.show(this.state.update(now));
+    const judgeNow = this.clock();
+    if (this.autoplay) this.show(autoplayStep(this.state, judgeNow));
+    this.show(this.state.update(judgeNow));
     this.draw(now);
   };
 
@@ -294,11 +380,15 @@ export class Playfield {
     if (width === 0 || height === 0) return;
 
     const { layout } = this;
-    const cols = trackColumns(width, this.lanes, layout.laneWidth);
+    // 미리보기가 아니면 좁은 화면에 레인이 다 들어가게 레인 폭을 줄인다 (미리보기는 위에서 통째로 축소했다)
+    const laneWidth =
+      viewHeight === undefined ? fitLaneWidth(width, this.lanes, layout.laneWidth) : layout.laneWidth;
+    const cols = trackColumns(width, this.lanes, laneWidth);
     const last = cols[cols.length - 1];
     const left = cols[0].x;
     const fieldWidth = last.x + last.width - left;
     const judgeY = judgeLineY(height, layout);
+    this.touchView = { cols, judgeY, height, scale };
     const centerX = left + fieldWidth / 2;
 
     ctx.fillStyle = colors.lane;

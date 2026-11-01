@@ -1,5 +1,5 @@
 import { ScrollMap, slideSpanAt, type FlickDirection, type FreeChart, type TimingMap } from '@rcm/core';
-import type { Judgement, Timing } from './judge';
+import { judgeClockMs, type Judgement, type Timing } from './judge';
 import { DEFAULT_LAYOUT, sanitizeLayout, type PlayfieldLayout } from './layout';
 import { DEFAULT_PLAYFIELD_COLORS, type PlayfieldColors } from './Playfield';
 import { FreePlayState, type FreeJudgeEvent, type FreePlayNote } from './freePlayState';
@@ -40,6 +40,8 @@ export interface FreePlayfieldOptions {
   aspect?: FreeAspect;
   /** 타격 이펙트 (없으면 DEFAULT_HIT_EFFECTS). `setHitEffects`로 바꿀 수 있다 */
   hitEffects?: HitEffects;
+  /** 판정 보정(ms): 판정 시계를 이만큼 늦춘다 (판정 시각 = 현재 시각 - 이 값). 그리기는 화면 시계 그대로. 없으면 0 */
+  judgeOffsetMs?: number;
 }
 
 const FRAME_COLOR = '#1b1b1b';
@@ -186,41 +188,49 @@ export class FreePlayfield {
     if (!c) return;
     e.preventDefault();
     this.canvas.setPointerCapture(e.pointerId);
-    this.show(this.state.down(e.pointerId, c.col, c.row, this.opts.getTimeMs()));
+    this.show(this.state.down(e.pointerId, c.col, c.row, this.clock()));
   };
 
   private readonly onPointerMove = (e: PointerEvent): void => {
     if (this.autoplay) return;
     const c = this.cell(e);
     if (!c) return;
-    this.show(this.state.move(e.pointerId, c.col, c.row, this.opts.getTimeMs()));
+    this.show(this.state.move(e.pointerId, c.col, c.row, this.clock()));
   };
 
   private readonly onPointerUp = (e: PointerEvent): void => {
     if (this.autoplay) return;
-    this.show(this.state.up(e.pointerId, this.opts.getTimeMs()));
+    this.show(this.state.up(e.pointerId, this.clock()));
   };
 
   /** 창이 포커스를 잃으면 닿아 있던 포인터를 모두 뗀 것으로 한다. */
   private readonly onBlur = (): void => {
-    const now = this.opts.getTimeMs();
+    const now = this.clock();
     for (const id of this.state.pointerIds()) this.show(this.state.up(id, now));
   };
 
+  /** 판정에 쓰는 시계: 화면 시계에서 판정 보정만큼 늦춘 값 */
+  private clock(): number {
+    return judgeClockMs(this.opts.getTimeMs(), this.opts.judgeOffsetMs ?? 0);
+  }
+
+  /** 판정 이벤트의 시각은 판정 시계라, 판정 글자·이펙트는 화면 시계로 되돌려 시작한다. */
   private show(events: FreeJudgeEvent[]): void {
+    const offset = this.opts.judgeOffsetMs ?? 0;
     for (const e of events) {
       if (e.part === 'head') this.headJudgement.set(e.note, e.judgement);
-      if (slotFor(e.judgement)) this.pendingBursts.push(e);
+      if (slotFor(e.judgement)) this.pendingBursts.push({ ...e, ms: e.ms + offset });
     }
     const e = events[events.length - 1];
-    if (e) this.last = { judgement: e.judgement, ms: e.ms, timing: e.timing };
+    if (e) this.last = { judgement: e.judgement, ms: e.ms + offset, timing: e.timing };
   }
 
   private readonly frame = (): void => {
     this.raf = requestAnimationFrame(this.frame);
     const now = this.opts.getTimeMs();
-    if (this.autoplay) this.show(this.state.autoStep(now));
-    this.show(this.state.update(now));
+    const judgeNow = this.clock();
+    if (this.autoplay) this.show(this.state.autoStep(judgeNow));
+    this.show(this.state.update(judgeNow));
     this.draw(now);
   };
 
@@ -327,7 +337,8 @@ export class FreePlayfield {
     const spawn = (i: number, judgement: Judgement, ms: number) => {
       if (judgement === 'miss') return;
       const n = notes[i];
-      const span = n.kind === 'slide' ? this.state.slideSpan(n, ms) : n;
+      // ms는 화면 시계라, 슬라이드 경로 위치는 판정 시계로 되돌려 구한다
+      const span = n.kind === 'slide' ? this.state.slideSpan(n, ms - (this.opts.judgeOffsetMs ?? 0)) : n;
       this.effectLayer.spawn(rect.fieldX + (span.x + span.width / 2) * rect.colPx, judgeY, judgement, ms);
     };
     for (const b of this.pendingBursts) spawn(b.note, b.judgement, b.ms);

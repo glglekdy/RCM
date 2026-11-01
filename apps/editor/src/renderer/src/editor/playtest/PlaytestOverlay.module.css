@@ -98,16 +98,20 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: calc(env(safe-area-inset-top, 0px) + 6px) 8px 6px;
+  padding: calc(env(safe-area-inset-top, 0px) + 6px) calc(env(safe-area-inset-right, 0px) + 8px) 6px
+    calc(env(safe-area-inset-left, 0px) + 8px);
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
+  /* 위쪽 가장자리의 노트를 칠 수 있게 막대는 터치를 통과시키고 버튼만 받는다 */
+  pointer-events: none;
 }
 
 :global(html[data-layout^='phone']) .phoneButtons {
   display: flex;
   align-items: center;
   gap: 6px;
-  overflow-x: auto;
+  /* 좁은 폭(360px)에서도 버튼이 화면 밖으로 나가지 않게 줄을 바꾼다 */
+  flex-wrap: wrap;
 }
 
 :global(html[data-layout^='phone']) .phoneButton {
@@ -121,6 +125,7 @@
   color: var(--text);
   font: inherit;
   white-space: nowrap;
+  pointer-events: auto;
 }
 
 :global(html[data-layout^='phone']) .phoneButtonOn {

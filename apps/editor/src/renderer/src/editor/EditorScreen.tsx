@@ -31,6 +31,12 @@ import { Recorder } from './input/recorder'
 import { resolveShortcut, resolveTypingShortcut, type Action } from './input/shortcuts'
 import { Minimap } from './minimap/Minimap'
 import { PlaytestOverlay } from './playtest/PlaytestOverlay'
+import {
+  enterPlaytestScreen,
+  orientationTarget,
+  type PlaytestScreenSession,
+  type ScreenOrientationTarget
+} from './playtest/playtestScreen'
 import { getChart, type ProjectDoc } from './state/doc'
 import { isDirty } from './state/dirty'
 import { loadProject } from './state/loadProject'
@@ -373,6 +379,29 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   }, [engine, store])
 
   const getTimeMs = useCallback(() => engine.positionMs(), [engine])
+
+  // 폰(웹)의 전체 화면·Wake Lock·방향 고정은 테스트 플레이 한 판 동안 하나로 이어 간다.
+  // 다시 시작해 오버레이가 새로 만들어져도 나갔다 들어가지 않는다.
+  const screenSessionRef = useRef<PlaytestScreenSession | null>(null)
+  const screenTargetRef = useRef<ScreenOrientationTarget | null>(null)
+  const phoneScreen = playtestFromMs !== null && !caps().windowControls && mode !== 'desktop'
+  useEffect(() => {
+    if (!phoneScreen) return
+    // 오버레이가 먼저 마운트되며 방향을 알려 둔다 (자식 effect가 먼저 돈다)
+    const session = enterPlaytestScreen(
+      screenTargetRef.current ??
+        orientationTarget(false, 'portrait', { width: window.innerWidth, height: window.innerHeight })
+    )
+    screenSessionRef.current = session
+    return () => {
+      session.dispose()
+      screenSessionRef.current = null
+    }
+  }, [phoneScreen])
+  const onScreenTarget = useCallback((target: ScreenOrientationTarget) => {
+    screenTargetRef.current = target
+    screenSessionRef.current?.setTarget(target)
+  }, [])
 
   useEffect(() => {
     engine.onEnded(() => {
@@ -857,6 +886,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
             onExit={exitPlaytest}
             onRestart={() => runActionRef.current('playtestRestart')}
             onToggleAutoplay={() => runActionRef.current('playtestAuto')}
+            onScreenTarget={onScreenTarget}
           />
         )}
         {addingChart && (

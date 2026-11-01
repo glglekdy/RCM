@@ -18,7 +18,7 @@ import { getJudgeOffset } from '../../gameplay/judgeOffsetStore'
 import { getLayout } from '../../gameplay/layoutStore'
 import { useLayoutMode } from '../../ui'
 import { caps } from '../../ui/platform'
-import { enterPlaytestScreen, orientationTarget } from './playtestScreen'
+import { orientationTarget, type ScreenOrientationTarget } from './playtestScreen'
 import { getPlaytestSpeed, setPlaytestSpeed } from './speedStore'
 import styles from './PlaytestOverlay.module.css'
 
@@ -40,6 +40,8 @@ interface PlaytestOverlayProps {
   onRestart: () => void
   /** 자동 플레이 켜기·끄기 (F4와 같다) */
   onToggleAutoplay: () => void
+  /** 폰에서 고정할 화면 방향을 알린다 (마운트할 때, 자유형은 방향을 바꿀 때) */
+  onScreenTarget: (target: ScreenOrientationTarget) => void
 }
 
 interface Stats {
@@ -62,12 +64,12 @@ export function PlaytestOverlay({
   autoplay,
   onExit,
   onRestart,
-  onToggleAutoplay
+  onToggleAutoplay,
+  onScreenTarget
 }: PlaytestOverlayProps) {
   const phone = useLayoutMode() !== 'desktop'
-  // 웹에는 타이틀바가 없어 화면 맨 위부터 덮는다. 전체 화면·방향 고정은 웹 폰에서만 쓴다
+  // 웹에는 타이틀바가 없어 화면 맨 위부터 덮는다
   const web = !caps().windowControls
-  const phoneScreen = web && phone
   const chart = useEditor((s) => getChart(s.doc, s.activeChart))
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const playfieldRef = useRef<Playfield | FreePlayfield | null>(null)
@@ -139,22 +141,23 @@ export function PlaytestOverlay({
     lastAspect = aspect
   }, [aspect])
 
-  // 폰: 전체 화면·화면 꺼짐 방지·방향 고정. 자유형에서 방향을 바꾸면 정리하고 새 방향으로 다시 건다.
-  // 레인형은 시작할 때의 화면 방향만 따른다 (돌려도 다시 걸지 않는다)
-  const lockKey = free ? aspect : 'lane'
+  // 고정할 화면 방향을 EditorScreen의 화면 세션에 알린다 (전체 화면·Wake Lock은 거기서 한 판 동안 이어진다).
+  // 자유형은 고른 방향이 바뀔 때마다, 레인형은 시작할 때의 화면 방향만 알린다 (돌려도 다시 알리지 않는다)
+  const targetKey = free ? aspect : 'lane'
+  const onScreenTargetRef = useRef(onScreenTarget)
+  onScreenTargetRef.current = onScreenTarget
   useEffect(() => {
-    if (!phoneScreen) return
-    const target = orientationTarget(free, aspectRef.current, {
-      width: window.innerWidth,
-      height: window.innerHeight
-    })
-    return enterPlaytestScreen(target)
-    // free는 lockKey에 이미 담겨 있다
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phoneScreen, lockKey])
+    onScreenTargetRef.current(
+      targetKey === 'lane'
+        ? orientationTarget(false, 'portrait', { width: window.innerWidth, height: window.innerHeight })
+        : targetKey
+    )
+  }, [targetKey])
 
   const changeSpeed = (step: number) => {
     const next = clampSpeed(speedRef.current + step)
+    // 렌더 전에 연달아 눌러도 둘 다 반영되게 바로 갱신한다
+    speedRef.current = next
     setSpeed(next)
     setPlaytestSpeed(next)
   }

@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "noEmit": true, "types": ["node"] },
-  "include": ["src", "test", "electron.vite.config.ts"]
+  "include": ["src", "test", "electron.vite.config.ts", "guideUpdatedAt.ts"]
 }

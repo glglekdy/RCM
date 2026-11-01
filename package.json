@@ -8,8 +8,10 @@
   ],
   "scripts": {
     "dev": "npm -w @rcm/editor run dev",
+    "dev:web": "npm -w @rcm/web run dev",
     "test": "vitest run",
     "typecheck": "tsc -p packages/core && tsc -p packages/playfield && npm -w @rcm/editor run typecheck && tsc -p apps/web",
+    "build:web": "npm -w @rcm/web run build",
     "dist": "npm -w @rcm/editor run dist",
     "release": "node scripts/release.mjs"
   },

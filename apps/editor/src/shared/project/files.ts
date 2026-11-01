@@ -45,3 +45,12 @@ export function copiedAudioName(source: string, exists: (name: string) => boolea
     if (!exists(name)) return name
   }
 }
+
+/** 불러올 채보 파일 크기 한도. 채보는 텍스트라 이보다 크면 채보가 아니다 */
+export const MAX_CHART_BYTES = 32 * 1024 ** 2
+
+/** 내보낼 채보의 기본 파일 이름: 경로 없는 `<이름>.chart.json`만, 아니면 `chart.chart.json`. */
+export function chartExportName(name: unknown): string {
+  if (typeof name !== 'string') return 'chart.chart.json'
+  return lastPart(name) === name && isChartFileName(name) ? name : 'chart.chart.json'
+}

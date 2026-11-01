@@ -4,31 +4,14 @@ import type { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { parseSong } from '@rcm/core'
 import yauzl, { type Entry, type ZipFile } from 'yauzl'
-import { isAudioFile, isChartFileName, makeProjectDir } from './projectFs'
+import { projectEntries } from '../../shared/project/zipLayout'
+import { makeProjectDir } from './projectFs'
 
 /** 풀었을 때 크기 한도 (음악 포함) */
 export const MAX_IMPORT_BYTES = 1024 ** 3
 
 const isZipPath = (v: unknown): v is string =>
   typeof v === 'string' && path.isAbsolute(v) && path.extname(v).toLowerCase() === '.zip'
-
-/** 프로젝트 폴더에서 가져오는 파일. 그 밖의 파일(그림, 실행 파일 등)은 건너뛴다 */
-const isProjectFileName = (name: string): boolean =>
-  name === 'song.json' || name === 'editor.json' || isChartFileName(name) || isAudioFile(name)
-
-/**
- * 프로젝트 파일이 든 ZIP 안 폴더 (`''` 또는 `'My Song/'`). song.json은 ZIP 바로 안이나 폴더 하나 안에
- * 딱 하나 있어야 한다 (탐색기의 "압축(ZIP) 폴더"는 폴더째 넣는다). macOS가 넣는 `__MACOSX/`는 무시한다.
- */
-function projectPrefix(names: readonly string[]): string {
-  const songs = names.filter((n) => {
-    const parts = n.split('/')
-    return parts.length <= 2 && parts[parts.length - 1] === 'song.json' && parts[0] !== '__MACOSX'
-  })
-  if (songs.length === 0) throw new Error('RCM 프로젝트가 아니에요 (song.json이 없어요)')
-  if (songs.length > 1) throw new Error('프로젝트가 여러 개 들어 있어요. ZIP 하나에 프로젝트 하나만 넣어 주세요')
-  return songs[0].slice(0, -'song.json'.length)
-}
 
 async function readAll(stream: Readable): Promise<Buffer> {
   const chunks: Buffer[] = []
@@ -62,13 +45,9 @@ export async function importProjectZip(zipPath: string, parentDir: string, limit
   }
   try {
     const entries = await listEntries(zip)
-    const prefix = projectPrefix(entries.map((e) => e.fileName))
-    // 프로젝트 폴더 바로 아래 파일만 (하위 폴더는 건너뛴다)
-    const files = entries.filter((e) => {
-      if (!e.fileName.startsWith(prefix)) return false
-      const name = e.fileName.slice(prefix.length)
-      return !name.includes('/') && isProjectFileName(name)
-    })
+    const { prefix, files: names } = projectEntries(entries.map((e) => e.fileName))
+    const wanted = new Set(names)
+    const files = entries.filter((e) => wanted.has(e.fileName))
     if (files.some((e) => e.isEncrypted())) throw new Error('암호가 걸린 ZIP은 가져올 수 없어요')
     // 크기는 ZIP에 적힌 값으로 미리 막고, yauzl이 풀면서 실제 크기가 같은지 확인한다
     const total = files.reduce((sum, e) => sum + e.uncompressedSize, 0)

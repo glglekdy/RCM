@@ -722,6 +722,9 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       case 'toolSelect':
         store.set({ tool: 'select' })
         break
+      case 'toolPan':
+        store.set({ tool: 'pan' })
+        break
       case 'toolBrush': {
         // 연속 그리기는 자유형 채보 전용
         const st = store.getState()

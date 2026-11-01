@@ -2,9 +2,11 @@ import { useEffect, useRef } from 'react'
 import { isFreeChart, type AnyChart, type FreeChart, type Marker, type TimingMap, type TimingPoint } from '@rcm/core'
 import { FREE_NOTE_COLORS } from '@rcm/playfield'
 import { getChart } from '../state/doc'
+import { useLayoutMode } from '../../ui'
 import { useStore } from '../state/useStore'
 import { clampPlayheadMs, layoutTimeline, type TimelineView } from '../timeline/view'
 import {
+  MINIMAP_PHONE_WIDTH,
   MINIMAP_WIDTH,
   minimapDyToMs,
   minimapViewport,
@@ -153,6 +155,7 @@ function drawLaneStatic(ctx: CanvasRenderingContext2D, p: StaticInput, y: (ms: n
 /** VS Code 미니맵처럼 곡 전체를 축소해 보여 주고, 클릭·드래그로 재생선을 옮긴다. */
 export function Minimap({ tm, durationMs }: MinimapProps) {
   const store = useStore()
+  const mode = useLayoutMode()
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const sizeRef = useRef({ width: 0, height: 0 })
@@ -294,7 +297,7 @@ export function Minimap({ tm, durationMs }: MinimapProps) {
     <div
       ref={wrapRef}
       className={styles.wrap}
-      style={{ width: MINIMAP_WIDTH }}
+      style={{ width: mode === 'desktop' ? MINIMAP_WIDTH : MINIMAP_PHONE_WIDTH }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}

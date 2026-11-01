@@ -7,6 +7,8 @@ import {
 const k = (code: string, ctrl = false, shift = false) => ({ code, ctrl, shift })
 
 describe('resolveShortcut', () => {
+  it('H는 이동 도구', () => expect(resolveShortcut(k('KeyH'), 'edit')).toBe('toolPan'))
+  it('Ctrl+H는 그대로 좌우 반전', () => expect(resolveShortcut(k('KeyH', true), 'edit')).toBe('mirror'))
   it('편집 모드', () => {
     expect(resolveShortcut(k('Space'), 'edit')).toBe('playPause')
     expect(resolveShortcut(k('KeyZ', true, true), 'edit')).toBe('redo')

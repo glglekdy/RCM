@@ -12,7 +12,7 @@ export interface EditorState {
   saved: SavedRefs
   activeChart: string
   /** brush: 끌고 지나간 스냅 위치마다 노트를 까는 연속 그리기 (자유형 채보 전용, 레인형에서는 그리기와 같다) */
-  tool: 'draw' | 'erase' | 'select' | 'brush'
+  tool: 'draw' | 'erase' | 'select' | 'brush' | 'pan'
   snap: SnapDivision
   playheadMs: number
   pxPerMs: number

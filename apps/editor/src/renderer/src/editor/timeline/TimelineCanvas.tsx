@@ -8,14 +8,18 @@ import { useEditor, useStore } from '../state/useStore'
 import { drawFreeNotes } from './drawFree'
 import { drawTimeline } from './drawTimeline'
 import { createFreeToolController } from './freeTools'
+import { createGestureRouter, LONG_PRESS_MS, type GestureEffect, type GesturePointer, type PointerKind } from './gesture'
 import { chipAt, type TimelineChip } from './hitTest'
-import { createToolController, type ToolGeometry, type ToolPointer } from './tools'
+import { timelineTargetAt } from './target'
+import { createToolController, type ToolGeometry } from './tools'
 import {
   clampPlayheadMs,
   clampZoom,
   layoutFreeTimeline,
   layoutTimeline,
+  panPlayhead,
   stepPlayheadMs,
+  zoomAround,
   type TimelineLayout
 } from './view'
 import styles from './TimelineCanvas.module.css'
@@ -198,18 +202,84 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [laneTools, freeTools])
 
-  // 포인터 입력은 도구 컨트롤러로 넘기고 미리보기를 다시 그린다
-  const forward =
-    (handler: (p: ToolPointer) => void) => (e: React.PointerEvent | React.MouseEvent) => {
-      const rect = e.currentTarget.getBoundingClientRect()
-      handler({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-        button: e.button,
-        shift: e.shiftKey
-      })
-      drawRef.current()
+  // 포인터 입력은 제스처 라우터가 도구(그리기·지우기·선택), 스크롤, 핀치 확대, 탭으로 나눈다
+  const router = useState(createGestureRouter)[0]
+  /** 터치 길게 누르기 타이머 (포인터 id별) */
+  const pressTimers = useRef(new Map<number, ReturnType<typeof setTimeout>>())
+  const clearPressTimer = (id: number) => {
+    const timer = pressTimers.current.get(id)
+    if (timer === undefined) return
+    clearTimeout(timer)
+    pressTimers.current.delete(id)
+  }
+  useEffect(() => {
+    const timers = pressTimers.current
+    return () => {
+      for (const timer of timers.values()) clearTimeout(timer)
+      timers.clear()
     }
+  }, [])
+
+  const gesturePointer = (e: React.PointerEvent): GesturePointer => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const kind: PointerKind = e.pointerType === 'touch' || e.pointerType === 'pen' ? e.pointerType : 'mouse'
+    return { id: e.pointerId, kind, x: e.clientX - rect.left, y: e.clientY - rect.top, button: e.button, shift: e.shiftKey }
+  }
+
+  /** 라우터가 낸 효과를 순서대로 적용한다. 효과마다 최신 상태로 화면을 다시 만든다 */
+  const applyEffects = (effects: GestureEffect[]) => {
+    for (const fx of effects) {
+      switch (fx.type) {
+        case 'tool-down':
+          tools().onPointerDown(fx.p)
+          break
+        case 'tool-move':
+          tools().onPointerMove(fx.p)
+          break
+        case 'tool-up':
+          tools().onPointerUp(fx.p)
+          break
+        case 'tool-cancel':
+          tools().cancel()
+          break
+        case 'pan': {
+          const s = store.getState()
+          if (s.playing || fx.dy === 0) break
+          const { tm, durationMs } = propsRef.current
+          const view = { playheadMs: s.playheadMs, pxPerMs: s.pxPerMs, height: sizeRef.current.height }
+          store.set({ playheadMs: clampPlayheadMs(tm, panPlayhead(view, fx.dy), durationMs) })
+          break
+        }
+        case 'zoom': {
+          const s = store.getState()
+          if (s.playing) break
+          const { tm, durationMs } = propsRef.current
+          const view = { playheadMs: s.playheadMs, pxPerMs: s.pxPerMs, height: sizeRef.current.height }
+          const pxPerMs = clampZoom(s.pxPerMs * fx.scale)
+          store.set({ pxPerMs, playheadMs: clampPlayheadMs(tm, zoomAround(view, fx.anchorY, pxPerMs), durationMs) })
+          break
+        }
+        case 'tap': {
+          const s = store.getState()
+          const { tm } = propsRef.current
+          const { width, height } = sizeRef.current
+          const geometry: ToolGeometry = {
+            tm,
+            view: { playheadMs: s.playheadMs, pxPerMs: s.pxPerMs, height },
+            layout: layoutFor(width, getChart(s.doc, s.activeChart))
+          }
+          const target = timelineTargetAt(s.doc, s.activeChart, geometry, fx.x, fx.y)
+          store.set({ selection: target.kind === 'note' ? new Set([target.key]) : new Set() })
+          break
+        }
+        case 'long-press':
+          // 메뉴는 Task 3에서 연결한다
+          break
+      }
+    }
+    tools().refresh()
+    drawRef.current()
+  }
 
   /** 이벤트 위치의 BPM·변속 칩 */
   const chipUnder = (e: React.PointerEvent) => {
@@ -219,24 +289,40 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
 
   const onPointerDown = (e: React.PointerEvent) => {
     // 칩을 누르면 BPM · 변속 탭을 열고 그 지점을 강조한다 (도구에는 넘기지 않는다)
-    const chip = e.button === 0 ? chipUnder(e) : null
+    const chip = !router.active && e.button === 0 ? chipUnder(e) : null
     if (chip) {
       store.set({ panelOpen: true, panelTab: 'timing', focusPoint: { kind: chip.kind, tick: chip.tick } })
       return
     }
     // 드래그가 캔버스 밖으로 나가도 이어지도록 포인터를 붙잡는다 (오른쪽 버튼은 그리기 도구의 지우기 드래그)
     if (e.button === 0 || e.button === 2) e.currentTarget.setPointerCapture(e.pointerId)
-    forward(tools().onPointerDown)(e)
+    const p = gesturePointer(e)
+    applyEffects(router.down(p, store.getState().tool))
+    if (p.kind === 'touch' && router.active) {
+      clearPressTimer(p.id)
+      pressTimers.current.set(
+        p.id,
+        setTimeout(() => {
+          pressTimers.current.delete(p.id)
+          applyEffects(router.longPress(p.id))
+        }, LONG_PRESS_MS)
+      )
+    }
   }
 
   // 버튼을 누르지 않은 이동(호버)은 드래그가 아니므로 다시 그리지 않고, 누르면 할 일을 커서로만 보인다
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.buttons !== 0) {
-      forward(tools().onPointerMove)(e)
+    if (router.active) {
+      applyEffects(router.move(gesturePointer(e)))
       return
     }
+    if (e.buttons !== 0) return
     if (chipUnder(e)) {
       e.currentTarget.style.cursor = 'pointer'
+      return
+    }
+    if (tool === 'pan') {
+      e.currentTarget.style.cursor = 'grab'
       return
     }
     const rect = e.currentTarget.getBoundingClientRect()
@@ -247,25 +333,34 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
       action === 'resize' ? resize : action === 'move' ? 'move' : action === 'insert' ? 'copy' : ''
   }
 
-  // 우클릭: 트랙 안은 노트 삭제, 트랙 밖(파형·라벨 영역)은 마커 삭제
-  const onContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault()
-    forward(tools().onContextMenu)(e)
+  const onPointerUp = (e: React.PointerEvent) => {
+    clearPressTimer(e.pointerId)
+    applyEffects(router.up(gesturePointer(e)))
   }
 
-  const onLostPointerCapture = () => {
-    tools().cancel()
+  const onPointerCancel = (e: React.PointerEvent) => {
+    clearPressTimer(e.pointerId)
+    applyEffects(router.cancel(e.pointerId))
+  }
+
+  // 우클릭: 트랙 안은 노트 삭제, 트랙 밖(파형·라벨 영역)은 마커 삭제. 터치 길게 누르기가 보낸 것은 막는다
+  const onContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (!router.allowsContextMenu()) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    tools().onContextMenu({ x: e.clientX - rect.left, y: e.clientY - rect.top, button: e.button, shift: e.shiftKey })
     drawRef.current()
   }
 
   return (
     <div
       ref={wrapRef}
-      className={`${styles.wrap} ${tool === 'draw' || tool === 'brush' ? styles.draw : ''}`}
+      className={`${styles.wrap} ${tool === 'draw' || tool === 'brush' ? styles.draw : ''} ${tool === 'pan' ? styles.pan : ''}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={(e) => forward(tools().onPointerUp)(e)}
-      onLostPointerCapture={onLostPointerCapture}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onLostPointerCapture={onPointerCancel}
       onContextMenu={onContextMenu}
     >
       <canvas ref={canvasRef} className={styles.canvas} />

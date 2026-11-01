@@ -7,6 +7,7 @@ import {
   Eraser,
   Folder,
   Gamepad2,
+  Hand,
   Minus,
   Pause,
   Pencil,
@@ -126,6 +127,12 @@ export function ToolButtons() {
         label="선택 (V)"
         active={tool === 'select'}
         onClick={() => store.set({ tool: 'select' })}
+      />
+      <IconButton
+        icon={Hand}
+        label="이동 (H) — 끌어서 스크롤, 눌러서 선택"
+        active={tool === 'pan'}
+        onClick={() => store.set({ tool: 'pan' })}
       />
     </>
   )

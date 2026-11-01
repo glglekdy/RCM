@@ -14,6 +14,7 @@ export type Action =
   | 'toolErase'
   | 'toolSelect'
   | 'toolBrush'
+  | 'toolPan'
   | 'tap'
   | 'marker'
   | 'markerPrev'
@@ -60,6 +61,7 @@ const PLAIN_KEYS: Record<string, Action> = {
   KeyE: 'toolErase',
   KeyV: 'toolSelect',
   KeyG: 'toolBrush',
+  KeyH: 'toolPan',
   KeyT: 'tap',
   KeyM: 'marker',
   BracketLeft: 'markerPrev',

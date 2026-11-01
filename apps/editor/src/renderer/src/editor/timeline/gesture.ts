@@ -29,7 +29,7 @@ export type GestureEffect =
   | { type: 'long-press'; x: number; y: number }
 
 export interface GestureRouter {
-  down(p: GesturePointer, tool: EditorState['tool'] | 'pan'): GestureEffect[]
+  down(p: GesturePointer, tool: EditorState['tool']): GestureEffect[]
   move(p: GesturePointer): GestureEffect[]
   up(p: GesturePointer): GestureEffect[]
   /** pointercancel, 포인터 붙잡기를 잃음 */

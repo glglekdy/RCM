@@ -2,6 +2,8 @@ import { yToMs, type TimelineView } from '../timeline/view'
 
 /** 미니맵 띠의 폭(px) */
 export const MINIMAP_WIDTH = 72
+/** 폰에서의 띠 폭(px). 손가락으로 타임라인을 끌 자리를 남긴다 */
+export const MINIMAP_PHONE_WIDTH = 18
 
 /** 100% 확대일 때의 타임라인 배율 */
 export const DEFAULT_PX_PER_MS = 0.3

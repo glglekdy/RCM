@@ -157,3 +157,15 @@ export function stepPlayheadMs(
   const tick = Math.round(tm.msToTick(playheadMs) * 1e6) / 1e6
   return tm.tickToMs(stepTick(tm, tick, snap, dir))
 }
+
+/** 손가락이 아래로 dy px 움직였을 때의 재생 위치(ms). 내용이 손가락을 따라가므로 위치는 앞으로 간다. 클램프는 호출하는 쪽이 한다. */
+export function panPlayhead(v: TimelineView, dy: number): number {
+  return v.playheadMs + dy / v.pxPerMs
+}
+
+/** 배율을 pxPerMs로 바꿔도 anchorY의 시각이 같은 y에 머무르게 하는 재생 위치(ms). */
+export function zoomAround(v: TimelineView, anchorY: number, pxPerMs: number): number {
+  if (pxPerMs === v.pxPerMs) return v.playheadMs
+  const anchorMs = yToMs(v, anchorY)
+  return anchorMs - (v.height * PLAYHEAD_RATIO - anchorY) / pxPerMs
+}

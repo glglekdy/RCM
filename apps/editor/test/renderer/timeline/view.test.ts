@@ -9,10 +9,12 @@ import {
   laneSpan,
   layoutTimeline,
   msToY,
+  panPlayhead,
   speedLabel,
   stepPlayheadMs,
   xToLane,
-  yToMs
+  yToMs,
+  zoomAround
 } from '../../../src/renderer/src/editor/timeline/view'
 
 describe('timeline view', () => {
@@ -102,4 +104,17 @@ describe('timeline view', () => {
     const early = new TimingMap([{ tick: 0, bpm: 120 }], -500)
     expect(clampPlayheadMs(early, -5000, 10000)).toBe(-2500)
   })
+})
+
+describe('panPlayhead · zoomAround', () => {
+  const v = { playheadMs: 1000, pxPerMs: 0.5, height: 400 }
+  it('손가락을 아래로 끌면 재생 위치가 앞으로 간다', () => expect(panPlayhead(v, 50)).toBe(1100))
+  it('위로 끌면 뒤로 간다', () => expect(panPlayhead(v, -50)).toBe(900))
+  it('줌해도 기준 y의 시각이 그대로다', () => {
+    const anchorY = 100
+    const before = yToMs(v, anchorY)
+    const playheadMs = zoomAround(v, anchorY, 1)
+    expect(yToMs({ ...v, pxPerMs: 1, playheadMs }, anchorY)).toBeCloseTo(before)
+  })
+  it('줌이 한계에 막히면 재생 위치가 그대로다', () => expect(zoomAround(v, 100, 0.5)).toBe(1000))
 })

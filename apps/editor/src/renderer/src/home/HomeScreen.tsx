@@ -351,7 +351,7 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
           <UpdatePanel compact={collapsed} />
         </aside>
       )}
-      <main className={`${styles.main} ${page === 'home' ? styles.mainHome : ''}`}>
+      <main className={phone && page === 'home' ? `${styles.main} ${styles.mainHome}` : styles.main}>
         {page === 'presets' ? (
           <PresetsPage />
         ) : page === 'userGuide' ? (

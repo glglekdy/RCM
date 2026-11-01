@@ -199,24 +199,32 @@ it('좌우 반전은 mirror 편집을 부른다', () => {
 - [ ] **Step 3:** 전체 확인 명령 4개
 - [ ] **Step 4: 커밋** `feat(editor): phone landscape editor layout`
 
-### Task 6: 홈 화면 (서랍 메뉴, 카드 목록)
+### Task 6: 홈 화면 (떠 있는 아이콘 탭 바, 카드 목록)
+
+사용자 요청(2026-11-01): 폰 홈에서는 서랍 메뉴 대신 iOS 플로팅 탭 바처럼 **아이콘만 보이는** 떠 있는 바를 쓴다.
 
 **Files:**
+- Create: `apps/editor/src/renderer/src/home/FloatingTabBar.tsx`, `apps/editor/src/renderer/src/home/FloatingTabBar.module.css`
 - Modify: `apps/editor/src/renderer/src/home/HomeScreen.tsx`, `HomeScreen.module.css`, `RecentTable.tsx`, `RecentTable.module.css`
 
 **Interfaces:**
-- Consumes: `useLayoutMode()`
+- Consumes: `useLayoutMode()`, HomeScreen의 `NAV`(페이지·아이콘·라벨 목록)와 `goTo`
+- `FloatingTabBar({ page, onNavigate, onNewProject, badges }: { page: Page; onNavigate: (p: Page) => void; onNewProject: () => void; badges: ReadonlySet<Page> })` — `Page`는 HomeScreen이 쓰는 페이지 타입(필요하면 export)
 - 폰 모드(두 모드 공통):
-  - 사이드바를 숨기고 맨 위에 높이 48px 줄: 메뉴 버튼(`Menu` 아이콘, "메뉴 열기"), `RCM`, 오른쪽에 새 프로젝트 아이콘 버튼(`Plus`, "새 프로젝트")
-  - 메뉴 버튼 → 지금 사이드바 내용(접기 버튼 제외, 늘 펼친 모습)을 왼쪽 서랍(폭 `min(280px, 85vw)`)으로 띄우고 뒤에 반투명 배경. 배경을 누르거나, 항목을 고르거나, Esc면 닫힌다
+  - 사이드바를 숨긴다
+  - 화면 아래 가운데에 떠 있는 알약 모양 바(`position: fixed`, `bottom: calc(12px + env(safe-area-inset-bottom))`, 둥근 끝, 반투명 배경 + `backdrop-filter: blur(20px) saturate(180%)`, 얇은 테두리, 그림자). 안에 `NAV` 항목을 **아이콘만**(글자 없음) 같은 순서로: 홈, 트랙 프리셋, 유저 가이드, AI 가이드, 설정. 버튼은 44px, `aria-label`·`title`에 지금 라벨. 고른 항목은 강조색 아이콘 + 그 뒤로 미끄러지는 둥근 표시(지금 사이드바 `navIndicator`처럼 `transform`으로 이동, `prefers-reduced-motion`이면 이동 애니메이션 없음). AI 가이드 새 내용 표시 점은 아이콘 오른쪽 위 작은 점
+  - 알약 오른쪽에 따로 떠 있는 동그란 새 프로젝트 버튼(44px, 강조색 배경, `Plus` 아이콘, `aria-label="새 프로젝트"`)
+  - 맨 위에 높이 48px 줄: 왼쪽 `RCM`, 오른쪽 ZIP 가져오기 아이콘 버튼(`FileArchive`, "ZIP 가져오기")
+  - 사이드바 아래쪽에 있던 `UpdatePanel`(버전·업데이트 내역·공지사항)은 홈 페이지 내용 맨 아래(사용 중 MB 위)에 그대로 둔다
+  - 페이지 내용 아래쪽 여백을 바 높이 + 24px 이상 두어 마지막 카드가 바에 가리지 않는다
   - `RecentTable`에 `variant: 'table' | 'cards'` prop을 더해 폰에서는 `cards`: 카드마다 이름(굵게, 말줄임), 아티스트 · 난이도 요약, 최근 열람(오른쪽 위). 한 번 누르면 연다(삭제 모드에서는 고르기). 찾을 수 없는 프로젝트의 기존 버튼(다시 연결·목록에서 제거)은 카드 아래쪽에 그대로. 우클릭 메뉴는 카드에서도 지금 규칙 그대로(웹은 "열기"만)
   - 목록 머리(검색·정렬·삭제)는 한 줄에 맞지 않으면 검색 칸이 다음 줄 전체 폭으로 내려간다
-- `desktop`은 지금 그대로
+- `desktop`은 지금 그대로(사이드바)
 
 - [ ] **Step 1:** 구현
-- [ ] **Step 2: 확인** 세로·가로 프레임에서 서랍 열기/닫기, 페이지 이동, 카드 누르면 열기, 삭제 모드 고르기, 공지 카드·인사말이 넘치지 않음. PC 크기에서는 이전과 같음. 결과를 보고서에 적는다
+- [ ] **Step 2: 확인** 세로·가로 프레임에서 바의 아이콘으로 페이지 이동(표시가 미끄러져 옮겨 감), 새 프로젝트 버튼, ZIP 가져오기 버튼, 카드 누르면 열기, 삭제 모드 고르기, 마지막 카드가 바에 가리지 않음, 공지 카드·인사말이 넘치지 않음. PC 크기에서는 이전과 같음. 결과를 보고서에 적는다
 - [ ] **Step 3:** 전체 확인 명령 4개
-- [ ] **Step 4: 커밋** `feat(editor): phone home with drawer menu and project cards`
+- [ ] **Step 4: 커밋** `feat(editor): phone home with floating icon tab bar and project cards`
 
 ### Task 7: 대화상자·페이지·터치 대상, 수동 확인
 

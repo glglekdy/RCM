@@ -4,6 +4,7 @@ import { EditorScreen } from './editor/EditorScreen'
 import { HomeScreen } from './home/HomeScreen'
 import { loadPlaytestSpeed } from './editor/playtest/speedStore'
 import { loadHitEffects } from './gameplay/hitEffectStore'
+import { loadJudgeOffset } from './gameplay/judgeOffsetStore'
 import { loadLayout } from './gameplay/layoutStore'
 import { loadPresets } from './presets/presetStore'
 import { DialogProvider, LayoutProvider, TitleBar, ToastProvider } from './ui'
@@ -32,6 +33,9 @@ export function App() {
     })
     loadLayout().catch(() => {
       // 설정을 못 읽으면 기본 레이아웃으로 계속한다
+    })
+    loadJudgeOffset().catch(() => {
+      // 설정을 못 읽으면 오프셋 0으로 계속한다
     })
     loadHitEffects().catch(() => {
       // 설정을 못 읽으면 기본 타격 이펙트로 계속한다

@@ -51,6 +51,12 @@ export function isJudgeOffset(raw: unknown): raw is number {
   return Number.isInteger(raw) && Math.abs(raw as number) <= JUDGE_OFFSET_LIMIT
 }
 
+/** 판정 오프셋을 반올림하고 ±한도로 자른다. 숫자가 아니면 0. */
+export function clampJudgeOffset(ms: number): number {
+  if (typeof ms !== 'number' || Number.isNaN(ms)) return 0
+  return Math.max(-JUDGE_OFFSET_LIMIT, Math.min(JUDGE_OFFSET_LIMIT, Math.round(ms)))
+}
+
 /** 판정 오프셋 검사. 정수이고 -200~200ms가 아니면 throw. */
 export function validateJudgeOffset(raw: unknown): number {
   if (!isJudgeOffset(raw)) throw new Error(`판정 오프셋은 -${JUDGE_OFFSET_LIMIT}~${JUDGE_OFFSET_LIMIT}ms 사이 정수여야 해요`)

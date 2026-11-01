@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SHEET_FILE, frameName, pickedHitEffectOrder } from '../../src/shared/hitEffects'
-import { JUDGE_OFFSET_LIMIT, validateJudgeOffset } from '../../src/shared/settingsRules'
+import { JUDGE_OFFSET_LIMIT, clampJudgeOffset, validateJudgeOffset } from '../../src/shared/settingsRules'
 
 describe('validateJudgeOffset', () => {
   it('한도는 200ms예요', () => {
@@ -14,6 +14,15 @@ describe('validateJudgeOffset', () => {
   it.each([201, -201, 1.5, '10', Number.NaN, Infinity, null, undefined])('%s는 throw해요', (v) => {
     expect(() => validateJudgeOffset(v)).toThrow('판정 오프셋은 -200~200ms 사이 정수여야 해요')
   })
+})
+
+describe('clampJudgeOffset', () => {
+  it('범위 안은 반올림', () => expect(clampJudgeOffset(12.6)).toBe(13))
+  it('범위 밖은 자른다', () => {
+    expect(clampJudgeOffset(500)).toBe(200)
+    expect(clampJudgeOffset(-500)).toBe(-200)
+  })
+  it('숫자가 아니면 0', () => expect(clampJudgeOffset(Number.NaN)).toBe(0))
 })
 
 describe('pickedHitEffectOrder / frameName', () => {

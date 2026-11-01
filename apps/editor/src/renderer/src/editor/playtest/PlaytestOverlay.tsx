@@ -14,6 +14,7 @@ import { getPresets } from '../../presets/presetStore'
 import { getChart } from '../state/doc'
 import { useEditor } from '../state/useStore'
 import { getHitEffects, useHitEffects } from '../../gameplay/hitEffectStore'
+import { getJudgeOffset } from '../../gameplay/judgeOffsetStore'
 import { getLayout } from '../../gameplay/layoutStore'
 import { getPlaytestSpeed, setPlaytestSpeed } from './speedStore'
 import styles from './PlaytestOverlay.module.css'
@@ -76,6 +77,7 @@ export function PlaytestOverlay({ fromMs, tm, getTimeMs, autoplay, onExit }: Pla
       fromMs,
       speed: speedRef.current,
       layout: getLayout(),
+      judgeOffsetMs: getJudgeOffset(),
       autoplay: autoplayRef.current,
       hitEffects: getHitEffects()
     }

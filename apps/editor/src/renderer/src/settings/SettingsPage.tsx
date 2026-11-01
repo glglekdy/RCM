@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Maximize2 } from 'lucide-react'
 import { GameplaySettings } from '../gameplay/GameplaySettings'
+import { JudgeOffsetSettings } from '../gameplay/JudgeOffsetSettings'
 import { HitEffectSettings } from '../gameplay/HitEffectSettings'
 import { LayoutPreview } from '../gameplay/LayoutPreview'
 import { useLayout } from '../gameplay/layoutStore'
@@ -64,6 +65,7 @@ export function SettingsPage() {
             </Card>
           )}
           <GameplaySettings />
+          <JudgeOffsetSettings />
           <HitEffectSettings />
         </div>
         <aside className={styles.preview}>

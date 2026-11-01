@@ -1,7 +1,20 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { RcmApi, UpdateState } from '../shared/api'
+import type { Capabilities, RcmApi, UpdateState } from '../shared/api'
+
+const capabilities: Capabilities = {
+  windowControls: true,
+  autoUpdate: true,
+  discord: true,
+  revealInExplorer: true,
+  guideFileSync: true,
+  chooseProjectFolder: true,
+  trash: true,
+  recording: true,
+  autoSave: false
+}
 
 const api: RcmApi = {
+  capabilities,
   pickAudioFile: () => ipcRenderer.invoke('rcm:pick-audio-file'),
   pickFolder: (defaultPath) => ipcRenderer.invoke('rcm:pick-folder', defaultPath),
   getDefaultProjectDir: () => ipcRenderer.invoke('rcm:get-default-project-dir'),
@@ -9,6 +22,8 @@ const api: RcmApi = {
   createProject: (opts) => ipcRenderer.invoke('rcm:create-project', opts),
   openProject: (dir) => ipcRenderer.invoke('rcm:open-project', dir),
   importProjectZip: (zipPath) => ipcRenderer.invoke('rcm:import-project-zip', zipPath),
+  exportProjectZip: (dir) => ipcRenderer.invoke('rcm:export-project-zip', dir),
+  pickProjectZip: () => ipcRenderer.invoke('rcm:pick-project-zip'),
   pathForFile: (file) => webUtils.getPathForFile(file),
   readAudio: (path) => ipcRenderer.invoke('rcm:read-audio', path),
   importProjectAudio: (dir, source) => ipcRenderer.invoke('rcm:import-project-audio', dir, source),
@@ -29,6 +44,12 @@ const api: RcmApi = {
   getPresets: () => ipcRenderer.invoke('rcm:get-presets'),
   savePresets: (presets) => ipcRenderer.invoke('rcm:save-presets', presets),
   setLastPresetId: (id) => ipcRenderer.invoke('rcm:set-last-preset-id', id),
+  getJudgeOffset: () => ipcRenderer.invoke('rcm:get-judge-offset'),
+  setJudgeOffset: (ms) => ipcRenderer.invoke('rcm:set-judge-offset', ms),
+  getAutoSave: () => Promise.resolve(false),
+  setAutoSave: () => Promise.resolve(),
+  closeProject: () => Promise.resolve(),
+  getStorageUsage: () => Promise.resolve(null),
   setDirty: (dirty) => ipcRenderer.send('rcm:set-dirty', dirty),
   onCloseRequested: (cb) => {
     const listener = (): void => cb()

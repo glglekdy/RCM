@@ -20,6 +20,7 @@ import {
 } from './hitEffectFiles'
 import { writeFileAtomic } from './project/atomicWrite'
 import { chartExportName, readChartFile } from './project/chartFiles'
+import { buildProjectZip } from './project/exportZip'
 import { importProjectZip } from './project/importZip'
 import {
   assertDirectory,
@@ -34,6 +35,7 @@ import {
   summarizeProject,
   writeProjectFiles
 } from './project/projectFs'
+import { validateJudgeOffset } from '../shared/settingsRules'
 import { fetchAnnouncements } from './announcements'
 import {
   addSeenAnnouncements,
@@ -132,6 +134,32 @@ export function registerProjectIpc(): void {
     const dir = await importProjectZip(zipPath, settings.defaultProjectDir ?? defaultProjectDir())
     await touch(dir)
     return { dir }
+  })
+
+  ipcMain.handle('rcm:pick-project-zip', async (e) => {
+    const options: Electron.OpenDialogOptions = {
+      title: 'ZIP 가져오기',
+      properties: ['openFile'],
+      filters: [{ name: 'ZIP', extensions: ['zip'] }]
+    }
+    const win = parentOf(e)
+    const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    return r.canceled || r.filePaths.length === 0 ? null : r.filePaths[0]
+  })
+
+  ipcMain.handle('rcm:export-project-zip', async (e, dir: unknown) => {
+    if (typeof dir !== 'string') throw new Error('프로젝트 폴더가 올바르지 않아요')
+    const { name, data } = await buildProjectZip(dir)
+    const options: Electron.SaveDialogOptions = {
+      title: '프로젝트 ZIP 내보내기',
+      defaultPath: join(app.getPath('downloads'), name),
+      filters: [{ name: 'ZIP', extensions: ['zip'] }]
+    }
+    const win = parentOf(e)
+    const r = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
+    if (r.canceled || !r.filePath) return null
+    await writeFileAtomic(r.filePath, data)
+    return r.filePath
   })
 
   ipcMain.handle('rcm:open-project', async (_e, dir: string) => {
@@ -304,6 +332,18 @@ export function registerProjectIpc(): void {
     const speed = validatePlaytestSpeed(raw)
     return updateSettings(settingsFile(), (settings) => {
       settings.playtestSpeed = speed
+    })
+  })
+
+  ipcMain.handle(
+    'rcm:get-judge-offset',
+    async () => (await loadSettings(settingsFile())).judgeOffset ?? 0
+  )
+
+  ipcMain.handle('rcm:set-judge-offset', async (_e, raw: unknown) => {
+    const ms = validateJudgeOffset(raw)
+    return updateSettings(settingsFile(), (settings) => {
+      settings.judgeOffset = ms
     })
   })
 

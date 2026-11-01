@@ -25,7 +25,7 @@ async function renameRetrying(from: string, to: string): Promise<void> {
 }
 
 /** 임시 파일에 쓴 뒤 rename한다. 실패하면 임시 파일을 지운다. */
-export async function writeFileAtomic(target: string, text: string): Promise<void> {
+export async function writeFileAtomic(target: string, text: string | Uint8Array): Promise<void> {
   const tmp = tempPathFor(target)
   try {
     await fs.writeFile(tmp, text, 'utf8')

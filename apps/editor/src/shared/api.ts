@@ -51,7 +51,21 @@ export interface TrashFailure {
   error: string
 }
 
+/** 실행 환경이 지원하는 기능. 지원하지 않는 기능의 화면은 숨긴다. */
+export interface Capabilities {
+  windowControls: boolean // 제목 표시줄·최소화·최대화·닫기
+  autoUpdate: boolean // 앱 내 업데이트
+  discord: boolean
+  revealInExplorer: boolean
+  guideFileSync: boolean // AI 가이드 자동 문서 업데이트
+  chooseProjectFolder: boolean // 새 프로젝트 저장 위치, 다시 연결
+  trash: boolean // false면 삭제가 영구 삭제
+  recording: boolean // 실시간 녹음
+  autoSave: boolean // 화면이 가려질 때 자동 저장을 지원
+}
+
 export interface RcmApi {
+  readonly capabilities: Capabilities
   pickAudioFile(): Promise<string | null>
   pickFolder(defaultPath?: string): Promise<string | null>
   getDefaultProjectDir(): Promise<string>
@@ -60,6 +74,10 @@ export interface RcmApi {
   openProject(dir: string): Promise<ProjectFiles>
   /** 프로젝트 ZIP을 기본 저장 위치에 풀고 최근 목록에 등록한다. 잘못된 ZIP이면 이유를 담아 reject. */
   importProjectZip(zipPath: string): Promise<{ dir: string }>
+  /** 프로젝트를 ZIP으로 내보낸다. 취소하면 null, 저장하면 파일 이름(웹) 또는 경로(PC). */
+  exportProjectZip(dir: string): Promise<string | null>
+  /** 대화상자에서 ZIP을 고른다. 취소하면 null. 결과는 importProjectZip에 넘기는 경로. */
+  pickProjectZip(): Promise<string | null>
   /** 끌어다 놓은 파일의 디스크 경로. 디스크 파일이 아니면 빈 문자열. */
   pathForFile(file: File): string
   readAudio(path: string): Promise<ArrayBuffer>
@@ -94,6 +112,17 @@ export interface RcmApi {
   /** 프리셋 목록 전체를 저장한다. 잘못된 값이 하나라도 있으면 reject. */
   savePresets(presets: TrackPreset[]): Promise<void>
   setLastPresetId(id: string): Promise<void>
+  /** 판정 오프셋(ms). 저장된 값이 없으면 0. */
+  getJudgeOffset(): Promise<number>
+  /** 범위(-200~200) 밖이면 reject. */
+  setJudgeOffset(ms: number): Promise<void>
+  /** 웹 자동 저장 설정 (없으면 켬). PC는 항상 false를 돌려준다. */
+  getAutoSave(): Promise<boolean>
+  setAutoSave(enabled: boolean): Promise<void>
+  /** 편집 화면을 나갈 때 부른다. 웹은 탭 잠금을 푼다, PC는 아무 일도 안 한다. */
+  closeProject(dir: string): Promise<void>
+  /** 저장소 사용량(바이트). 측정할 수 없으면(PC) null. */
+  getStorageUsage(): Promise<{ usedBytes: number } | null>
   setDirty(dirty: boolean): void
   onCloseRequested(cb: () => void): () => void
   forceClose(): void

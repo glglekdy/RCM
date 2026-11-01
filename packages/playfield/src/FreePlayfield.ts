@@ -334,14 +334,16 @@ export class FreePlayfield {
    */
   private drawEffects(now: number, rect: FreeFieldRect, judgeY: number): void {
     const notes = this.state.notes;
-    const spawn = (i: number, judgement: Judgement, ms: number) => {
+    // ms: 이펙트를 시작할 화면 시계 시각, spanMs: 슬라이드 경로 위치를 구할 시각(노트 시계)
+    const spawn = (i: number, judgement: Judgement, ms: number, spanMs: number) => {
       if (judgement === 'miss') return;
       const n = notes[i];
-      // ms는 화면 시계라, 슬라이드 경로 위치는 판정 시계로 되돌려 구한다
-      const span = n.kind === 'slide' ? this.state.slideSpan(n, ms - (this.opts.judgeOffsetMs ?? 0)) : n;
+      const span = n.kind === 'slide' ? this.state.slideSpan(n, spanMs) : n;
       this.effectLayer.spawn(rect.fieldX + (span.x + span.width / 2) * rect.colPx, judgeY, judgement, ms);
     };
-    for (const b of this.pendingBursts) spawn(b.note, b.judgement, b.ms);
+    // 판정 이벤트: 판정 시계에서 나온 시각을 화면 시계로 옮겨 둔 것이라 경로 위치는 되돌려 구한다
+    const offset = this.opts.judgeOffsetMs ?? 0;
+    for (const b of this.pendingBursts) spawn(b.note, b.judgement, b.ms, b.ms - offset);
     this.pendingBursts = [];
     const nowPos = this.scroll.positionAt(now);
     for (let i = firstAtOrAbove(this.startPos, nowPos - this.maxHoldSpanPos); i < notes.length; i++) {
@@ -349,7 +351,7 @@ export class FreePlayfield {
       const n = notes[i];
       if (n.kind !== 'slide' || !n.headJudged || n.tailJudged) continue;
       const held = this.state.isHeld(i) || (this.autoplay && this.state.autoHolding(i));
-      if (held && this.holdRepeat.tick(i, now)) spawn(i, this.headJudgement.get(i) ?? 'perfect', now);
+      if (held && this.holdRepeat.tick(i, now)) spawn(i, this.headJudgement.get(i) ?? 'perfect', now, now);
     }
     this.holdRepeat.sweep();
     this.effectLayer.draw(this.ctx, now, this.hitEffects, this.colors);

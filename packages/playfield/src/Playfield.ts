@@ -454,6 +454,8 @@ export class Playfield {
     const nowPos = this.scroll.positionAt(now);
     const { fromPos, toPos } = visibleScrollRange(nowPos, height, judgeY, pxPerMs);
     const notes = this.state.notes;
+    // 판정 상태(PlayState)는 판정 시계 기준이라 상태와 견주는 값은 판정 시계로 본다
+    const judgeNow = this.clock();
     const y = (pos: number) => noteY(pos, nowPos, judgeY, pxPerMs);
     for (let i = firstAtOrAbove(this.startPos, fromPos - pad - this.maxHoldSpanPos); i < notes.length; i++) {
       const n = notes[i];
@@ -468,10 +470,11 @@ export class Playfield {
       const held = this.state.heldNote(n.lane) === i;
       let headPos = this.startPos[i];
       let alpha = 1;
-      if (held) headPos = Math.max(headPos, nowPos);
+      // 판정 보정이 양수면 화면 시계가 끝을 지나도 잡고 있을 수 있어, 머리가 꼬리를 넘지 않게 한다
+      if (held) headPos = Math.min(Math.max(headPos, nowPos), this.endPos[i]);
       else if (n.headJudged) {
         // 끝났거나 성공으로 뗀 롱노트는 감추고, 놓쳤거나 일찍 뗀 롱노트는 끝이 다가올 때까지 흐리게
-        if (now >= n.endMs - HOLD_RELEASE_TOLERANCE) continue;
+        if (judgeNow >= n.endMs - HOLD_RELEASE_TOLERANCE) continue;
         alpha = MISSED_HOLD_ALPHA;
       }
       const top = y(this.endPos[i]);

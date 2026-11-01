@@ -39,6 +39,7 @@ import { EditorStore } from './state/store'
 import { StoreContext, useEditor, useStore } from './state/useStore'
 import { TimelineCanvas } from './timeline/TimelineCanvas'
 import { clampPlayheadMs } from './timeline/view'
+import type { EditorActions } from './editorActions'
 import { BottomToolbar } from './toolbar/BottomToolbar'
 import styles from './EditorScreen.module.css'
 
@@ -787,6 +788,27 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     }
   }, [store, engine])
 
+  // 툴바·메뉴가 부르는 동작. 단축키와 같은 runAction 경로를 타므로 동작이 같다
+  const actions = useMemo<EditorActions>(
+    () => ({
+      selectChart,
+      playPause: () => runActionRef.current('playPause'),
+      record: () => runActionRef.current('record'),
+      playtest: () => runActionRef.current('playtestHere'),
+      newProject: () => void newProject(),
+      openProject: () => void openProject(),
+      save: () => runActionRef.current('save'),
+      importCharts: () => void pickChartFiles(),
+      exportChart: () => void exportChart(),
+      exportZip: () => void exportProjectZip(),
+      home: () => void goHome(),
+      undo: () => runActionRef.current('undo'),
+      redo: () => runActionRef.current('redo'),
+      edit: (action) => runActionRef.current(action)
+    }),
+    [selectChart, newProject, openProject, pickChartFiles, exportChart, exportProjectZip, goHome]
+  )
+
   return (
     <div className={styles.screen} onDragEnter={onDragEnter} onDragLeave={onDragLeave} onDrop={onDrop}>
       <TitleBar title={title} dirty={dirty} />
@@ -812,20 +834,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
         <Minimap tm={tm} durationMs={engine.durationMs} />
         {panelOpen && <RightPanel />}
       </div>
-      <BottomToolbar
-        onSelectChart={selectChart}
-        onPlayPause={() => runAction('playPause')}
-        onRecord={() => runAction('record')}
-        onPlaytest={() => runAction('playtestHere')}
-        onNewProject={() => void newProject()}
-        onOpenProject={() => void openProject()}
-        onSave={() => void save()}
-        onImportCharts={() => void pickChartFiles()}
-        onExportChart={() => void exportChart()}
-        onExportZip={() => void exportProjectZip()}
-        onHome={() => void goHome()}
-        inert={playtestFromMs !== null}
-      />
+      <BottomToolbar actions={actions} inert={playtestFromMs !== null} />
       {dropping && (
         <div className={`${styles.dropOverlay} enter-fade`} aria-live="polite">
           <div className={`${styles.dropBox} enter-pop`}>

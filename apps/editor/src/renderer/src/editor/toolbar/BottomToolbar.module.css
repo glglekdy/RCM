@@ -134,3 +134,10 @@
   border-radius: 50%;
   flex: none;
 }
+
+/* 난이도 드롭다운에 적힌 이름: 길면 말줄임 */
+.chartName {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

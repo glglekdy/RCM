@@ -26,6 +26,12 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
+/* 화면 위쪽 막대에서는 아래로 펼친다 */
+.down {
+  top: calc(100% + 8px);
+  bottom: auto;
+}
+
 .title {
   padding: 4px 6px 2px;
   color: var(--text-muted);

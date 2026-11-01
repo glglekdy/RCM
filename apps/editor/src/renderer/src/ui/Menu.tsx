@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Check } from 'lucide-react'
 import styles from './Menu.module.css'
 
-interface MenuItem {
+export interface MenuItem {
   label: string
   onSelect: () => void
   disabled?: boolean

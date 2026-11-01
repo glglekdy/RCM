@@ -22,7 +22,14 @@ type Editing = { name: string | null; draft: FreeGimmick }
  * 하단 툴바의 기믹 노트 목록. 누르면 위로 펼쳐지고, 고른 종류로 그린다.
  * 사용자가 이름·색을 정해 추가하고, 줄마다 연필(고치기)·휴지통(지우기)으로 관리한다.
  */
-export function GimmickList({ chart }: { chart: FreeChart }) {
+export function GimmickList({
+  chart,
+  placement = 'up'
+}: {
+  chart: FreeChart
+  /** 목록을 펼치는 방향. 기본 'up' (화면 아래쪽 툴바) */
+  placement?: 'up' | 'down'
+}) {
   const store = useStore()
   const dialogs = useDialogs()
   const file = useEditor((s) => s.activeChart)
@@ -127,7 +134,11 @@ export function GimmickList({ chart }: { chart: FreeChart }) {
         <ChevronDown size={14} />
       </button>
       {open && (
-        <div className={styles.popup} role="dialog" aria-label="기믹 노트">
+        <div
+          className={placement === 'down' ? `${styles.popup} ${styles.down}` : styles.popup}
+          role="dialog"
+          aria-label="기믹 노트"
+        >
           <div className={styles.title}>기믹 노트</div>
           {gimmicks.length === 0 ? (
             <p className={styles.empty}>

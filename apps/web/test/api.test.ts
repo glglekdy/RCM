@@ -78,7 +78,7 @@ describe('createWebApi', () => {
     const api = await setup()
     const path = registerPicked(new File(['{}'], 'a.txt'))
     await expect(api.readChartFile(path)).rejects.toThrow('채보 파일(.chart.json)만 불러올 수 있어요')
-    await expect(api.readChartFile('C:\a.chart.json')).rejects.toThrow('채보 파일(.chart.json)만 불러올 수 있어요')
+    await expect(api.readChartFile('C:\\a.chart.json')).rejects.toThrow('채보 파일(.chart.json)만 불러올 수 있어요')
   })
 
   it('고른 채보 파일의 글을 읽는다', async () => {

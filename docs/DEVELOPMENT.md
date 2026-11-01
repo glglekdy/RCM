@@ -4,11 +4,12 @@ RCM 채보 에디터를 직접 빌드하거나 고치고 배포하는 방법입�
 
 ## 구성
 
-데스크톱 채보 에디터(Electron + TypeScript)와, 에디터와 게임이 함께 쓰는 공유 코어입니다.
+데스크톱 채보 에디터(Electron + TypeScript), 같은 화면 코드를 브라우저에서 돌리는 웹 버전, 에디터와 게임이 함께 쓰는 공유 코어입니다.
 
 - `packages/core`: 채보 포맷 타입, 읽기·검증·저장, 타이밍 계산
 - `packages/playfield`: 노트가 떨어지는 화면 렌더링과 입력 판정
 - `apps/editor`: Electron 채보 에디터
+- `apps/web`: 웹 버전 (Vite). `apps/editor`의 화면 코드를 그대로 쓰고, 파일·설정 저장만 브라우저용으로 바꿉니다
 
 ## 개발 실행
 
@@ -21,6 +22,16 @@ npm run dev
 Electron 44부터는 `npm install`만으로 실행 파일이 내려받아지지 않습니다. npm 11은 설치 스크립트 실행도 막으므로(`npm approve-scripts`로 허용해도 Electron 패키지에는 실행할 설치 스크립트가 없습니다), 처음 클론한 뒤에 위 두 번째 줄을 한 번 직접 실행해야 합니다. 이 단계를 건너뛰면 `npm run dev`와 `npm run dist`가 Electron을 찾지 못합니다.
 
 `apps/editor/package.json`의 `electron`은 `^` 없이 정확한 버전으로 고정되어 있습니다. 워크스페이스에서 electron이 루트 `node_modules`로 올라가면 electron-builder가 버전 범위를 해석하지 못하고 빌드를 거부하기 때문입니다.
+
+## 웹 개발 실행
+
+```
+npm run dev:web
+```
+
+브라우저에서 `http://localhost:5173/RCM/app/`를 엽니다. 같은 와이파이의 폰에서 확인하려면 `npm run dev:web -- --host`로 실행하고, 터미널에 나오는 네트워크 주소(`http://<PC IP>:5173/RCM/app/`)를 폰에서 엽니다. 배포용 파일은 `npm run build:web`으로 `apps/web/dist`에 만들어집니다.
+
+웹 버전은 서버 없이 브라우저 안에만 저장합니다. 프로젝트·설정·타격 이펙트는 브라우저 IndexedDB의 `rcm` 데이터베이스에 들어가고, 사이트 데이터를 지우면 함께 지워집니다. 기기를 옮길 때는 프로젝트 ZIP으로 내보내고 가져옵니다. 개발 중에 저장 내용을 비우려면 브라우저 개발자 도구 → Application → IndexedDB에서 `rcm`을 지웁니다.
 
 ## 테스트
 

@@ -6,7 +6,7 @@ import { loadPlaytestSpeed } from './editor/playtest/speedStore'
 import { loadHitEffects } from './gameplay/hitEffectStore'
 import { loadLayout } from './gameplay/layoutStore'
 import { loadPresets } from './presets/presetStore'
-import { DialogProvider, TitleBar, ToastProvider } from './ui'
+import { DialogProvider, LayoutProvider, TitleBar, ToastProvider } from './ui'
 import { caps } from './ui/platform'
 import { UpdateNotice } from './update/UpdateNotice'
 import { startUpdateStore } from './update/updateStore'
@@ -54,25 +54,27 @@ export function App() {
   const goHome = useCallback(() => setState({ screen: 'home' }), [])
 
   return (
-    <DialogProvider>
-      <ToastProvider>
-        {state.screen === 'home' ? (
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <TitleBar title="RCM" />
-            <HomeScreen onOpened={openProject} />
-          </div>
-        ) : (
-          <EditorScreen
-            key={state.id}
-            files={state.files}
-            onExit={goHome}
-            onOpenProject={openProject}
-          />
-        )}
-        {caps().autoUpdate && <UpdateNotice />}
-        <WhatsNewDialog />
-        <AnnouncementsDialog />
-      </ToastProvider>
-    </DialogProvider>
+    <LayoutProvider>
+      <DialogProvider>
+        <ToastProvider>
+          {state.screen === 'home' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <TitleBar title="RCM" />
+              <HomeScreen onOpened={openProject} />
+            </div>
+          ) : (
+            <EditorScreen
+              key={state.id}
+              files={state.files}
+              onExit={goHome}
+              onOpenProject={openProject}
+            />
+          )}
+          {caps().autoUpdate && <UpdateNotice />}
+          <WhatsNewDialog />
+          <AnnouncementsDialog />
+        </ToastProvider>
+      </DialogProvider>
+    </LayoutProvider>
   )
 }

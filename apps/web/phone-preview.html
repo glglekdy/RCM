@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>폰 미리보기</title>
+<style>
+  body { margin: 0; background: #0b0b0b; color: #ddd; font: 13px system-ui, sans-serif; padding: 16px; }
+  .row { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+  .dev { border: 10px solid #333; border-radius: 28px; overflow: hidden; background: #000; }
+  iframe { border: 0; display: block; }
+  p { margin: 6px 0 0; text-align: center; color: #999; }
+</style>
+</head>
+<body>
+<div class="row">
+  <div><div class="dev"><iframe src="./" width="390" height="844"></iframe></div><p>세로 390×844</p></div>
+  <div><div class="dev"><iframe src="./" width="844" height="390"></iframe></div><p>가로 844×390</p></div>
+</div>
+</body>
+</html>

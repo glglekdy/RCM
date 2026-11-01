@@ -10,7 +10,7 @@ const { version } = JSON.parse(readFileSync(new URL('../editor/package.json', im
 }
 
 export default defineConfig({
-  base: '/RCM/app/',
+  base: '/RCM/main/',
   plugins: [react()],
   define: {
     __AI_GUIDE_UPDATED_AT__: JSON.stringify(guideUpdatedAt()),

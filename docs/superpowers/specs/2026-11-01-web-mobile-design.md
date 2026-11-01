@@ -13,7 +13,7 @@
 - 폰 배치: **하단 툴바 + 아래 시트**(가로 화면은 왼쪽 도구 줄 + 오른쪽 패널).
 - 터치 조작: **한 손가락 = 편집, 두 손가락 = 스크롤·줌, 이동(✋) 도구 추가**.
 - 웹은 화면이 가려질 때 **자동 저장**한다(설정에서 끌 수 있음).
-- 웹 주소는 `https://glglekdy.github.io/RCM/app/`이고, **릴리스 태그와 함께** 배포한다.
+- 웹 주소는 `https://glglekdy.github.io/RCM/main/`이고, **릴리스 태그와 함께** 배포한다.
 
 ## 1. 정한 기본값
 - 웹은 PC 앱과 **같은 버전 번호**를 쓴다(`apps/editor/package.json`).
@@ -222,7 +222,7 @@ PC 앱(`capabilities.windowControls`)은 항상 `desktop`으로 고정한다.
 ## 7. PWA와 배포
 
 ### 7.1 PWA (`vite-plugin-pwa`)
-- `base: '/RCM/app/'`, manifest: `name: 'RCM 채보 에디터'`, `short_name: 'RCM'`, 아이콘은 `apps/editor/build/icon.png`에서 192·512px, `display: 'standalone'`, `background_color`·`theme_color`는 `tokens.css`의 배경색.
+- `base: '/RCM/main/'`, manifest: `name: 'RCM 채보 에디터'`, `short_name: 'RCM'`, 아이콘은 `apps/editor/build/icon.png`에서 192·512px, `display: 'standalone'`, `background_color`·`theme_color`는 `tokens.css`의 배경색.
 - 서비스 워커는 빌드 결과 전부를 precache한다. `registerType: 'prompt'`.
 - 새 서비스 워커가 기다리면 토스트 "새 버전이 있어요 · 새로고침". 누르면 dirty면 먼저 저장하고 `updateSW(true)`. 새로고침 후에는 기존 업데이트 내역 대화상자가 뜬다(`getWhatsNewState`는 웹 settings에 저장).
 
@@ -252,6 +252,6 @@ PC 앱(`capabilities.windowControls`)은 항상 `desktop`으로 고정한다.
 2. **폰 배치**: 4장. → 폰 세로·가로에서 화면이 맞게 나온다(조작은 PC식).
 3. **터치 조작**: 5장. → 폰에서 손가락으로 편집.
 4. **테스트 플레이**: 6.1·6.2, 판정 오프셋 화면. → 폰에서 두 방식 모두 플레이.
-5. **PWA와 배포**: 3.5 자동 저장, 6.3, 7장, 문서. → `glglekdy.github.io/RCM/app/` 공개.
+5. **PWA와 배포**: 3.5 자동 저장, 6.3, 7장, 문서. → `glglekdy.github.io/RCM/main/` 공개.
 
-웹 배포 job은 5단계에서 넣으므로 그 전에 릴리스해도 덜 만든 웹은 공개되지 않는다.
+사용자 결정(2026-11-01): 2단계까지 만든 웹을 **베타로 먼저 공개**한다. `gh-pages` 브랜치의 `main/` 폴더에 직접 올리고, 랜딩 페이지에 "바로 채보 짜기 (베타)" 버튼을 단다. 5단계에서 자동 배포 job으로 바꾼다.

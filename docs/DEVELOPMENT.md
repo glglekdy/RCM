@@ -29,9 +29,9 @@ Electron 44부터는 `npm install`만으로 실행 파일이 내려받아지지 
 npm run dev:web
 ```
 
-브라우저에서 `http://localhost:5173/RCM/app/`를 엽니다. 같은 와이파이의 폰에서 확인하려면 `npm run dev:web -- --host`로 실행하고, 터미널에 나오는 네트워크 주소(`http://<PC IP>:5173/RCM/app/`)를 폰에서 엽니다. 배포용 파일은 `npm run build:web`으로 `apps/web/dist`에 만들어집니다.
+브라우저에서 `http://localhost:5173/RCM/main/`를 엽니다. 같은 와이파이의 폰에서 확인하려면 `npm run dev:web -- --host`로 실행하고, 터미널에 나오는 네트워크 주소(`http://<PC IP>:5173/RCM/main/`)를 폰에서 엽니다. 배포용 파일은 `npm run build:web`으로 `apps/web/dist`에 만들어집니다.
 
-폰 화면 미리보기(세로 390×844, 가로 844×390을 한 번에)는 개발 서버를 켠 채 `http://localhost:5173/RCM/app/phone-preview.html`을 엽니다. 빌드에는 들어가지 않습니다.
+폰 화면 미리보기(세로 390×844, 가로 844×390을 한 번에)는 개발 서버를 켠 채 `http://localhost:5173/RCM/main/phone-preview.html`을 엽니다. 빌드에는 들어가지 않습니다.
 
 웹 버전은 서버 없이 브라우저 안에만 저장합니다. 프로젝트·설정·타격 이펙트는 브라우저 IndexedDB의 `rcm` 데이터베이스에 들어가고, 사이트 데이터를 지우면 함께 지워집니다. 기기를 옮길 때는 프로젝트 ZIP으로 내보내고 가져옵니다. 개발 중에 저장 내용을 비우려면 브라우저 개발자 도구 → Application → IndexedDB에서 `rcm`을 지웁니다.
 

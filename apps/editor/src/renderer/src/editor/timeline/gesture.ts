@@ -38,6 +38,8 @@ export interface GestureRouter {
   longPress(id: number): GestureEffect[]
   /** 누르고 있는 포인터가 있다 */
   readonly active: boolean
+  /** 이 포인터를 누른 중으로 보고 있다 (pointerup을 놓친 포인터를 찾는 데 쓴다) */
+  tracks(id: number): boolean
   /** 마지막으로 누른 포인터가 터치가 아니면 true. 터치 길게 누르기가 보내는 contextmenu를 막는 데 쓴다 */
   allowsContextMenu(): boolean
 }
@@ -197,6 +199,10 @@ export function createGestureRouter(): GestureRouter {
 
     get active() {
       return pointers.size > 0
+    },
+
+    tracks(id) {
+      return pointers.has(id)
     },
 
     allowsContextMenu() {

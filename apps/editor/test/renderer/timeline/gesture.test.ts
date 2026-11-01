@@ -115,4 +115,41 @@ describe('GestureRouter', () => {
     r.down(mouse(10, 10, 2), 'select')
     expect(r.allowsContextMenu()).toBe(true)
   })
+  it('핀치 중 한 손가락을 뗀 뒤 다시 손가락을 대면 핀치를 다시 한다', () => {
+    const r = createGestureRouter()
+    r.down(touch(1, 100, 100), 'draw')
+    r.down(touch(2, 100, 200), 'draw')
+    r.up(touch(2, 100, 200))
+    expect(r.down(touch(3, 100, 300), 'draw')).toEqual([])
+    expect(r.move(touch(3, 100, 500))).toEqual([
+      { type: 'pan', dy: 100 },
+      { type: 'zoom', scale: 2, anchorY: 300 }
+    ])
+  })
+  it('핀치 중 손가락이 취소되면 남은 손가락은 아무 일도 하지 않는다', () => {
+    const r = createGestureRouter()
+    r.down(touch(1, 100, 100), 'draw')
+    r.down(touch(2, 100, 200), 'draw')
+    expect(r.cancel(2)).toEqual([])
+    expect(r.move(touch(1, 100, 150))).toEqual([])
+    expect(r.cancel(1)).toEqual([])
+    expect(r.active).toBe(false)
+  })
+  it('누른 중인 포인터만 추적한다고 답한다', () => {
+    const r = createGestureRouter()
+    expect(r.tracks(1)).toBe(false)
+    r.down(mouse(10, 10), 'draw')
+    expect(r.tracks(1)).toBe(true)
+    expect(r.tracks(2)).toBe(false)
+    expect(r.cancel(1)).toEqual([{ type: 'tool-cancel' }])
+    expect(r.tracks(1)).toBe(false)
+    expect(r.active).toBe(false)
+  })
+  it('펜 누름이 취소되면 다음 누름을 다시 받는다', () => {
+    const r = createGestureRouter()
+    const pen = (id: number): GesturePointer => ({ id, kind: 'pen', x: 10, y: 10, button: 0, shift: false })
+    r.down(pen(7), 'draw')
+    r.cancel(7)
+    expect(types(r.down(pen(8), 'draw'))).toEqual(['tool-down'])
+  })
 })

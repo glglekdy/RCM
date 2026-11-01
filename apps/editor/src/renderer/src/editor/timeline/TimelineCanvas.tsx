@@ -229,7 +229,7 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
     }
   }, [])
 
-  /** 터치로 선택 도구를 눌렀을 때의 선택 (길게 누르기 때 복원) */
+  /** 선택 도구로 눌렀을 때의 선택. 누름이 길게 누르기·핀치·취소로 끝나면 되돌린다 (선택 도구는 누르는 순간 선택을 바꾼다) */
   const preDownSelection = useRef<ReadonlySet<string> | null>(null)
 
   const gesturePointer = (e: React.PointerEvent): GesturePointer => {
@@ -246,12 +246,15 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
 
   /** 라우터가 낸 효과를 순서대로 적용한다. 효과마다 최신 상태로 화면을 다시 만든다 */
   const applyEffects = (effects: GestureEffect[]) => {
+    if (effects.length === 0) return
+    const before = store.getState()
     for (const [i, fx] of effects.entries()) {
       switch (fx.type) {
         case 'tool-down': {
-          // 선택 도구의 터치 누름은 선택을 바꿀 수 있다. 길게 누르기가 되돌릴 수 있게 눌렀을 때의 선택을 기억한다
+          // 선택 도구의 누름은 선택을 바꿀 수 있다. 누름이 취소되거나 길게 누르기가 되면 되돌릴 수 있게 기억한다.
+          // 정상으로 뗀 누름(tool-up)은 기억을 버리기만 하므로 PC 클릭·드래그 결과는 그대로다
           const s = store.getState()
-          preDownSelection.current = fx.p.kind === 'touch' && s.tool === 'select' ? s.selection : null
+          preDownSelection.current = s.tool === 'select' ? s.selection : null
           tools().onPointerDown(toolPointer(fx.p))
           break
         }
@@ -262,11 +265,15 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
           preDownSelection.current = null
           tools().onPointerUp(toolPointer(fx.p))
           break
-        case 'tool-cancel':
-          // 길게 누르기가 이어서 되돌릴 기억은 남긴다
-          if (effects[i + 1]?.type !== 'long-press') preDownSelection.current = null
+        case 'tool-cancel': {
           tools().cancel()
+          // 길게 누르기가 이어지면 그쪽에서 되돌린다. 아니면(핀치, pointercancel) 누르기 전 선택으로 되돌린다
+          if (effects[i + 1]?.type === 'long-press') break
+          const selection = preDownSelection.current
+          preDownSelection.current = null
+          if (selection) store.set({ selection })
           break
+        }
         case 'pan': {
           const s = store.getState()
           if (s.playing || fx.dy === 0) break
@@ -298,6 +305,10 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
           break
         }
         case 'long-press': {
+          // 누르는 순간 바뀐 선택(노트 선택, 추가 선택 토글)을 먼저 되돌린다. 메뉴를 열지 않고 끝나도 되돌린다
+          const selection = preDownSelection.current
+          preDownSelection.current = null
+          if (selection) store.set({ selection })
           const wrap = wrapRef.current
           const s = store.getState()
           if (!wrap || s.playing || s.mode !== 'edit') break
@@ -309,11 +320,6 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
             layout: layoutFor(width, getChart(s.doc, s.activeChart))
           }
           const target = timelineTargetAt(s.doc, s.activeChart, geometry, fx.x, fx.y)
-          // 누르는 순간 토글된 선택(추가 선택)을 먼저 되돌린다
-          if (preDownSelection.current) {
-            store.set({ selection: preDownSelection.current })
-            preDownSelection.current = null
-          }
           // 선택에 없는 노트를 누르면 그 노트만 선택하고 메뉴를 연다
           if (target.kind === 'note' && !store.getState().selection.has(target.key)) store.set({ selection: new Set([target.key]) })
           const now = store.getState()
@@ -330,7 +336,10 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
         }
       }
     }
-    tools().refresh()
+    // 스크롤·확대로 화면이 움직였으면 끄는 중인 드래그를 새 화면에 맞춰 다시 계산한다.
+    // (움직이지 않았는데 다시 계산하면 빈 곳 클릭이 높이 0인 선택 사각형을 만든다)
+    const after = store.getState()
+    if (after.playheadMs !== before.playheadMs || after.pxPerMs !== before.pxPerMs) tools().refresh()
     drawRef.current()
   }
 
@@ -345,6 +354,9 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
 
   const onPointerDown = (e: React.PointerEvent) => {
     lastTouchRef.current = e.pointerType === 'touch'
+    // 왼쪽·오른쪽 외의 버튼(가운데, 앞·뒤, 펜 지우개)은 도구가 쓰지 않고 붙잡지도 않는다.
+    // 붙잡지 않은 포인터는 캔버스 밖에서 떼면 pointerup이 오지 않아 라우터가 계속 누른 중으로 남는다
+    if (e.pointerType !== 'touch' && e.button !== 0 && e.button !== 2) return
     // 칩을 누르면 BPM · 변속 탭을 열고 그 지점을 강조한다 (도구에는 넘기지 않는다)
     const chip = !router.active && e.button === 0 ? chipUnder(e) : null
     if (chip) {
@@ -370,6 +382,12 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
   // 버튼을 누르지 않은 이동(호버)은 드래그가 아니므로 다시 그리지 않고, 누르면 할 일을 커서로만 보인다
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (router.active) {
+      // 마우스·펜 버튼이 모두 떼어졌는데 pointerup을 못 받았으면 (붙잡기 실패 등) 그 누름을 취소한다
+      if (e.pointerType !== 'touch' && e.buttons === 0 && router.tracks(e.pointerId)) {
+        clearPressTimer(e.pointerId)
+        applyEffects(router.cancel(e.pointerId))
+        return
+      }
       applyEffects(router.move(gesturePointer(e)))
       return
     }
@@ -423,7 +441,7 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
       <canvas ref={canvasRef} className={styles.canvas} />
       {menu &&
         createPortal(
-          <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={closeMenu} armOnPointerUp />,
+          <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={closeMenu} longPress />,
           document.body
         )}
     </div>

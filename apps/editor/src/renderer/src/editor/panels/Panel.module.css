@@ -180,3 +180,10 @@
   color: var(--text-muted);
   pointer-events: none;
 }
+
+/* 폰: 기믹 종류 드롭다운도 높이 40px, 글자 16px (iOS 확대 방지) */
+:global(html[data-layout^='phone']) .select {
+  max-width: 100%;
+  height: 40px;
+  font-size: 16px;
+}

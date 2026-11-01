@@ -10,6 +10,7 @@ import { openRcmDb } from './db'
 import { download } from './downloads'
 import { createHitEffects } from './hitEffects'
 import { getPicked, isPickedPath, pickFiles, registerPicked } from './picked'
+import { uuidV4 } from './uuid'
 import { createProjects, type ProjectDeps } from './projects'
 import { createSettings } from './settings'
 import { exportZip, importZip } from './zip'
@@ -51,7 +52,7 @@ export async function createWebApi(deps: Partial<WebApiDeps> = {}): Promise<RcmA
   const projects = createProjects(db, {
     locks: deps.locks ?? browserLocks(),
     now: deps.now ?? Date.now,
-    uuid: deps.uuid ?? (() => crypto.randomUUID())
+    uuid: deps.uuid ?? uuidV4
   })
 
   let dirty = false

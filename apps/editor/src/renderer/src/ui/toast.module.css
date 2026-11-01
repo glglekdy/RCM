@@ -11,6 +11,14 @@
   pointer-events: none;
 }
 
+/*
+ * 폰: 아래에 떠 있는 크롬(홈 화면 탭 바 12px+52px, 편집 세로의 두 줄 2x60px)보다 위로 띄운다.
+ * 120px = 두 줄 높이 / 홈 탭 바(약 88px) 모두 가리지 않는 값, 거기에 홈 바 안전 영역을 더한다.
+ */
+:global(html[data-layout^='phone']) .stack {
+  bottom: calc(120px + env(safe-area-inset-bottom));
+}
+
 .toast {
   padding: 8px 16px;
   background: var(--bg-input);

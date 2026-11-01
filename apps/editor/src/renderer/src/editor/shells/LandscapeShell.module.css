@@ -68,14 +68,6 @@
   font-size: 12px;
 }
 
-/* 녹음 중 REC 버튼도 같은 이유로 쌓는다 */
-.rail button[aria-label^='녹음 끝내기'] {
-  flex-direction: column;
-  gap: 2px;
-  width: 100%;
-  padding: 2px 0;
-}
-
 .more button[title] {
   display: inline-flex;
   align-items: center;
@@ -170,6 +162,25 @@
   display: none;
 }
 
+/*
+ * 노치/라운드 모서리: viewport-fit=cover라 가로 모드에서 왼쪽 줄·오른쪽 패널이 노치에 가려질 수 있다.
+ * 폰 모드에서만 안전 영역만큼 안쪽으로 들인다 (배경은 가장자리까지 채운다). 데스크톱은 그대로.
+ */
+:global(html[data-layout^='phone']) .rail {
+  width: calc(52px + env(safe-area-inset-left));
+  padding-left: calc(3px + env(safe-area-inset-left));
+}
+
+:global(html[data-layout^='phone']) .panel {
+  width: calc(280px + env(safe-area-inset-right));
+  padding-right: env(safe-area-inset-right);
+}
+
+:global(html[data-layout^='phone']) .strip {
+  width: calc(44px + env(safe-area-inset-right));
+  padding-right: calc(2px + env(safe-area-inset-right));
+}
+
 /* 폰: 눌리는 것은 40px 이상 (패널 탭 줄은 높이 36px이라 40px로 키운다) */
 :global(html[data-layout^='phone']) .rail button:not([role='switch']),
 :global(html[data-layout^='phone']) .fixed button:not([role='switch']),
@@ -198,7 +209,7 @@
  */
 :global(html[data-layout^='phone']) .rail [role='menu'] {
   position: fixed;
-  left: 60px;
+  left: calc(60px + env(safe-area-inset-left));
   min-width: 140px;
   max-height: calc(100dvh - 16px);
   overflow-y: auto;

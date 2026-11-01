@@ -72,6 +72,12 @@
   opacity: 1;
 }
 
+/* 위 노치/상태 막대(안전 영역)만큼 막대를 키우고 안쪽으로 들인다. TopBar는 폰 세로에서만 쓰인다 */
+:global(html[data-layout^='phone']) .bar {
+  height: calc(48px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) max(4px, env(safe-area-inset-right)) 0 max(4px, env(safe-area-inset-left));
+}
+
 /* 폰: 막대 안의 버튼·메뉴 항목은 40px 이상 */
 :global(html[data-layout^='phone']) .bar button {
   min-width: 40px;

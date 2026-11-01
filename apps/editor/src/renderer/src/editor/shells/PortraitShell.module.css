@@ -117,6 +117,19 @@
   padding: 4px 12px 12px;
 }
 
+/* 맨 아래 줄: 홈 바(안전 영역)만큼 높이와 아래 여백을 늘린다. 폰 모드에서만 */
+:global(html[data-layout='phone-portrait']) .bottom {
+  height: calc(var(--row-h) + env(safe-area-inset-bottom));
+  padding-right: max(8px, env(safe-area-inset-right));
+  padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  padding-left: max(8px, env(safe-area-inset-left));
+}
+
+:global(html[data-layout='phone-portrait']) .scroll {
+  padding-right: max(8px, env(safe-area-inset-right));
+  padding-left: max(8px, env(safe-area-inset-left));
+}
+
 /* 폰: 아래 두 줄과 시트 안의 눌리는 것은 40px 이상 */
 :global(html[data-layout^='phone']) .row button:not([role='switch']),
 :global(html[data-layout^='phone']) .sheetHeader button:not([role='switch']),
@@ -144,7 +157,7 @@
   position: fixed;
   top: auto;
   right: 8px;
-  bottom: calc(var(--row-h) * 2 + 8px);
+  bottom: calc(var(--row-h) * 2 + 8px + env(safe-area-inset-bottom));
   left: 8px;
   width: auto;
   max-height: 50dvh;

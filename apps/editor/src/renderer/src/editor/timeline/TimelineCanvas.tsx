@@ -287,7 +287,11 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
     return chipAt(chipsRef.current, e.clientX - rect.left, e.clientY - rect.top)
   }
 
+  /** 마지막으로 누른 포인터가 터치인가. 칩처럼 라우터를 거치지 않는 누름도 센다 (터치 길게 누르기가 보내는 contextmenu를 막는 데 쓴다) */
+  const lastTouchRef = useRef(false)
+
   const onPointerDown = (e: React.PointerEvent) => {
+    lastTouchRef.current = e.pointerType === 'touch'
     // 칩을 누르면 BPM · 변속 탭을 열고 그 지점을 강조한다 (도구에는 넘기지 않는다)
     const chip = !router.active && e.button === 0 ? chipUnder(e) : null
     if (chip) {
@@ -346,7 +350,7 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
   // 우클릭: 트랙 안은 노트 삭제, 트랙 밖(파형·라벨 영역)은 마커 삭제. 터치 길게 누르기가 보낸 것은 막는다
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
-    if (!router.allowsContextMenu()) return
+    if (lastTouchRef.current || !router.allowsContextMenu()) return
     const rect = e.currentTarget.getBoundingClientRect()
     tools().onContextMenu({ x: e.clientX - rect.left, y: e.clientY - rect.top, button: e.button, shift: e.shiftKey })
     drawRef.current()

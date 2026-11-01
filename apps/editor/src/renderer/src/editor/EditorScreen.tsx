@@ -814,7 +814,8 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       home: () => void goHome(),
       undo: () => runActionRef.current('undo'),
       redo: () => runActionRef.current('redo'),
-      edit: (action) => runActionRef.current(action)
+      edit: (action) => runActionRef.current(action),
+      tap: () => runActionRef.current('tap')
     }),
     [selectChart, newProject, openProject, pickChartFiles, exportChart, exportProjectZip, goHome]
   )

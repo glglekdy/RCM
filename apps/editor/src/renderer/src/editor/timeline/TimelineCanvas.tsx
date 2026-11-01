@@ -229,26 +229,42 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
     }
   }, [])
 
+  /** 터치로 선택 도구를 눌렀을 때의 선택 (길게 누르기 때 복원) */
+  const preDownSelection = useRef<ReadonlySet<string> | null>(null)
+
   const gesturePointer = (e: React.PointerEvent): GesturePointer => {
     const rect = e.currentTarget.getBoundingClientRect()
     const kind: PointerKind = e.pointerType === 'touch' || e.pointerType === 'pen' ? e.pointerType : 'mouse'
     return { id: e.pointerId, kind, x: e.clientX - rect.left, y: e.clientY - rect.top, button: e.button, shift: e.shiftKey }
   }
 
+  /** 도구에 넘길 포인터. 선택 도구에서 추가 선택이 켜져 있으면 Shift를 누른 것으로 친다 */
+  const toolPointer = (p: GesturePointer): GesturePointer => {
+    const s = store.getState()
+    return { ...p, shift: p.shift || (s.tool === 'select' && s.additiveSelect) }
+  }
+
   /** 라우터가 낸 효과를 순서대로 적용한다. 효과마다 최신 상태로 화면을 다시 만든다 */
   const applyEffects = (effects: GestureEffect[]) => {
-    for (const fx of effects) {
+    for (const [i, fx] of effects.entries()) {
       switch (fx.type) {
-        case 'tool-down':
-          tools().onPointerDown(fx.p)
+        case 'tool-down': {
+          // 선택 도구의 터치 누름은 선택을 바꿀 수 있다. 길게 누르기가 되돌릴 수 있게 눌렀을 때의 선택을 기억한다
+          const s = store.getState()
+          preDownSelection.current = fx.p.kind === 'touch' && s.tool === 'select' ? s.selection : null
+          tools().onPointerDown(toolPointer(fx.p))
           break
+        }
         case 'tool-move':
-          tools().onPointerMove(fx.p)
+          tools().onPointerMove(toolPointer(fx.p))
           break
         case 'tool-up':
-          tools().onPointerUp(fx.p)
+          preDownSelection.current = null
+          tools().onPointerUp(toolPointer(fx.p))
           break
         case 'tool-cancel':
+          // 길게 누르기가 이어서 되돌릴 기억은 남긴다
+          if (effects[i + 1]?.type !== 'long-press') preDownSelection.current = null
           tools().cancel()
           break
         case 'pan': {
@@ -293,8 +309,13 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
             layout: layoutFor(width, getChart(s.doc, s.activeChart))
           }
           const target = timelineTargetAt(s.doc, s.activeChart, geometry, fx.x, fx.y)
+          // 누르는 순간 토글된 선택(추가 선택)을 먼저 되돌린다
+          if (preDownSelection.current) {
+            store.set({ selection: preDownSelection.current })
+            preDownSelection.current = null
+          }
           // 선택에 없는 노트를 누르면 그 노트만 선택하고 메뉴를 연다
-          if (target.kind === 'note' && !s.selection.has(target.key)) store.set({ selection: new Set([target.key]) })
+          if (target.kind === 'note' && !store.getState().selection.has(target.key)) store.set({ selection: new Set([target.key]) })
           const now = store.getState()
           const items = longPressMenuItems(target, actions, {
             hasSelection: now.selection.size > 0,

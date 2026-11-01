@@ -10,6 +10,7 @@ import {
 } from '../commands/timing'
 import { removeMarker, renameMarker } from '../commands/markers'
 import { applyTapFromHere, applyTapWhole } from '../commands/tap'
+import { useEditorActions } from '../editorActions'
 import { useEditor, useStore } from '../state/useStore'
 import { useFocusPoint } from './focusPoint'
 import { SpeedCard } from './SpeedCard'
@@ -27,6 +28,8 @@ function formatMarkerTime(ms: number): string {
 export function TimingPanel() {
   const store = useStore()
   const toast = useToast()
+  const actions = useEditorActions()
+  const playing = useEditor((s) => s.playing)
   const song = useEditor((s) => s.doc.song)
   const taps = useEditor((s) => s.taps)
   const markers = useEditor((s) => s.doc.editorData.markers)
@@ -125,6 +128,21 @@ export function TimingPanel() {
       </Card>
       <SpeedCard tm={tm} />
       <Card title="탭 BPM">
+        {/* 박자 정확도를 위해 누르는 순간 기록하고, 눌러도 포커스가 옮겨 가지 않게 한다. 키보드로 누르면 click(detail 0)으로 받는다 */}
+        <Button
+          variant="primary"
+          className={styles.tapButton}
+          disabled={!playing}
+          onPointerDown={(e) => {
+            e.preventDefault()
+            actions.tap()
+          }}
+          onClick={(e) => {
+            if (e.detail === 0) actions.tap()
+          }}
+        >
+          탭
+        </Button>
         {est ? (
           <>
             <Row label="BPM">
@@ -148,7 +166,7 @@ export function TimingPanel() {
           </>
         ) : (
           <p className={styles.hint}>
-            재생 중 T를 박자에 맞춰 4번 이상 눌러 주세요 ({taps.length}회)
+            재생 중 T 키나 탭 버튼을 박자에 맞춰 4번 이상 눌러 주세요 ({taps.length}회)
           </p>
         )}
         <div className={styles.buttons}>

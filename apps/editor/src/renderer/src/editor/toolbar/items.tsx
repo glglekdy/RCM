@@ -13,7 +13,8 @@ import {
   Pencil,
   Play,
   Plus,
-  SquareDashedMousePointer
+  SquareDashedMousePointer,
+  SquarePlus
 } from 'lucide-react'
 import { IconButton, Menu } from '../../ui'
 import { caps } from '../../ui/platform'
@@ -98,6 +99,7 @@ export function ChartPicker({ onSelect, onAdd, variant, placement = 'up' }: Char
 export function ToolButtons() {
   const store = useStore()
   const tool = useEditor((s) => s.tool)
+  const additiveSelect = useEditor((s) => s.additiveSelect)
   const freeChart = useFreeChart()
 
   return (
@@ -128,6 +130,14 @@ export function ToolButtons() {
         active={tool === 'select'}
         onClick={() => store.set({ tool: 'select' })}
       />
+      {tool === 'select' && (
+        <IconButton
+          icon={SquarePlus}
+          label="추가 선택 — 켜면 누른 노트가 기존 선택에 더해져요"
+          active={additiveSelect}
+          onClick={() => store.set({ additiveSelect: !additiveSelect })}
+        />
+      )}
       <IconButton
         icon={Hand}
         label="이동 (H) — 끌어서 스크롤, 눌러서 선택"

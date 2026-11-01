@@ -19,6 +19,8 @@ export interface EditorState {
   playing: boolean
   mode: 'edit' | 'recording' | 'playtest'
   selection: ReadonlySet<string>
+  /** 선택 도구에서 누른 노트를 기존 선택에 더한다 (Shift 없이 터치로 여러 개를 고를 때) */
+  additiveSelect: boolean
   panelOpen: boolean
   panelTab: 'song' | 'timing' | 'chart'
   /** 타임라인 칩을 눌러 패널에서 강조할 BPM·변속 지점. 패널이 강조한 뒤 null로 비운다 */
@@ -60,6 +62,7 @@ export class EditorStore {
       playing: false,
       mode: 'edit',
       selection: new Set(),
+      additiveSelect: false,
       panelOpen: true,
       panelTab: 'song',
       focusPoint: null,

@@ -18,6 +18,8 @@ export interface EditorActions {
   home(): void
   undo(): void
   redo(): void
+  /** 박자 탭을 기록한다 (재생 중일 때만). T 키와 같다 */
+  tap(): void
   edit(action: 'copy' | 'cut' | 'paste' | 'delete' | 'mirror'): void
 }
 

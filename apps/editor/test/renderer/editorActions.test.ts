@@ -35,3 +35,11 @@ describe('확대·축소', () => {
     expect(zoomOut(1e-9)).toBe(clampZoom(1e-9))
   })
 })
+
+describe('탭 동작', () => {
+  it('tap을 부르면 기록한다', () => {
+    const a = fakeActions()
+    a.tap()
+    expect(a.tap).toHaveBeenCalledOnce()
+  })
+})

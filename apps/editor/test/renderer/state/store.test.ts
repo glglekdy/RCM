@@ -28,6 +28,10 @@ beforeEach(() => {
   }
 })
 
+describe('EditorStore 추가 선택', () => {
+  it('추가 선택은 처음에 꺼져 있다', () => expect(make().getState().additiveSelect).toBe(false))
+})
+
 describe('EditorStore active chart guard', () => {
   it('undo of add-chart falls back when the chart is gone', () => {
     const s = make()

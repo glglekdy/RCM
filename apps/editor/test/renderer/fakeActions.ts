@@ -18,6 +18,7 @@ export function fakeActions(): EditorActions {
     home: vi.fn(),
     undo: vi.fn(),
     redo: vi.fn(),
-    edit: vi.fn()
+    edit: vi.fn(),
+    tap: vi.fn()
   }
 }

@@ -81,11 +81,12 @@ export function ChartPicker({ onSelect, variant, placement = 'up' }: ChartPicker
           }
           items={[
             ...charts.map((c) => ({
+              key: c.file,
               label: c.chart.name,
               checked: c.file === activeChart,
               onSelect: () => onSelect(c.file)
             })),
-            { label: '난이도 추가', onSelect: () => setAdding(true) }
+            { key: '__add__', label: '난이도 추가', onSelect: () => setAdding(true) }
           ]}
         />
       )}

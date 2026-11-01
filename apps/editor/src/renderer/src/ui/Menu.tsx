@@ -3,6 +3,8 @@ import { Check } from 'lucide-react'
 import styles from './Menu.module.css'
 
 export interface MenuItem {
+  /** 항목을 가르는 키. 같은 이름의 항목이 있을 수 있으면 정한다 (기본은 label) */
+  key?: string
   label: string
   onSelect: () => void
   disabled?: boolean
@@ -54,7 +56,7 @@ export function Menu({ trigger, items, placement = 'down', align = 'left' }: Men
         >
           {items.map((item) => (
             <button
-              key={item.label}
+              key={item.key ?? item.label}
               type="button"
               role={item.checked === undefined ? 'menuitem' : 'menuitemradio'}
               aria-checked={item.checked}

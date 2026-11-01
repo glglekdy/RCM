@@ -43,6 +43,15 @@
   margin: 0 0 6px;
 }
 
+.image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 4px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
 .code {
   padding: 1px 5px;
   border-radius: 4px;

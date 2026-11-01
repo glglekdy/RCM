@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ANNOUNCEMENTS_URL } from '../../../shared/announcementsSource'
 import { Button, Modal } from '../ui'
 import { Notes } from '../whatsNew/WhatsNewDialog'
 import notesStyles from '../whatsNew/WhatsNewDialog.module.css'
@@ -41,7 +42,7 @@ export function AnnouncementsDialog() {
         <div className={notesStyles.notes}>
           {selected.date && <div className={styles.date}>{selected.date}</div>}
           <section className={notesStyles.version}>
-            <Notes text={selected.body} />
+            <Notes text={selected.body} imageBase={ANNOUNCEMENTS_URL} />
           </section>
         </div>
       ) : state.items.length > 0 ? (

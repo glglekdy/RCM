@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseInline, parseNotes } from '../../src/renderer/src/whatsNew/markdown'
+import { parseInline, parseNotes, resolveImageSrc } from '../../src/renderer/src/whatsNew/markdown'
 import { RELEASE_NOTES } from '../../src/renderer/src/whatsNew/notes'
 import { compareVersions, latestNotesVersion, notesHistory, whatsNewVersions } from '../../src/renderer/src/whatsNew/versions'
 
@@ -84,5 +84,27 @@ describe('parseInline', () => {
       { kind: 'code', text: '\\' },
       { kind: 'text', text: ' 키, 별 * 하나' }
     ])
+  })
+})
+
+describe('그림', () => {
+  it('한 줄짜리 ![설명](주소)는 그림 블록, 문단 안에 섞이면 그냥 글', () => {
+    expect(parseNotes('글\n![웹 접속 방법](notices/web.png)\n다음 글')).toEqual([
+      { type: 'paragraph', text: '글' },
+      { type: 'image', alt: '웹 접속 방법', src: 'notices/web.png' },
+      { type: 'paragraph', text: '다음 글' }
+    ])
+    expect(parseNotes('앞 ![a](b.png)')).toEqual([{ type: 'paragraph', text: '앞 ![a](b.png)' }])
+  })
+
+  it('상대 경로는 기준 주소로 풀고, https만 허용', () => {
+    const base = 'https://raw.githubusercontent.com/glglekdy/RCM/main/NOTICES.md'
+    expect(resolveImageSrc('notices/web.png', base)).toBe(
+      'https://raw.githubusercontent.com/glglekdy/RCM/main/notices/web.png'
+    )
+    expect(resolveImageSrc('https://example.com/a.png', base)).toBe('https://example.com/a.png')
+    expect(resolveImageSrc('http://example.com/a.png', base)).toBeNull()
+    expect(resolveImageSrc('javascript:alert(1)', base)).toBeNull()
+    expect(resolveImageSrc('a.png')).toBeNull()
   })
 })

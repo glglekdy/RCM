@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button, Modal } from '../ui'
-import { parseInline, parseNotes } from './markdown'
+import { parseInline, parseNotes, resolveImageSrc } from './markdown'
 import { RELEASE_NOTES } from './notes'
 import { closeWhatsNew, useWhatsNew, type WhatsNewView } from './whatsNewStore'
 import styles from './WhatsNewDialog.module.css'
@@ -80,10 +80,12 @@ function CloseButton() {
   )
 }
 
-/** 업데이트 내역·공지사항 본문 */
-export function Notes({ text }: { text: string }) {
+/** 업데이트 내역·공지사항 본문. `imageBase`는 그림의 상대 경로를 풀 기준 주소 */
+export function Notes({ text, imageBase }: { text: string; imageBase?: string }) {
   return parseNotes(text).map((block, i) =>
-    block.type === 'heading' ? (
+    block.type === 'image' ? (
+      <NoteImage key={i} alt={block.alt} src={resolveImageSrc(block.src, imageBase)} />
+    ) : block.type === 'heading' ? (
       <h4 key={i} className={styles.heading}>
         <Inline text={block.text} />
       </h4>
@@ -101,6 +103,13 @@ export function Notes({ text }: { text: string }) {
       </p>
     )
   )
+}
+
+/** 못 불러오면 그림 자리에 설명 글만 남긴다 */
+function NoteImage({ alt, src }: { alt: string; src: string | null }) {
+  const [failed, setFailed] = useState(false)
+  if (!src || failed) return alt ? <p className={styles.paragraph}>[그림: {alt}]</p> : null
+  return <img className={styles.image} src={src} alt={alt} loading="lazy" onError={() => setFailed(true)} />
 }
 
 function Inline({ text }: { text: string }) {

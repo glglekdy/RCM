@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, ipcMain, Menu, session } from 'electron'
+import { ANNOUNCEMENTS_URL } from '../shared/announcementsSource'
 import { startDiscordPresence } from './discord/register'
 import { registerProjectIpc, settingsFile, syncGuideFilesOnStartup } from './ipc'
 import { isAllowedNavigation } from './navigation'
@@ -15,7 +16,8 @@ function contentSecurityPolicy(dev: boolean): string {
     dev ? "connect-src 'self' ws:" : "connect-src 'self'",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",
-    "img-src 'self' data: blob:",
+    // 공지사항 그림은 공지 파일과 같은 곳(GitHub 저장소)에서만 받는다
+    `img-src 'self' data: blob: ${new URL(ANNOUNCEMENTS_URL).origin}`,
     "media-src 'self' blob:"
   ].join('; ')
 }

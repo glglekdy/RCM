@@ -180,3 +180,79 @@
 .editor:disabled .kindToggle {
   opacity: 0.4;
 }
+
+/*
+ * 폰: 눌리는 칸은 40px 이상.
+ * 프리셋 표는 두 줄 (손잡이·이름·색·헥스·삭제 / 종류·키·보조 키), 채보 탭(compact)은 한 줄.
+ * 줄 높이는 TrackRowsEditor.tsx의 PHONE_*_ROW_HEIGHT와 맞춘다.
+ * 색 칸(swatch)도 40px로 키운다.
+ */
+:global(html[data-layout^='phone']) .row {
+  flex-wrap: wrap;
+  align-content: center;
+  gap: 4px;
+}
+
+:global(html[data-layout^='phone']) .compact .row {
+  flex-wrap: nowrap;
+}
+
+/* 삭제 버튼은 첫 줄 끝에, 종류·키는 둘째 줄에 */
+:global(html[data-layout^='phone']) .row > :last-child {
+  order: 1;
+}
+
+:global(html[data-layout^='phone']) .kinds,
+:global(html[data-layout^='phone']) .key {
+  order: 2;
+}
+
+:global(html[data-layout^='phone']) .compact .kindToggle {
+  order: 0;
+}
+
+:global(html[data-layout^='phone']) .grip {
+  width: 24px;
+  height: 40px;
+}
+
+:global(html[data-layout^='phone']) .id {
+  flex: 1 1 96px;
+  min-width: 64px;
+}
+
+:global(html[data-layout^='phone']) .compact .id {
+  flex-basis: 48px;
+  min-width: 48px;
+}
+
+:global(html[data-layout^='phone']) .hex input {
+  width: 88px;
+}
+
+:global(html[data-layout^='phone']) .kinds button,
+:global(html[data-layout^='phone']) .kindToggle {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+:global(html[data-layout^='phone']) .key {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 40px;
+  font-size: 16px;
+}
+
+:global(html[data-layout^='phone']) .swatch {
+  width: 40px;
+  height: 40px;
+}
+
+/* 채보 탭은 좁아서(가로 폰 패널 약 230px) 손잡이와 간격을 줄여 이름 칸에 폭을 준다 */
+:global(html[data-layout^='phone']) .compact .row {
+  gap: 2px;
+}
+
+:global(html[data-layout^='phone']) .compact .grip {
+  width: 20px;
+}

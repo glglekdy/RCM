@@ -3,11 +3,14 @@ import { Cog, GripVertical, Music, Plus, Trash2 } from 'lucide-react'
 import { DEFAULT_NOTE_COLOR, MAX_TRACKS, TRACK_COLOR_PATTERN, isGimmick, type Track, type TrackKind } from '@rcm/core'
 import { keyLabel } from '@rcm/playfield'
 import type { PresetIssues, PresetTrack } from '../../../shared/presets'
-import { Button, IconButton, SegmentedControl, SortableList, TextField } from '../ui'
+import { Button, IconButton, SegmentedControl, SortableList, TextField, useLayoutMode } from '../ui'
 import { stagger } from '../ui/motion'
 import styles from './TrackRowsEditor.module.css'
 
 const TRACK_ROW_HEIGHT = 36
+/** 폰: 눌리는 칸이 40px이라 줄이 높다. 표(프리셋 페이지)는 키 칸까지 두 줄 */
+const PHONE_ROW_HEIGHT = 48
+const PHONE_TWO_LINE_ROW_HEIGHT = 96
 
 const KIND_OPTIONS: { value: TrackKind; label: string }[] = [
   { value: 'play', label: '플레이' },
@@ -60,6 +63,8 @@ export function TrackRowsEditor({
   onRemove,
   onAdd
 }: TrackRowsEditorProps) {
+  const phone = useLayoutMode() !== 'desktop'
+  const rowHeight = !phone ? TRACK_ROW_HEIGHT : compact ? PHONE_ROW_HEIGHT : PHONE_TWO_LINE_ROW_HEIGHT
   const seen = new Map<string, number>()
   const rows: RowItem[] = tracks.map((track) => {
     const n = seen.get(track.id) ?? 0
@@ -71,7 +76,7 @@ export function TrackRowsEditor({
     <fieldset className={`${styles.editor} ${compact ? styles.compact : ''}`} disabled={disabled}>
       <SortableList
         items={rows}
-        rowHeight={TRACK_ROW_HEIGHT}
+        rowHeight={rowHeight}
         getKey={(r) => r.key}
         onMove={onMove}
         renderRow={({ track }, i, handle) => {

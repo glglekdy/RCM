@@ -185,3 +185,18 @@
   color: var(--danger);
   font-size: 12px;
 }
+
+/* 폰: 목록 줄과 추가 버튼은 40px 이상. 색 고르기는 칸이 유일한 방법이라 40px로 키운다 */
+:global(html[data-layout^='phone']) .pick,
+:global(html[data-layout^='phone']) .add {
+  min-height: 40px;
+}
+
+:global(html[data-layout^='phone']) .swatch {
+  width: 40px;
+  height: 40px;
+}
+
+:global(html[data-layout^='phone']) .colors {
+  gap: 8px;
+}

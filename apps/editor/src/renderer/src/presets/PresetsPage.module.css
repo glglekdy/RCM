@@ -144,3 +144,59 @@
   flex: none;
   margin-top: 2px;
 }
+
+/* 폰: 목록과 상세를 한 칸으로 쌓고, 페이지 전체가 세로로 스크롤된다 */
+:global(html[data-layout^='phone']) .page {
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-bottom: 16px;
+}
+
+:global(html[data-layout^='phone']) .title {
+  margin-bottom: 16px;
+  font-size: 20px;
+}
+
+:global(html[data-layout^='phone']) .body {
+  flex: none;
+  flex-direction: column;
+  gap: 16px;
+}
+
+:global(html[data-layout^='phone']) .side {
+  width: 100%;
+}
+
+:global(html[data-layout^='phone']) .list {
+  max-height: 40dvh;
+}
+
+:global(html[data-layout^='phone']) .item {
+  height: 40px;
+}
+
+:global(html[data-layout^='phone']) .actions {
+  flex-flow: row wrap;
+}
+
+:global(html[data-layout^='phone']) .actions button {
+  height: auto;
+}
+
+:global(html[data-layout^='phone']) .detail {
+  align-self: stretch;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  padding: 12px;
+}
+
+:global(html[data-layout^='phone']) .nameRow {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+:global(html[data-layout^='phone']) .name input {
+  width: 100%;
+}

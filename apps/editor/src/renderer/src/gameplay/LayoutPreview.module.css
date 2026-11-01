@@ -56,3 +56,17 @@
   top: 12px;
   right: 12px;
 }
+
+/* 폰: 마우스를 올려야 보이는 버튼이라 늘 보이게 하고 40px로 */
+:global(html[data-layout^='phone']) .expand {
+  height: 40px;
+  opacity: 1;
+}
+
+:global(html[data-layout^='phone']) .box {
+  max-width: 100%;
+}
+
+:global(html[data-layout^='phone']) .close {
+  top: max(12px, env(safe-area-inset-top));
+}

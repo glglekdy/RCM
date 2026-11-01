@@ -33,3 +33,12 @@
   outline: none;
   user-select: text;
 }
+
+/* 폰: 높이 40px, 글자 16px (iOS 확대 방지) */
+:global(html[data-layout^='phone']) .chip {
+  height: 40px;
+}
+
+:global(html[data-layout^='phone']) .input {
+  font-size: 16px;
+}

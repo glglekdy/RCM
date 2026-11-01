@@ -31,3 +31,9 @@
   background: var(--bg-input);
   color: var(--text);
 }
+
+/* 폰: 눌리는 칸은 40px 이상 */
+:global(html[data-layout^='phone']) .tab {
+  min-width: 40px;
+  min-height: 40px;
+}

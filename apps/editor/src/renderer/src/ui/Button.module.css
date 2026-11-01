@@ -54,3 +54,9 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* 폰: 눌리는 칸은 40px 이상 */
+:global(html[data-layout^='phone']) .btn {
+  min-width: 40px;
+  min-height: 40px;
+}

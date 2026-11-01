@@ -20,3 +20,15 @@
 .input:focus {
   border-color: var(--accent);
 }
+
+/* 폰: 높이 40px. 글자 16px 미만이면 iOS Safari가 칸을 누를 때 화면을 확대한다 */
+:global(html[data-layout^='phone']) .input {
+  max-width: 100%;
+  height: 40px;
+  font-size: 16px;
+}
+
+/* 폰: 대화상자 안의 입력 칸은 폭을 채운다 (width prop은 style 속성이라 !important로 이긴다) */
+:global(html[data-layout^='phone']) :global([role='dialog']) .input {
+  width: 100% !important;
+}

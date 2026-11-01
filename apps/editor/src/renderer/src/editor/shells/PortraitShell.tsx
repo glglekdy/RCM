@@ -76,7 +76,7 @@ export function PortraitShell({ title, dirty, actions, timeline, minimap, inert 
                 onClick={() => onTab(value)}
               >
                 <Icon size={16} strokeWidth={1.75} />
-                {label}
+                <span className={styles.tabLabel}>{label}</span>
               </button>
             ))}
           </div>

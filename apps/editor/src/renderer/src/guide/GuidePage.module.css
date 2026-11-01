@@ -293,3 +293,40 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* 폰: 스크롤바 자리로 둔 오른쪽 여백을 없애고, 단축키 표는 한 칸으로 쌓는다 */
+:global(html[data-layout^='phone']) .page {
+  margin-right: 0;
+  padding-right: 0;
+  overflow-x: hidden;
+}
+
+:global(html[data-layout^='phone']) .title {
+  font-size: 20px;
+}
+
+:global(html[data-layout^='phone']) .disclaimer,
+:global(html[data-layout^='phone']) .rule,
+:global(html[data-layout^='phone']) .section {
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+
+:global(html[data-layout^='phone']) .keys {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+
+:global(html[data-layout^='phone']) .keys dt {
+  flex-wrap: wrap;
+  white-space: normal;
+}
+
+:global(html[data-layout^='phone']) .keys dd {
+  margin-bottom: 8px;
+}
+
+:global(html[data-layout^='phone']) .prompt,
+:global(html[data-layout^='phone']) .preview {
+  overflow-wrap: anywhere;
+}

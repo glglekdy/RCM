@@ -18,3 +18,25 @@
   gap: 4px;
   min-width: 0;
 }
+
+/*
+ * 폰: 라벨 위, 입력 아래 한 칸으로 쌓는다. 대화상자(새 프로젝트 등)에서 입력이 가로로 넘치지 않게 한다.
+ * 편집 패널(시트) 안은 좁은 칸이 아니라서 그대로 한 줄을 쓴다.
+ */
+:global(html[data-layout^='phone']) .row {
+  height: auto;
+  min-height: 40px;
+}
+
+:global(html[data-layout^='phone']) :global([role='dialog']) .row {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+:global(html[data-layout^='phone']) :global([role='dialog']) .value {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}

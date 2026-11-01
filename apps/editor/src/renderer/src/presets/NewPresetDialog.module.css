@@ -187,3 +187,29 @@
   font-size: 12px;
   line-height: 1.4;
 }
+
+/* 폰: 탭은 40px 이상 */
+:global(html[data-layout^='phone']) .tab {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+/* 폰: 템플릿 목록과 상세를 한 칸으로 쌓고 대화상자 본문이 스크롤된다 */
+:global(html[data-layout^='phone']) .layout {
+  height: auto;
+}
+
+:global(html[data-layout^='phone']) .main {
+  flex: none;
+  flex-direction: column;
+}
+
+:global(html[data-layout^='phone']) .grid {
+  flex: none;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  overflow-y: visible;
+}
+
+:global(html[data-layout^='phone']) .details {
+  width: 100%;
+}

@@ -40,3 +40,17 @@
   color: var(--text-muted);
   font-size: 12px;
 }
+
+/* 폰: 파일 이름은 폭을 채우고 말줄임 */
+:global(html[data-layout^='phone']) .fileName {
+  flex: 1 1 0;
+  max-width: none;
+}
+
+:global(html[data-layout^='phone']) .audioInfo {
+  justify-content: flex-start;
+}
+
+:global(html[data-layout^='phone']) .error {
+  text-align: left;
+}

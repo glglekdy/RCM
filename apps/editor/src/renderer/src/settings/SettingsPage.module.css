@@ -61,3 +61,34 @@
   color: var(--text-muted);
   font-size: 12px;
 }
+
+/* 폰: 설정 카드와 미리보기를 한 칸으로 쌓는다 */
+:global(html[data-layout^='phone']) .page {
+  padding-bottom: 16px;
+}
+
+:global(html[data-layout^='phone']) .title {
+  margin-bottom: 16px;
+  font-size: 20px;
+}
+
+:global(html[data-layout^='phone']) .columns {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 16px;
+}
+
+:global(html[data-layout^='phone']) .cards {
+  flex: none;
+  max-width: none;
+}
+
+:global(html[data-layout^='phone']) .preview {
+  position: static;
+  align-items: flex-start;
+}
+
+:global(html[data-layout^='phone']) .text {
+  overflow-wrap: anywhere;
+}

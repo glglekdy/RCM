@@ -174,3 +174,33 @@
   white-space: pre-wrap;
   user-select: text;
 }
+
+/* 폰: 라벨 위, 조절 칸 아래 한 칸으로 쌓는다 */
+:global(html[data-layout^='phone']) .row {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 6px 0;
+}
+
+:global(html[data-layout^='phone']) .label {
+  white-space: normal;
+}
+
+:global(html[data-layout^='phone']) .control {
+  width: 100%;
+  flex: none;
+}
+
+:global(html[data-layout^='phone']) .check {
+  min-height: 40px;
+}
+
+:global(html[data-layout^='phone']) .slotHead {
+  flex-wrap: wrap;
+}
+
+:global(html[data-layout^='phone']) .number {
+  flex-wrap: wrap;
+}

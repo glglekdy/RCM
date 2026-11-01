@@ -171,11 +171,11 @@
 }
 
 /* 폰: 눌리는 것은 40px 이상 (패널 탭 줄은 높이 36px이라 40px로 키운다) */
-:global(html[data-layout^='phone']) .rail button,
-:global(html[data-layout^='phone']) .fixed button,
-:global(html[data-layout^='phone']) .head button,
-:global(html[data-layout^='phone']) .body button,
-:global(html[data-layout^='phone']) .strip button {
+:global(html[data-layout^='phone']) .rail button:not([role='switch']),
+:global(html[data-layout^='phone']) .fixed button:not([role='switch']),
+:global(html[data-layout^='phone']) .head button:not([role='switch']),
+:global(html[data-layout^='phone']) .body button:not([role='switch']),
+:global(html[data-layout^='phone']) .strip button:not([role='switch']) {
   min-width: 40px;
   min-height: 40px;
 }

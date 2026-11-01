@@ -44,3 +44,42 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+/*
+ * 폰: 아래에 붙는 전체 폭 시트. 제목·아래 버튼 줄은 늘 보이고 본문만 스크롤한다.
+ * 가로 폰(높이가 낮음)에서도 90dvh를 넘지 않는다.
+ */
+@keyframes sheetUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
+:global(html[data-layout^='phone']) .overlay {
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* width는 style 속성(width prop)으로도 들어오므로 !important로 이긴다 */
+:global(html[data-layout^='phone']) .box {
+  width: 100% !important;
+  max-width: 560px;
+  max-height: 90dvh;
+  padding: 16px max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  animation: sheetUp var(--dur) var(--ease-out) backwards;
+}
+
+:global(html[data-layout^='phone']) .body {
+  flex: 0 1 auto;
+  overscroll-behavior: contain;
+}
+
+:global(html[data-layout^='phone']) .footer {
+  flex: none;
+  flex-wrap: wrap;
+}

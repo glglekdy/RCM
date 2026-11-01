@@ -74,3 +74,18 @@
   position: fixed;
   top: auto;
 }
+
+/* 폰: 메뉴 항목은 40px 이상, 긴 메뉴는 화면 안에서 스크롤 */
+:global(html[data-layout^='phone']) .item {
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+:global(html[data-layout^='phone']) .item:has(.mark) {
+  padding-left: 8px;
+}
+
+:global(html[data-layout^='phone']) .popup {
+  max-height: 60dvh;
+  overflow-y: auto;
+}

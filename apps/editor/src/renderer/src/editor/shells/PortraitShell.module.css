@@ -58,27 +58,39 @@
   min-width: 0;
 }
 
+/* 아이콘 위·라벨 아래로 쌓는다: 360px 폭에서도 '타이밍'이 한 칸(약 55px)에 들어간다 */
 .tab {
   display: inline-flex;
   flex: 1;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 1px;
   min-width: 0;
-  height: 36px;
-  padding: 0 6px;
+  height: 40px;
+  padding: 0 2px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   font: inherit;
+  font-size: 11px;
   font-weight: 500;
+  line-height: 1.2;
   white-space: nowrap;
   cursor: default;
 }
 
 .tab svg {
   flex: none;
+}
+
+/* 더 좁아져도(약 320px) 라벨은 말줄임으로 넘치지 않는다 */
+.tabLabel {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tab:hover {
@@ -106,9 +118,9 @@
 }
 
 /* 폰: 아래 두 줄과 시트 안의 눌리는 것은 40px 이상 */
-:global(html[data-layout^='phone']) .row button,
-:global(html[data-layout^='phone']) .sheetHeader button,
-:global(html[data-layout^='phone']) .sheetBody button {
+:global(html[data-layout^='phone']) .row button:not([role='switch']),
+:global(html[data-layout^='phone']) .sheetHeader button:not([role='switch']),
+:global(html[data-layout^='phone']) .sheetBody button:not([role='switch']) {
   min-width: 40px;
   min-height: 40px;
 }

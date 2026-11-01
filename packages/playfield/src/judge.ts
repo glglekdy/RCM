@@ -28,3 +28,8 @@ export function timingOf(deltaMs: number, judgement: Judgement): Timing | null {
   if (judgement === 'perfect' || judgement === 'miss') return null;
   return deltaMs < 0 ? 'early' : 'late';
 }
+
+/** 판정에 쓰는 시계: 화면(음악) 시계에서 사용자 오프셋을 뺀다. */
+export function judgeClockMs(nowMs: number, offsetMs: number): number {
+  return nowMs - offsetMs;
+}

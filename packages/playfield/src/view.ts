@@ -130,3 +130,34 @@ export function notePositions(
   }
   return { startPos, endPos, maxHoldSpanPos };
 }
+
+/** 터치 칸이 판정선 위로 올라가는 높이 (화면 높이 대비 비율) */
+export const TOUCH_ZONE_ABOVE_JUDGE = 0.4;
+
+/**
+ * 터치한 점(x, y)이 닿는 레인 번호. 판정선 위 `TOUCH_ZONE_ABOVE_JUDGE` 지점보다 위이거나,
+ * 레인 밖이거나, 터치할 수 없는 레인(기믹 등)이면 -1.
+ */
+export function touchLaneAt(
+  x: number,
+  y: number,
+  cols: readonly { x: number; width: number }[],
+  judgeY: number,
+  height: number,
+  touchable: readonly boolean[],
+): number {
+  if (y < judgeY - TOUCH_ZONE_ABOVE_JUDGE * height) return -1;
+  for (let i = 0; i < cols.length; i++) {
+    if (touchable[i] && x >= cols[i].x && x < cols[i].x + cols[i].width) return i;
+  }
+  return -1;
+}
+
+/** 좁은 화면에서 레인 양옆에 남길 여백(px) */
+export const FIT_LANE_MARGIN = 8;
+
+/** 레인 laneCount개가 canvasWidth에 다 들어가도록 줄인 레인 폭 (최소 1). 레인이 없으면 laneWidth 그대로. */
+export function fitLaneWidth(canvasWidth: number, laneCount: number, laneWidth: number): number {
+  if (laneCount <= 0) return laneWidth;
+  return Math.max(1, Math.min(laneWidth, Math.floor((canvasWidth - 2 * FIT_LANE_MARGIN) / laneCount)));
+}

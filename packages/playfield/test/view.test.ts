@@ -13,11 +13,13 @@ import {
   MIN_SPEED,
   SPEED_STEP,
   firstAtOrAbove,
+  fitLaneWidth,
   fitScale,
   FIT_SIDE_MARGIN,
   notePositions,
   noteY,
   pxPerMsForSpeed,
+  touchLaneAt,
   trackColumns,
   visibleScrollRange,
 } from '../src';
@@ -140,4 +142,21 @@ describe('playfield view', () => {
     for (let i = 1; i < startPos.length; i++) expect(startPos[i]).toBeGreaterThanOrEqual(startPos[i - 1]);
     startPos.forEach((s, i) => expect(endPos[i]).toBeGreaterThanOrEqual(s));
   });
+});
+
+describe('touchLaneAt', () => {
+  const cols = trackColumns(400, 4, 64); // x: 72, 136, 200, 264
+  const all = [true, true, true, true];
+  it('판정선 근처 레인 안은 그 레인', () => expect(touchLaneAt(150, 700, cols, 680, 800, all)).toBe(1));
+  it('판정선 위 40% 지점까지는 칸이다', () => expect(touchLaneAt(150, 680 - 320, cols, 680, 800, all)).toBe(1));
+  it('그보다 위는 칸이 아니다', () => expect(touchLaneAt(150, 680 - 321, cols, 680, 800, all)).toBe(-1));
+  it('레인 밖은 칸이 아니다', () => expect(touchLaneAt(10, 700, cols, 680, 800, all)).toBe(-1));
+  it('기믹 레인은 칸이 아니다', () => expect(touchLaneAt(150, 700, cols, 680, 800, [true, false, true, true])).toBe(-1));
+  it('경계는 오른쪽 레인이다', () => expect(touchLaneAt(136, 700, cols, 680, 800, all)).toBe(1));
+});
+
+describe('fitLaneWidth', () => {
+  it('들어가면 그대로', () => expect(fitLaneWidth(400, 4, 64)).toBe(64));
+  it('레인이 화면보다 넓으면 폭을 줄여 다 들어가게 한다', () => expect(fitLaneWidth(360, 7, 64)).toBe(49));
+  it('레인이 없으면 그대로', () => expect(fitLaneWidth(360, 0, 64)).toBe(64));
 });

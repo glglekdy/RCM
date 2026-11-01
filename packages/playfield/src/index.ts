@@ -1,4 +1,5 @@
 export * from './keymap';
+export * from './touchInput';
 export * from './judge';
 export * from './playState';
 export * from './gimmick';

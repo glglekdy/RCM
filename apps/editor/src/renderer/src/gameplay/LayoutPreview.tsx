@@ -5,14 +5,15 @@ import { getPlaytestSpeed } from '../editor/playtest/speedStore'
 import { getPresets } from '../presets/presetStore'
 import { getHitEffects, useHitEffects } from './hitEffectStore'
 import { previewChart } from './previewChart'
+import { caps } from '../ui/platform'
 
 /** 시작 전 준비 시간 (첫 노트가 위에서부터 내려오도록) */
 const LEAD_MS = 1000
-/** 테스트 플레이 화면은 타이틀바(36px) 아래를 모두 덮는다 (PlaytestOverlay.module.css) */
+/** PC 테스트 플레이 화면은 타이틀바(36px) 아래를 덮는다 (PlaytestOverlay.module.css). 웹에는 타이틀바가 없다 */
 const TITLE_BAR_HEIGHT = 36
 
 /** 지금 창에서 테스트 플레이 화면의 높이 */
-const playViewHeight = () => window.innerHeight - TITLE_BAR_HEIGHT
+const playViewHeight = () => window.innerHeight - (caps().windowControls ? TITLE_BAR_HEIGHT : 0)
 
 interface LayoutPreviewProps {
   layout: PlayfieldLayout

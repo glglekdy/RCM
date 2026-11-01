@@ -34,6 +34,12 @@ interface WakeLockHandle {
 }
 
 /**
+ * 지금 살아 있는 가장 새 세션. 개발 모드 StrictMode는 효과를 두 번 돌려 첫 세션이 정리된 뒤에야 첫 요청의
+ * 전체 화면이 열리는데, 그때 나가 버리면 새 세션의 전체 화면까지 닫힌다. 그래서 늦게 온 전체 화면은 새 세션이 넘겨받는다.
+ */
+let current: { adopt(): void } | null = null
+
+/**
  * 폰 테스트 플레이 화면 한 판을 만든다: 전체 화면, 화면 꺼짐 방지(Wake Lock), 방향 고정.
  * 지원하지 않거나 거절된 것은 조용히 건너뛴다.
  */
@@ -63,6 +69,16 @@ export function enterPlaytestScreen(initial: ScreenOrientationTarget): PlaytestS
     wakeLock = null
     if (lock) void attempt(() => lock.release?.())
   }
+
+  /** 먼저 정리된 세션이 열어 둔 전체 화면을 넘겨받는다 */
+  const adopt = () => {
+    if (disposed) return
+    ownFullscreen = true
+    inFullscreen = true
+    void lockOrientation()
+  }
+  const me = { adopt }
+  current = me
 
   const lockOrientation = async () => {
     if (disposed || !inFullscreen) return
@@ -101,7 +117,11 @@ export function enterPlaytestScreen(initial: ScreenOrientationTarget): PlaytestS
       if (entered) {
         ownFullscreen = true
         inFullscreen = true
-        if (disposed) exitFullscreen()
+        if (disposed) {
+          // 더 새 세션이 살아 있으면 닫지 않고 넘긴다
+          if (current) current.adopt()
+          else exitFullscreen()
+        }
       }
     }
     await lockOrientation()
@@ -116,6 +136,7 @@ export function enterPlaytestScreen(initial: ScreenOrientationTarget): PlaytestS
     dispose() {
       if (disposed) return
       disposed = true
+      if (current === me) current = null
       try {
         document.removeEventListener?.('visibilitychange', onVisibility)
       } catch {

@@ -24,9 +24,23 @@ let rects: Rect[] = [];
 /** drawImage 호출 (타격 이펙트 스프라이트) */
 let images: unknown[][] = [];
 
+/** fillText 호출: 글자와 y */
+let texts: { text: string; y: number }[] = [];
+
+/** 캔버스 높이 (테스트마다 H로 되돌린다) */
+let canvasHeight = H;
+
+/** arc 호출의 반지름 */
+let arcRadii: number[] = [];
+
 function fakeCtx() {
   const target: Record<string | symbol, unknown> = {};
   target.drawImage = (...args: unknown[]) => images.push(args);
+  target.fillText = (text: string, _x: number, y: number) => texts.push({ text, y });
+  target.arc = (_x: number, _y: number, r: number) => {
+    if (r < 0) throw new RangeError('negative radius');
+    arcRadii.push(r);
+  };
   target.fillRect = (x: number, y: number, w: number, h: number) =>
     rects.push({ style: target.fillStyle, alpha: target.globalAlpha, x, y, w, h });
   return new Proxy(target, {
@@ -48,6 +62,7 @@ function frameAt(ms: number): void {
   now = ms;
   rects = [];
   images = [];
+  texts = [];
   rafCallback!();
 }
 
@@ -59,13 +74,18 @@ beforeEach(() => {
   width = 400;
   rects = [];
   images = [];
+  texts = [];
+  arcRadii = [];
+  canvasHeight = H;
   handlers = new Map();
   const ctx = fakeCtx();
   canvas = {
     get clientWidth() {
       return width;
     },
-    clientHeight: H,
+    get clientHeight() {
+      return canvasHeight;
+    },
     width: 0,
     height: 0,
     style: {},
@@ -379,5 +399,81 @@ describe('FreePlayfield 판정 오프셋', () => {
     frameAt(750);
     expect(images).toHaveLength(2);
     expect(images[1]).toEqual([P, 0, 0, 100, 100, rect.fieldX + 3.5 * rect.colPx - SIZE / 2, judgeY - SIZE / 2, SIZE, SIZE]);
+  });
+});
+
+describe('짧은 화면의 콤보·판정 글자', () => {
+  it('높이 340에서도 콤보·판정·타이밍 글자가 화면 안에서 순서대로 나온다', () => {
+    canvasHeight = 340;
+    const pf = make([{ tick: 480, track: 'Note_2', type: 'tap' }]);
+    frameAt(500);
+    send('pointerdown', touch(1, centerX(1), judgeLineY(340, DEFAULT_LAYOUT)));
+    expect(pf.state.counts.perfect).toBe(1);
+    frameAt(510);
+    const y = (t: string) => texts.find(x => x.text === t)!.y;
+    const ys = [y('1'), y('COMBO'), y('PERFECT')];
+    for (const v of ys) expect(v).toBeGreaterThanOrEqual(0);
+    expect(ys[0]).toBeLessThan(ys[1]);
+    expect(ys[1]).toBeLessThan(ys[2]);
+    expect(y('PERFECT')).toBeLessThan(340);
+  });
+
+  it('충분히 큰 화면에서는 예전 위치 그대로', () => {
+    const pf = make([{ tick: 480, track: 'Note_2', type: 'tap' }]);
+    frameAt(500);
+    send('pointerdown', touch(1, centerX(1)));
+    frameAt(510);
+    expect(pf.state.counts.perfect).toBe(1);
+    const y = (t: string) => texts.find(x => x.text === t)!.y;
+    expect(y('1')).toBe(judgeY - 250);
+    expect(y('COMBO')).toBe(judgeY - 222);
+    expect(y('PERFECT')).toBe(judgeY - 180);
+  });
+});
+
+describe('자동 플레이와 판정 오프셋', () => {
+  it('Playfield: 자동 플레이는 화면 시계로 노트 시각에 친다', () => {
+    const pf = make([{ tick: 480, track: 'Note_2', type: 'tap' }], { autoplay: true, judgeOffsetMs: 200 });
+    frameAt(490);
+    expect(pf.state.counts.perfect).toBe(0);
+    frameAt(500);
+    expect(pf.state.counts.perfect).toBe(1);
+  });
+
+  it('FreePlayfield: 자동 플레이는 화면 시계로 노트 시각에 친다', () => {
+    const pf = new FreePlayfield(canvas, {
+      chart: { formatVersion: 1, layout: 'free', name: 't', level: 1, columns: 12, flickMode: 'any', notes: [{ tick: 480, type: 'tap', x: 4, width: 2 }] },
+      tm,
+      getTimeMs: () => now,
+      fromMs: 0,
+      speed: 2,
+      autoplay: true,
+      judgeOffsetMs: 200,
+    });
+    pf.start();
+    frameAt(0);
+    frameAt(490);
+    expect(pf.state.counts.perfect).toBe(0);
+    frameAt(500);
+    expect(pf.state.counts.perfect).toBe(1);
+  });
+});
+
+describe('아주 좁은 레인', () => {
+  it('동그라미 노트의 반지름이 음수가 되어 그리기가 멈추지 않는다', () => {
+    width = 20;
+    const pf = new Playfield(canvas, {
+      chart: makeChart([{ tick: 480, track: 'Note_1', type: 'tap' }], 7),
+      tm,
+      getTimeMs: () => now,
+      fromMs: 0,
+      speed: 2,
+      keymap: new Map(),
+      layout: { ...DEFAULT_LAYOUT, noteShape: 'circle' },
+    });
+    pf.start();
+    expect(() => frameAt(400)).not.toThrow();
+    expect(arcRadii.length).toBeGreaterThan(0);
+    expect(arcRadii.every(r => r >= 0)).toBe(true);
   });
 });

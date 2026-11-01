@@ -218,6 +218,8 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   /** 난이도 추가 창: 화면 모드가 바뀌어 틀이 다시 만들어져도 열려 있게 여기서 가진다 */
   const [addingChart, setAddingChart] = useState(false)
   const mode = useLayoutMode()
+  const modeRef = useRef(mode)
+  modeRef.current = mode
   const Shell =
     mode === 'phone-portrait' ? PortraitShell : mode === 'phone-landscape' ? LandscapeShell : DesktopShell
 
@@ -336,6 +338,8 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   const [playtestRun, setPlaytestRun] = useState(0)
   /** 자동 플레이 (F4). 다시 시작해도 유지하고, 새로 들어가면 꺼진 채로 시작한다 */
   const [playtestAuto, setPlaytestAuto] = useState(false)
+  /** 테스트 플레이를 시작할 때의 폰 배치 여부. 화면 세션(전체 화면 등)은 도중에 화면 크기가 바뀌어도(전체 화면이 되며 넓어져도) 한 판 동안 그대로 둔다 */
+  const [playtestPhone, setPlaytestPhone] = useState(false)
 
   const startPlaytest = useCallback(
     (fromStart: boolean) => {
@@ -354,6 +358,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
       playtestReturnRef.current = s.playheadMs
       setPlaytestAuto(false)
+      setPlaytestPhone(modeRef.current !== 'desktop')
       setPlaytestFromMs(fromMs)
       store.set({ mode: 'playtest' })
     },
@@ -384,7 +389,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   // 다시 시작해 오버레이가 새로 만들어져도 나갔다 들어가지 않는다.
   const screenSessionRef = useRef<PlaytestScreenSession | null>(null)
   const screenTargetRef = useRef<ScreenOrientationTarget | null>(null)
-  const phoneScreen = playtestFromMs !== null && !caps().windowControls && mode !== 'desktop'
+  const phoneScreen = playtestFromMs !== null && playtestPhone && !caps().windowControls
   useEffect(() => {
     if (!phoneScreen) return
     // 오버레이가 먼저 마운트되며 방향을 알려 둔다 (자식 effect가 먼저 돈다)

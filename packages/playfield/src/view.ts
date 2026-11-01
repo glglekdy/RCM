@@ -153,6 +153,23 @@ export function touchLaneAt(
   return -1;
 }
 
+/** 콤보·판정 글자 맨 윗줄(콤보 숫자)의 중심이 화면 위에서 최소로 떨어질 거리(px) */
+export const RESULT_TEXT_TOP = 24;
+
+/**
+ * 콤보·판정·EARLY/LATE 글자 줄의 y. 화면이 충분히 크면 판정선 기준 고정 오프셋 그대로이고,
+ * 짧은 화면에서는 줄 사이 간격과 순서를 지킨 채 통째로 내려 화면 밖으로 나가지 않게 한다.
+ */
+export function resultTextRows(judgeY: number): { combo: number; comboLabel: number; judgement: number; timing: number } {
+  const shift = Math.max(0, RESULT_TEXT_TOP - (judgeY - 250));
+  return {
+    combo: judgeY - 250 + shift,
+    comboLabel: judgeY - 222 + shift,
+    judgement: judgeY - 180 + shift,
+    timing: judgeY - 156 + shift,
+  };
+}
+
 /** 좁은 화면에서 레인 양옆에 남길 여백(px) */
 export const FIT_LANE_MARGIN = 8;
 

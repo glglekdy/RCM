@@ -18,6 +18,7 @@ import {
   NOTE_INSET,
   noteHalfExtent,
   judgeLineY,
+  resultTextRows,
   JUDGEMENT_SHOW_MS,
   trackColumns,
   notePositions,
@@ -333,9 +334,13 @@ export class Playfield {
     if (!this.autoplay) this.show(this.state.release(lane, this.clock()));
   }
 
+  /** 판정 상태(PlayState)와 견주는 시계. 자동 플레이는 입력 지연이 없어 화면 시계를 그대로 쓴다. */
+  private stateClock(): number {
+    return this.autoplay ? this.opts.getTimeMs() : this.clock();
+  }
+
   /** 판정 이벤트의 시각은 판정 시계라, 판정 글자·이펙트는 화면 시계로 되돌려 시작한다. */
-  private show(events: JudgeEvent[]): void {
-    const offset = this.opts.judgeOffsetMs ?? 0;
+  private show(events: JudgeEvent[], offset = this.opts.judgeOffsetMs ?? 0): void {
     for (const e of events) {
       if (e.part === 'head') this.holdJudgement[e.lane] = e.judgement;
       if (slotFor(e.judgement)) this.pendingBursts.push({ ...e, ms: e.ms + offset });
@@ -348,9 +353,13 @@ export class Playfield {
   private readonly frame = (): void => {
     this.raf = requestAnimationFrame(this.frame);
     const now = this.opts.getTimeMs();
-    const judgeNow = this.clock();
-    if (this.autoplay) this.show(autoplayStep(this.state, judgeNow));
-    this.show(this.state.update(judgeNow));
+    if (this.autoplay) {
+      // 자동 플레이는 화면 시계로 친다 (판정 보정이 있어도 노트가 선 위에서 맞는다)
+      this.show(autoplayStep(this.state, now), 0);
+      this.show(this.state.update(now), 0);
+    } else {
+      this.show(this.state.update(this.clock()));
+    }
     this.draw(now);
   };
 
@@ -421,22 +430,23 @@ export class Playfield {
       }
     }
 
+    const rows = resultTextRows(judgeY);
     if (this.state.combo > 0) {
       ctx.fillStyle = colors.combo;
       ctx.font = `700 40px ${FONT}`;
-      ctx.fillText(String(this.state.combo), centerX, judgeY - 250);
+      ctx.fillText(String(this.state.combo), centerX, rows.combo);
       ctx.font = `600 12px ${FONT}`;
-      ctx.fillText('COMBO', centerX, judgeY - 222);
+      ctx.fillText('COMBO', centerX, rows.comboLabel);
     }
     if (this.last && now - this.last.ms < JUDGEMENT_SHOW_MS) {
       ctx.fillStyle = colors[this.last.judgement];
       ctx.font = `800 28px ${FONT}`;
-      ctx.fillText(JUDGEMENT_TEXT[this.last.judgement], centerX, judgeY - 180);
+      ctx.fillText(JUDGEMENT_TEXT[this.last.judgement], centerX, rows.judgement);
       const { timing } = this.last;
       if (timing) {
         ctx.fillStyle = colors[timing];
         ctx.font = `700 13px ${FONT}`;
-        ctx.fillText(TIMING_TEXT[timing], centerX, judgeY - 156);
+        ctx.fillText(TIMING_TEXT[timing], centerX, rows.timing);
       }
     }
   }
@@ -455,7 +465,7 @@ export class Playfield {
     const { fromPos, toPos } = visibleScrollRange(nowPos, height, judgeY, pxPerMs);
     const notes = this.state.notes;
     // 판정 상태(PlayState)는 판정 시계 기준이라 상태와 견주는 값은 판정 시계로 본다
-    const judgeNow = this.clock();
+    const judgeNow = this.stateClock();
     const y = (pos: number) => noteY(pos, nowPos, judgeY, pxPerMs);
     for (let i = firstAtOrAbove(this.startPos, fromPos - pad - this.maxHoldSpanPos); i < notes.length; i++) {
       const n = notes[i];
@@ -554,7 +564,7 @@ export class Playfield {
     const { ctx, layout } = this;
     ctx.beginPath();
     if (layout.noteShape === 'circle') {
-      ctx.arc(laneX + laneWidth / 2, y, (laneWidth - NOTE_INSET * 2) / 2, 0, Math.PI * 2);
+      ctx.arc(laneX + laneWidth / 2, y, Math.max(0, (laneWidth - NOTE_INSET * 2) / 2), 0, Math.PI * 2);
     } else {
       ctx.roundRect(
         laneX + NOTE_INSET,

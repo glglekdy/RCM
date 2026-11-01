@@ -267,4 +267,34 @@ describe('enterPlaytestScreen', () => {
     await flush()
     expect(wl.request).toHaveBeenCalledTimes(2)
   })
+
+  it('StrictMode처럼 첫 세션이 정리된 뒤 늦게 열린 전체 화면은 닫지 않고 새 세션이 넘겨받는다', async () => {
+    const doc = fakeDocument()
+    // 요청이 한 박자 늦게 끝나 그때서야 전체 화면이 된다
+    doc.documentElement.requestFullscreen = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          setTimeout(() => {
+            doc.fullscreenElement = {}
+            resolve()
+          }, 0)
+        })
+    )
+    const scr = fakeScreen()
+    vi.stubGlobal('document', doc)
+    vi.stubGlobal('navigator', {})
+    vi.stubGlobal('screen', scr)
+
+    enterPlaytestScreen('portrait').dispose()
+    const second = enterPlaytestScreen('portrait')
+    await flush()
+    await flush()
+    expect(doc.exitFullscreen).not.toHaveBeenCalled()
+    expect(doc.fullscreenElement).not.toBeNull()
+    expect(scr.orientation.lock).toHaveBeenCalledWith('portrait')
+
+    // 넘겨받았으니 정리할 때는 새 세션이 닫는다
+    second.dispose()
+    expect(doc.exitFullscreen).toHaveBeenCalledTimes(1)
+  })
 })

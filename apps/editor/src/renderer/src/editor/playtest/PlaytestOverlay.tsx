@@ -185,12 +185,16 @@ export function PlaytestOverlay({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  const overlayClass = web ? `${styles.overlay} ${styles.overlayWeb}` : styles.overlay
+  const overlayClass = [styles.overlay, web && styles.overlayWeb, phone && styles.overlayPhone]
+    .filter(Boolean)
+    .join(' ')
+  // 웹에서 길게 눌러도 브라우저 메뉴가 뜨지 않게 한다
+  const onContextMenu = web ? (e: { preventDefault: () => void }) => e.preventDefault() : undefined
 
-  if (phone) {
-    return (
-      <div className={overlayClass}>
-        <canvas ref={canvasRef} className={styles.canvas} />
+  // 폰과 데스크톱은 같은 자리의 캔버스를 쓴다 (도중에 배치가 바뀌어도 캔버스가 새로 만들어지지 않는다)
+  return (
+    <div className={overlayClass} onContextMenu={onContextMenu}>
+      {phone ? (
         <div className={styles.phoneHud}>
           <div className={styles.phoneButtons}>
             <button type="button" className={styles.phoneButton} onClick={onExit}>
@@ -240,49 +244,46 @@ export function PlaytestOverlay({
             <span>최대 콤보 {stats.maxCombo}</span>
           </p>
         </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className={overlayClass}>
+      ) : null}
       <canvas ref={canvasRef} className={styles.canvas} />
-      <div className={styles.hud}>
-        <div className={styles.controls}>
-          <span>배속 {speed.toFixed(1)} (↑/↓)</span>
-          <span className={styles.dot}>·</span>
-          <span>F5 다시 시작</span>
-          <span className={styles.dot}>·</span>
-          <span className={autoplay ? styles.autoOn : undefined}>
-            자동 {autoplay ? '켬' : '끔'} (F4)
-          </span>
-          {free && (
-            <>
-              <span className={styles.dot}>·</span>
-              <button type="button" className={styles.exit} onClick={toggleAspect}>
-                {aspect === 'portrait' ? '세로' : '가로'} 화면 (F6)
-              </button>
-            </>
-          )}
-          <span className={styles.dot}>·</span>
-          <button type="button" className={styles.exit} onClick={onExit}>
-            Esc 종료
-          </button>
-        </div>
-        {free && <p className={styles.hint}>마우스·터치로 쳐요. 터치 화면이면 여러 손가락도 돼요.</p>}
-        <dl className={styles.stats}>
-          {ROWS.map((r) => (
-            <div key={r.key} className={styles.stat}>
-              <dt style={{ color: DEFAULT_PLAYFIELD_COLORS[r.key] }}>{r.label}</dt>
-              <dd>{stats.counts[r.key]}</dd>
-            </div>
-          ))}
-          <div className={styles.stat}>
-            <dt>최대 콤보</dt>
-            <dd>{stats.maxCombo}</dd>
+      {phone ? null : (
+        <div className={styles.hud}>
+          <div className={styles.controls}>
+            <span>배속 {speed.toFixed(1)} (↑/↓)</span>
+            <span className={styles.dot}>·</span>
+            <span>F5 다시 시작</span>
+            <span className={styles.dot}>·</span>
+            <span className={autoplay ? styles.autoOn : undefined}>
+              자동 {autoplay ? '켬' : '끔'} (F4)
+            </span>
+            {free && (
+              <>
+                <span className={styles.dot}>·</span>
+                <button type="button" className={styles.exit} onClick={toggleAspect}>
+                  {aspect === 'portrait' ? '세로' : '가로'} 화면 (F6)
+                </button>
+              </>
+            )}
+            <span className={styles.dot}>·</span>
+            <button type="button" className={styles.exit} onClick={onExit}>
+              Esc 종료
+            </button>
           </div>
-        </dl>
-      </div>
+          {free && <p className={styles.hint}>마우스·터치로 쳐요. 터치 화면이면 여러 손가락도 돼요.</p>}
+          <dl className={styles.stats}>
+            {ROWS.map((r) => (
+              <div key={r.key} className={styles.stat}>
+                <dt style={{ color: DEFAULT_PLAYFIELD_COLORS[r.key] }}>{r.label}</dt>
+                <dd>{stats.counts[r.key]}</dd>
+              </div>
+            ))}
+            <div className={styles.stat}>
+              <dt>최대 콤보</dt>
+              <dd>{stats.maxCombo}</dd>
+            </div>
+          </dl>
+        </div>
+      )}
     </div>
   )
 }

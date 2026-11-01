@@ -89,12 +89,20 @@
   color: var(--text-muted);
 }
 
-/* 폰: 화면 위쪽 전체 폭의 한 줄 HUD와 40px 버튼 */
+/* 폰: HUD를 맨 위 줄로 두고 캔버스는 그 아래 남은 자리만 쓴다 (HUD 밑에 판정·콤보 글자가 깔리지 않게) */
+:global(html[data-layout^='phone']) .overlayPhone {
+  display: flex;
+  flex-direction: column;
+}
+
+:global(html[data-layout^='phone']) .overlayPhone .canvas {
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+}
+
 :global(html[data-layout^='phone']) .phoneHud {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  flex: none;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -102,8 +110,6 @@
     calc(env(safe-area-inset-left, 0px) + 8px);
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
-  /* 위쪽 가장자리의 노트를 칠 수 있게 막대는 터치를 통과시키고 버튼만 받는다 */
-  pointer-events: none;
 }
 
 :global(html[data-layout^='phone']) .phoneButtons {
@@ -125,7 +131,8 @@
   color: var(--text);
   font: inherit;
   white-space: nowrap;
-  pointer-events: auto;
+  /* 두 번 연달아 눌러도 확대되지 않게 한다 */
+  touch-action: manipulation;
 }
 
 :global(html[data-layout^='phone']) .phoneButtonOn {

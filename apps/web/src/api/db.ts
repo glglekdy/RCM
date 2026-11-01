@@ -69,8 +69,8 @@ export function tx<T>(
       }
     }
     t.oncomplete = () => resolve(result)
+    // 요청 오류는 트랜잭션을 취소시키므로 `onabort`에서 한 번만 처리한다 (`t.error`는 이때 채워진다)
     t.onabort = () => reject(friendly(t.error ?? new Error('저장하지 못했어요')))
-    t.onerror = () => reject(friendly(t.error))
     try {
       const out = run(t)
       if (out instanceof Promise) out.then((v) => (result = v), fail)

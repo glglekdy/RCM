@@ -35,6 +35,35 @@ describe('tx', () => {
     expect(v).toBeUndefined()
   })
 
+  it('기다리지 않은 요청이 실패해도 진짜 오류로 reject해요', async () => {
+    const db = await freshDb()
+    await tx(db, ['projects'], 'readwrite', (t) => {
+      t.objectStore('projects').add({ id: 'a' })
+    })
+    const err = await tx(db, ['projects'], 'readwrite', (t) => {
+      t.objectStore('projects').add({ id: 'a' })
+    }).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(Error)
+    expect((err as Error).name).toBe('ConstraintError')
+  })
+
+  it('트랜잭션이 QuotaExceededError로 취소되면 안내 문구로 reject해요', async () => {
+    // fake-indexeddb로는 저장 공간 부족을 만들 수 없어서, 취소된 트랜잭션을 흉내 낸 가짜 db를 쓴다
+    const fake = {
+      transaction: () => {
+        const t: { error: unknown; onabort?: () => void } = { error: null }
+        queueMicrotask(() => {
+          t.error = new DOMException('full', 'QuotaExceededError')
+          t.onabort?.()
+        })
+        return t
+      }
+    } as unknown as IDBDatabase
+    await expect(tx(fake, ['settings'], 'readwrite', () => {})).rejects.toThrow(
+      '저장 공간이 부족해요. 쓰지 않는 프로젝트를 ZIP으로 내보내고 지워 주세요'
+    )
+  })
+
   it('QuotaExceededError는 안내 문구로 바꿔요', async () => {
     const db = await freshDb()
     await expect(

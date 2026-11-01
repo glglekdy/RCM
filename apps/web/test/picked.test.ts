@@ -17,7 +17,7 @@ describe('picked', () => {
 
   it('고른 파일 경로만 알아봐요', () => {
     expect(isPickedPath('web:abc/song.mp3')).toBe(false)
-    expect(isPickedPath('C:\a.png')).toBe(false)
+    expect(isPickedPath('C:\\a.png')).toBe(false)
   })
 
   it('등록할 때마다 다른 경로를 줘요', () => {

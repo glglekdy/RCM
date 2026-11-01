@@ -21,6 +21,7 @@ import { applyRecording, recordingMessage, type RecordSession } from './commands
 import { runEditAction } from './commands/editActions'
 import { pushTap } from './commands/tap'
 import { IconButton, TitleBar, useDialogs, useToast } from '../ui'
+import { audioLoadError, caps, savedMessage } from '../ui/platform'
 import { AudioEngine } from './audio/AudioEngine'
 import { inputTimeMs } from './audio/inputTime'
 import { projectAudioPath, silentDurationMs } from './audio/projectAudio'
@@ -96,7 +97,7 @@ function LoadedEditor({ files, doc, onExit, onOpenProject }: LoadedEditorProps) 
         if (cancelled) return
         silence()
         void dialogs.alert('음악을 열 수 없어요', [
-          err instanceof Error ? err.message : String(err),
+          audioLoadError(audio, err),
           '음악 없이 열었어요. 곡 탭에서 음악을 다시 고를 수 있어요.'
         ])
       }
@@ -125,6 +126,17 @@ function LoadedEditor({ files, doc, onExit, onOpenProject }: LoadedEditorProps) 
 
   // 홈으로 돌아가면 닫기 보호를 해제한다 (닫기 요청 처리는 EditorBody가 한다)
   useEffect(() => () => window.rcm.setDirty(false), [])
+
+  // 이 프로젝트를 떠나면 알린다: 웹은 탭 잠금을 푼다
+  const projectDir = files.dir
+  useEffect(
+    () => () => {
+      window.rcm.closeProject(projectDir).catch(() => {
+        // 정리에 실패해도 화면은 그대로 떠난다
+      })
+    },
+    [projectDir]
+  )
 
   return (
     <StoreContext.Provider value={store}>
@@ -198,6 +210,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   // 디스코드 활동: 이 화면은 프로젝트를 열 때마다 새로 만들어지므로 처음 그린 시각 = 연 시각
   const [since] = useState(() => Date.now())
   useEffect(() => {
+    if (!caps().discord) return
     window.rcm.setPresence({
       title: song.title,
       artist: song.artist,
@@ -276,6 +289,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   }, [engine, store, finishRecording])
 
   const record = useCallback(() => {
+    if (!caps().recording) return
     const s = store.getState()
     if (s.mode === 'recording') {
       stop()
@@ -449,6 +463,17 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     [confirmLeave]
   )
 
+  // 웹: 저장 안 된 변경이 있으면 탭을 닫거나 새로고침할 때 브라우저가 확인한다.
+  // Electron에서는 이 이벤트가 닫기를 조용히 막아 버리므로 창 컨트롤이 없는 환경에서만 건다.
+  useEffect(() => {
+    if (caps().windowControls) return
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (store.needsCloseGuard()) e.preventDefault()
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [store])
+
   // 입력 필드에 포커스가 있는 동안에도 닫기 보호를 켠다 (확정 안 된 값이 있을 수 있다)
   useEffect(() => {
     const update = (focused: EventTarget | null) => {
@@ -546,11 +571,50 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     const chart = getChart(s.doc, s.activeChart)
     const text = isFreeChart(chart) ? serializeFreeChart(chart) : serializeChart(chart)
     try {
-      if (await window.rcm.exportChart(s.activeChart, text)) toast(`${chart.name} 채보를 내보냈어요`)
+      const result = await window.rcm.exportChart(s.activeChart, text)
+      if (result) {
+        toast(
+          caps().revealInExplorer ? `${chart.name} 채보를 내보냈어요` : savedMessage('채보', result, false)
+        )
+      }
     } catch (err) {
       await dialogs.alert('채보를 내보내지 못했어요', ipcErrorMessage(err))
     }
   }, [store, toast, dialogs])
+
+  /** 프로젝트를 ZIP으로 내보낸다. 저장한 내용이 들어가므로 저장 안 한 변경이 있으면 먼저 저장할지 묻는다. */
+  const exportProjectZip = useCallback(async () => {
+    commitFocusedField()
+    if (store.getState().mode === 'playtest') exitPlaytest()
+    else stop()
+    if (store.isDirty()) {
+      const choice = await dialogs.choose({
+        title: '저장하지 않은 변경',
+        message: 'ZIP에는 저장한 내용만 들어가요. 변경 내용을 먼저 저장할까요?',
+        choices: [
+          { value: 'cancel', label: '취소' },
+          { value: 'skip', label: '저장 안 함' },
+          { value: 'save', label: '저장', variant: 'primary' }
+        ]
+      })
+      if (choice === 'save') {
+        try {
+          await store.save()
+        } catch (err) {
+          await dialogs.alert('저장하지 못했어요', err instanceof Error ? err.message : String(err))
+          return
+        }
+      } else if (choice !== 'skip') {
+        return
+      }
+    }
+    try {
+      const result = await window.rcm.exportProjectZip(store.getState().dir)
+      if (result) toast(savedMessage('프로젝트 ZIP', result, caps().revealInExplorer))
+    } catch (err) {
+      await dialogs.alert('프로젝트를 내보내지 못했어요', ipcErrorMessage(err))
+    }
+  }, [store, stop, exitPlaytest, dialogs, toast])
 
   // 편집 화면에 채보 파일을 끌어다 놓으면 불러온다 (테스트 플레이 중에는 받지 않는다)
   const [dropping, setDropping] = useState(false)
@@ -757,6 +821,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
         onSave={() => void save()}
         onImportCharts={() => void pickChartFiles()}
         onExportChart={() => void exportChart()}
+        onExportZip={() => void exportProjectZip()}
         onHome={() => void goHome()}
         inert={playtestFromMs !== null}
       />

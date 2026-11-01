@@ -11,6 +11,7 @@ import {
   TextField,
   useDialogs
 } from '../ui'
+import { caps } from '../ui/platform'
 import { DEFAULT_FLICK_MODE } from '../editor/commands/freeNotes'
 import { FLICK_MODE_OPTIONS } from '../editor/panels/freeLabels'
 import { presetToChartTracks } from '../../../shared/presets'
@@ -307,15 +308,19 @@ export function NewProjectDialog({ open, onClose, onCreated }: NewProjectDialogP
             <div className={styles.hint}>노트가 레인 대신 가로 위치와 폭을 가져요 (탭·트레이스·플릭·슬라이드)</div>
           </>
         )}
-        <Row label="저장 위치">
-          <span className={styles.fileName} title={parentDir}>
-            {parentDir}
-          </span>
-          <Button onClick={() => void changeParent()}>변경</Button>
-        </Row>
-        <div className={styles.pathPreview} title={preview}>
-          {preview ? `만들어질 폴더: ${preview}` : ''}
-        </div>
+        {caps().chooseProjectFolder && (
+          <>
+            <Row label="저장 위치">
+              <span className={styles.fileName} title={parentDir}>
+                {parentDir}
+              </span>
+              <Button onClick={() => void changeParent()}>변경</Button>
+            </Row>
+            <div className={styles.pathPreview} title={preview}>
+              {preview ? `만들어질 폴더: ${preview}` : ''}
+            </div>
+          </>
+        )}
       </div>
     </Modal>
   )

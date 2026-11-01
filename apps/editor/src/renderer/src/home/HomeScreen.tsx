@@ -25,8 +25,9 @@ import { PresetsPage } from '../presets/PresetsPage'
 import { SettingsPage } from '../settings/SettingsPage'
 import { UpdatePanel } from '../update/UpdatePanel'
 import { Button, IconButton, Menu, TextField, useDialogs, useToast } from '../ui'
+import { caps, deleteCopy } from '../ui/platform'
 import { nextGreeting } from './greeting'
-import { importZips } from './importZips'
+import { importZips, ipcErrorMessage } from './importZips'
 import { NewProjectDialog } from './NewProjectDialog'
 import { RecentTable } from './RecentTable'
 import { PROJECT_SORTS, sortProjects, type ProjectSort } from './sortProjects'
@@ -53,6 +54,8 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
   const dialogs = useDialogs()
   const toast = useToast()
   const [recent, setRecent] = useState<RecentProject[] | null>(null)
+  /** 저장소 사용량(바이트). 측정할 수 없는 환경(PC)이면 null */
+  const [usedBytes, setUsedBytes] = useState<number | null>(null)
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<ProjectSort>('recent')
   // 삭제 모드에서 고른 프로젝트 폴더들. null이면 삭제 모드가 아니다
@@ -68,6 +71,11 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
 
   const refresh = useCallback(async () => {
     setRecent(await window.rcm.getRecentProjects())
+    // 사용량은 못 읽어도 목록은 그대로 보인다
+    void window.rcm
+      .getStorageUsage()
+      .then((u) => setUsedBytes(u?.usedBytes ?? null))
+      .catch(() => {})
   }, [])
 
   // 홈으로 돌아오거나 창으로 돌아올 때마다 다시 읽는다: 탐색기에서 폴더를 옮기거나 지운 것이 바로 보이게
@@ -143,13 +151,16 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
 
   const openRecent = async (p: RecentProject) => {
     if (p.missing) {
+      const canRelink = caps().chooseProjectFolder
       const choice = await dialogs.choose({
         title: '프로젝트를 찾을 수 없어요',
-        message: `${p.dir}\n폴더가 옮겨졌다면 다시 연결하고, 아니면 목록에서 제거하세요.`,
+        message: canRelink
+          ? `${p.dir}\n폴더가 옮겨졌다면 다시 연결하고, 아니면 목록에서 제거하세요.`
+          : `${p.dir}\n목록에서 제거할 수 있어요.`,
         choices: [
           { value: 'cancel', label: '취소' },
           { value: 'remove', label: '목록에서 제거', variant: 'danger' },
-          { value: 'relink', label: '다시 연결', variant: 'primary' }
+          ...(canRelink ? [{ value: 'relink', label: '다시 연결', variant: 'primary' as const }] : [])
         ]
       })
       if (choice === 'remove') await removeFromList(p)
@@ -162,6 +173,27 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
   const pickAndOpen = async () => {
     const dir = await window.rcm.pickFolder()
     if (dir) await openDir(dir)
+  }
+
+  /** 대화상자에서 고른 프로젝트 ZIP을 풀어 최근 목록에 등록한다 (열지는 않는다) */
+  const pickAndImportZip = async () => {
+    let zipPath: string | null
+    try {
+      zipPath = await window.rcm.pickProjectZip()
+    } catch (err) {
+      await dialogs.alert('프로젝트를 가져오지 못했어요', ipcErrorMessage(err))
+      return
+    }
+    if (!zipPath) return
+    try {
+      await window.rcm.importProjectZip(zipPath)
+      toast('프로젝트를 가져왔어요')
+    } catch (err) {
+      await dialogs.alert('프로젝트를 가져오지 못했어요', ipcErrorMessage(err))
+    }
+    setPage('home')
+    setQuery('')
+    await refresh()
   }
 
   const hasFiles = (e: DragEvent) => e.dataTransfer.types.includes('Files')
@@ -228,10 +260,12 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
   const trashPicked = async () => {
     const n = picked.length
     if (n === 0) return
+    const trash = caps().trash
+    const copy = deleteCopy(trash, n)
     const ok = await dialogs.confirm({
-      title: `프로젝트 ${n}개를 삭제할까요?`,
-      message: '프로젝트 폴더를 휴지통으로 보내요. 휴지통에서 되살릴 수 있어요.',
-      confirmLabel: '삭제',
+      title: copy.title,
+      message: copy.message,
+      confirmLabel: copy.confirm,
       danger: true
     })
     if (!ok) return
@@ -253,7 +287,7 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
         failed.map((f) => `${f.dir}: ${f.error}`)
       )
     } else {
-      toast(`프로젝트 ${n}개를 휴지통으로 보냈어요`)
+      toast(trash ? `프로젝트 ${n}개를 휴지통으로 보냈어요` : `프로젝트 ${n}개를 삭제했어요`)
     }
   }
 
@@ -276,9 +310,15 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
           <Plus size={16} />
           <span className={styles.label}>새 프로젝트</span>
         </Button>
-        <Button variant="ghost" title={collapsed ? '프로젝트 열기' : undefined} onClick={() => void pickAndOpen()}>
-          <FolderOpen size={16} />
-          <span className={styles.label}>프로젝트 열기</span>
+        {caps().chooseProjectFolder && (
+          <Button variant="ghost" title={collapsed ? '프로젝트 열기' : undefined} onClick={() => void pickAndOpen()}>
+            <FolderOpen size={16} />
+            <span className={styles.label}>프로젝트 열기</span>
+          </Button>
+        )}
+        <Button variant="ghost" title={collapsed ? 'ZIP 가져오기' : undefined} onClick={() => void pickAndImportZip()}>
+          <FileArchive size={16} />
+          <span className={styles.label}>ZIP 가져오기</span>
         </Button>
         <div className={styles.divider} />
         <nav className={styles.nav}>
@@ -380,19 +420,25 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
                     selected={selected ?? undefined}
                     onToggle={toggleSelected}
                     onOpen={(p) => void openRecent(p)}
-                    onShowInExplorer={(p) =>
-                      void window.rcm.showInExplorer(p.dir).catch(async (err: unknown) => {
-                        await dialogs.alert(
-                          '탐색기에서 열 수 없어요',
-                          err instanceof Error ? err.message : String(err)
-                        )
-                      })
+                    onShowInExplorer={
+                      caps().revealInExplorer
+                        ? (p) =>
+                            void window.rcm.showInExplorer(p.dir).catch(async (err: unknown) => {
+                              await dialogs.alert(
+                                '탐색기에서 열 수 없어요',
+                                err instanceof Error ? err.message : String(err)
+                              )
+                            })
+                        : undefined
                     }
                     onRemove={(p) => void removeFromList(p)}
-                    onRelink={(p) => void relink(p)}
+                    onRelink={caps().chooseProjectFolder ? (p) => void relink(p) : undefined}
                   />
                 )}
               </>
+            )}
+            {usedBytes !== null && (
+              <p className={styles.usage}>사용 중 {Math.round(usedBytes / (1024 * 1024))}MB</p>
             )}
           </div>
         )}

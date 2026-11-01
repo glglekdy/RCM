@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Megaphone, RefreshCw, RotateCw } from 'lucide-react'
 import { hasUnseen, openAnnouncements, useAnnouncements } from '../announcements/announcementsStore'
 import { Button, IconButton } from '../ui'
+import { caps } from '../ui/platform'
 import { hasNotesFor, openWhatsNew } from '../whatsNew/whatsNewStore'
 import { useUpdateState } from './updateStore'
 import { updateButtonAction, updateStatusText } from './updateText'
@@ -15,6 +16,8 @@ interface UpdatePanelProps {
 export function UpdatePanel({ compact }: UpdatePanelProps) {
   const state = useUpdateState()
   const unseen = hasUnseen(useAnnouncements())
+  // 앱 내 업데이트가 없는 환경(웹)은 공지사항과 버전만 보인다
+  const autoUpdate = caps().autoUpdate
   const [version, setVersion] = useState('')
   const [packaged, setPackaged] = useState<boolean | null>(null)
 
@@ -40,18 +43,19 @@ export function UpdatePanel({ compact }: UpdatePanelProps) {
           <IconButton icon={Megaphone} label={unseen ? '공지사항 · 새 글' : '공지사항'} onClick={openAnnouncements} />
           {unseen && <span className={styles.dot} />}
         </span>
-        {restart ? (
-          <IconButton icon={RotateCw} label="재시작해서 업데이트" onClick={() => window.rcm.installUpdate()} />
-        ) : (
-          <IconButton
-            icon={RefreshCw}
-            label={[version && `v${version}`, text || '업데이트 확인'].filter(Boolean).join(' · ')}
-            disabled={!packaged || busy}
-            onClick={() => {
-              window.rcm.checkForUpdates().catch(() => {})
-            }}
-          />
-        )}
+        {autoUpdate &&
+          (restart ? (
+            <IconButton icon={RotateCw} label="재시작해서 업데이트" onClick={() => window.rcm.installUpdate()} />
+          ) : (
+            <IconButton
+              icon={RefreshCw}
+              label={[version && `v${version}`, text || '업데이트 확인'].filter(Boolean).join(' · ')}
+              disabled={!packaged || busy}
+              onClick={() => {
+                window.rcm.checkForUpdates().catch(() => {})
+              }}
+            />
+          ))}
       </div>
     )
   }
@@ -61,7 +65,7 @@ export function UpdatePanel({ compact }: UpdatePanelProps) {
       <div className={styles.versionRow}>
         <div className={styles.version}>
           {version && `v${version}`}
-          {packaged === false && ' (개발 모드 · 업데이트 꺼짐)'}
+          {autoUpdate && packaged === false && ' (개발 모드 · 업데이트 꺼짐)'}
         </div>
         {version && hasNotesFor(version) && (
           <button type="button" className={styles.notesLink} onClick={() => openWhatsNew(version)}>
@@ -73,21 +77,22 @@ export function UpdatePanel({ compact }: UpdatePanelProps) {
         <Megaphone size={14} /> 공지사항
         {unseen && <span className={styles.dotInline} aria-label="새 글" />}
       </Button>
-      {restart ? (
-        <Button variant="primary" onClick={() => window.rcm.installUpdate()}>
-          <RotateCw size={14} /> 재시작해서 업데이트
-        </Button>
-      ) : (
-        <Button
-          disabled={!packaged || busy}
-          onClick={() => {
-            window.rcm.checkForUpdates().catch(() => {})
-          }}
-        >
-          업데이트 확인
-        </Button>
-      )}
-      {text && (
+      {autoUpdate &&
+        (restart ? (
+          <Button variant="primary" onClick={() => window.rcm.installUpdate()}>
+            <RotateCw size={14} /> 재시작해서 업데이트
+          </Button>
+        ) : (
+          <Button
+            disabled={!packaged || busy}
+            onClick={() => {
+              window.rcm.checkForUpdates().catch(() => {})
+            }}
+          >
+            업데이트 확인
+          </Button>
+        ))}
+      {autoUpdate && text && (
         <div className={styles.status} title={state.kind === 'error' ? state.message : undefined}>
           {text}
         </div>

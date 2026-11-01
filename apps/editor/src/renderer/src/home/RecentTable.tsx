@@ -10,10 +10,11 @@ import { stagger } from '../ui/motion'
 interface RecentTableProps {
   projects: RecentProject[]
   onOpen: (p: RecentProject) => void
-  onShowInExplorer: (p: RecentProject) => void
+  /** 없으면 "탐색기에서 보기"를 보이지 않는다 */
+  onShowInExplorer?: (p: RecentProject) => void
   onRemove: (p: RecentProject) => void
-  /** 찾을 수 없는 프로젝트를 옮겨 간 폴더에 다시 연결 */
-  onRelink: (p: RecentProject) => void
+  /** 찾을 수 없는 프로젝트를 옮겨 간 폴더에 다시 연결. 없으면 "다시 연결"을 보이지 않는다 */
+  onRelink?: (p: RecentProject) => void
   /** 삭제 모드에서 고른 프로젝트 폴더들. 정하면 행을 누를 때 열지 않고 고르기만 한다 */
   selected?: ReadonlySet<string>
   onToggle?: (p: RecentProject) => void
@@ -92,14 +93,16 @@ export function RecentTable({
                       onDoubleClick={(e) => e.stopPropagation()}
                       onKeyDown={(e) => e.stopPropagation()}
                     >
-                      <button
-                        type="button"
-                        className={styles.lostBtn}
-                        title="옮겨 간 프로젝트 폴더를 골라 다시 연결해요"
-                        onClick={() => onRelink(p)}
-                      >
-                        <Link2 size={14} /> 다시 연결
-                      </button>
+                      {onRelink && (
+                        <button
+                          type="button"
+                          className={styles.lostBtn}
+                          title="옮겨 간 프로젝트 폴더를 골라 다시 연결해요"
+                          onClick={() => onRelink(p)}
+                        >
+                          <Link2 size={14} /> 다시 연결
+                        </button>
+                      )}
                       <button
                         type="button"
                         className={styles.lostBtn}
@@ -131,12 +134,14 @@ export function RecentTable({
           items={
             menu.project.missing
               ? [
-                  { label: '다시 연결', onSelect: () => onRelink(menu.project) },
+                  ...(onRelink ? [{ label: '다시 연결', onSelect: () => onRelink(menu.project) }] : []),
                   { label: '목록에서 제거', danger: true, onSelect: () => onRemove(menu.project) }
                 ]
               : [
                   { label: '열기', onSelect: () => onOpen(menu.project) },
-                  { label: '탐색기에서 보기', onSelect: () => onShowInExplorer(menu.project) },
+                  ...(onShowInExplorer
+                    ? [{ label: '탐색기에서 보기', onSelect: () => onShowInExplorer(menu.project) }]
+                    : []),
                   { label: '목록에서 제거', danger: true, onSelect: () => onRemove(menu.project) }
                 ]
           }

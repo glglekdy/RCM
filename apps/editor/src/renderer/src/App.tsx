@@ -7,6 +7,7 @@ import { loadHitEffects } from './gameplay/hitEffectStore'
 import { loadLayout } from './gameplay/layoutStore'
 import { loadPresets } from './presets/presetStore'
 import { DialogProvider, TitleBar, ToastProvider } from './ui'
+import { caps } from './ui/platform'
 import { UpdateNotice } from './update/UpdateNotice'
 import { startUpdateStore } from './update/updateStore'
 import { AnnouncementsDialog } from './announcements/AnnouncementsDialog'
@@ -22,7 +23,7 @@ export function App() {
   const nextId = useRef(0)
 
   useEffect(() => {
-    startUpdateStore()
+    if (caps().autoUpdate) startUpdateStore()
     loadPresets().catch(() => {
       // 설정을 못 읽으면 기본 프리셋으로 계속한다
     })
@@ -44,7 +45,7 @@ export function App() {
 
   // 홈 화면에서는 디스코드에 곡 정보 없이 RCM만 보인다
   useEffect(() => {
-    if (state.screen === 'home') window.rcm.setPresence(null)
+    if (state.screen === 'home' && caps().discord) window.rcm.setPresence(null)
   }, [state.screen])
 
   const openProject = useCallback((files: ProjectFiles) => {
@@ -68,7 +69,7 @@ export function App() {
             onOpenProject={openProject}
           />
         )}
-        <UpdateNotice />
+        {caps().autoUpdate && <UpdateNotice />}
         <WhatsNewDialog />
         <AnnouncementsDialog />
       </ToastProvider>

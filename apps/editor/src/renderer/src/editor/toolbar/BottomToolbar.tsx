@@ -35,6 +35,7 @@ import { getChart } from '../state/doc'
 import { FREE_NOTE_COLORS } from '@rcm/playfield'
 import { DEFAULT_PX_PER_MS } from '../minimap/geometry'
 import { useEditor, useStore } from '../state/useStore'
+import { caps } from '../../ui/platform'
 import { clampZoom } from '../timeline/view'
 import styles from './BottomToolbar.module.css'
 import { GimmickList } from './GimmickList'
@@ -52,6 +53,7 @@ interface BottomToolbarProps {
   onSave: () => void
   onImportCharts: () => void
   onExportChart: () => void
+  onExportZip: () => void
   onHome: () => void
   /** 테스트 플레이 화면에 덮여 있는 동안 포커스·클릭을 받지 않는다 */
   inert?: boolean
@@ -67,6 +69,7 @@ export function BottomToolbar({
   onSave,
   onImportCharts,
   onExportChart,
+  onExportZip,
   onHome,
   inert
 }: BottomToolbarProps) {
@@ -215,7 +218,7 @@ export function BottomToolbar({
             label={playing ? '정지 (Space)' : '재생 (Space)'}
             onClick={onPlayPause}
           />
-          {recording ? (
+          {!caps().recording ? null : recording ? (
             <button
               type="button"
               className={styles.rec}
@@ -243,10 +246,11 @@ export function BottomToolbar({
             }
             items={[
               { label: '새 프로젝트', onSelect: onNewProject },
-              { label: '열기', onSelect: onOpenProject },
+              ...(caps().chooseProjectFolder ? [{ label: '열기', onSelect: onOpenProject }] : []),
               { label: '저장', onSelect: onSave },
               { label: '채보 불러오기', onSelect: onImportCharts },
               { label: '채보 내보내기', onSelect: onExportChart },
+              { label: '프로젝트 ZIP으로 내보내기', onSelect: onExportZip },
               { label: '홈으로', onSelect: onHome }
             ]}
           />

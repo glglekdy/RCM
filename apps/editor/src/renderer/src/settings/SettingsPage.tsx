@@ -7,6 +7,7 @@ import { useLayout } from '../gameplay/layoutStore'
 import { PreviewFullscreen } from '../gameplay/PreviewFullscreen'
 import previewStyles from '../gameplay/LayoutPreview.module.css'
 import { Card, Switch, useToast } from '../ui'
+import { caps } from '../ui/platform'
 import styles from './SettingsPage.module.css'
 
 /** 시작 화면의 `설정` 페이지. 바꾸면 바로 설정 파일에 저장한다. */
@@ -18,6 +19,7 @@ export function SettingsPage() {
   const [fullscreen, setFullscreen] = useState(false)
 
   useEffect(() => {
+    if (!caps().discord) return
     let alive = true
     window.rcm
       .getDiscordPresence()
@@ -43,22 +45,24 @@ export function SettingsPage() {
       <h1 className={styles.title}>설정</h1>
       <div className={styles.columns}>
         <div className={styles.cards}>
-          <Card title="디스코드">
-            <div className={styles.item}>
-              <div className={styles.text}>
-                <span>디스코드에 활동 표시</span>
-                <span className={styles.desc}>
-                  작업 중인 곡과 채보를 디스코드 프로필에 보여줘요. 끄면 아무것도 표시하지 않아요.
-                </span>
+          {caps().discord && (
+            <Card title="디스코드">
+              <div className={styles.item}>
+                <div className={styles.text}>
+                  <span>디스코드에 활동 표시</span>
+                  <span className={styles.desc}>
+                    작업 중인 곡과 채보를 디스코드 프로필에 보여줘요. 끄면 아무것도 표시하지 않아요.
+                  </span>
+                </div>
+                <Switch
+                  label="디스코드에 활동 표시"
+                  checked={discord ?? false}
+                  disabled={discord === null}
+                  onChange={(v) => void changeDiscord(v)}
+                />
               </div>
-              <Switch
-                label="디스코드에 활동 표시"
-                checked={discord ?? false}
-                disabled={discord === null}
-                onChange={(v) => void changeDiscord(v)}
-              />
-            </div>
-          </Card>
+            </Card>
+          )}
           <GameplaySettings />
           <HitEffectSettings />
         </div>

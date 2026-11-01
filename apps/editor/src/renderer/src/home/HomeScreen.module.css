@@ -305,3 +305,11 @@
 .empty p {
   margin: 0;
 }
+
+/* 저장소 사용량 (웹) */
+.usage {
+  flex: none;
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}

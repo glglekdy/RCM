@@ -1,0 +1,118 @@
+.bar {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  height: 48px;
+  padding: 0 4px;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--border);
+}
+
+/* 제목은 한 줄, 길면 말줄임 */
+.title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 난이도가 많거나 이름이 길어도 막대가 넘치지 않게 폭을 묶는다 */
+.picker {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 112px;
+}
+
+/* 저장 상태 점: 점은 작아도 누르는 영역은 40px */
+.save,
+.more {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.save:hover,
+.more:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.save:focus-visible,
+.more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  opacity: 0.6;
+}
+
+.dirty {
+  background: var(--accent);
+  opacity: 1;
+}
+
+/* 폰: 막대 안의 버튼·메뉴 항목은 40px 이상 */
+:global(html[data-layout^='phone']) .bar button {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+:global(html[data-layout^='phone']) .picker button {
+  min-width: 0;
+  padding: 0 6px 0 8px;
+}
+
+:global(html[data-layout^='phone']) .picker button > span {
+  max-width: 64px;
+  min-width: 0;
+}
+
+:global(html[data-layout^='phone']) .bar [role^='menuitem'] {
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+:global(html[data-layout^='phone']) .bar [role='menu'] {
+  max-height: calc(100dvh - 56px);
+  overflow-y: auto;
+}
+
+/* 난이도 목록은 막대 폭에 맞춰 펼친다: 이름이 길어도 화면 밖으로 나가지 않고 말줄임 */
+:global(html[data-layout^='phone']) .picker > div {
+  position: static;
+}
+
+:global(html[data-layout^='phone']) .picker [role='menu'] {
+  right: 8px;
+  left: 8px;
+  max-height: calc(100dvh - 64px);
+  overflow-y: auto;
+}
+
+:global(html[data-layout^='phone']) .picker [role^='menuitem'] {
+  min-height: 40px;
+  overflow: hidden;
+  padding: 0 14px;
+  text-overflow: ellipsis;
+}

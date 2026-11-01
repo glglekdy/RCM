@@ -20,7 +20,7 @@ import { addMarker, neighborMarkerMs } from './commands/markers'
 import { applyRecording, recordingMessage, type RecordSession } from './commands/record'
 import { runEditAction } from './commands/editActions'
 import { pushTap } from './commands/tap'
-import { TitleBar, useDialogs, useToast } from '../ui'
+import { TitleBar, useDialogs, useLayoutMode, useToast } from '../ui'
 import { audioLoadError, caps, savedMessage } from '../ui/platform'
 import { AudioEngine } from './audio/AudioEngine'
 import { inputTimeMs } from './audio/inputTime'
@@ -35,6 +35,7 @@ import { getChart, type ProjectDoc } from './state/doc'
 import { isDirty } from './state/dirty'
 import { loadProject } from './state/loadProject'
 import { DesktopShell } from './shells/DesktopShell'
+import { PortraitShell } from './shells/PortraitShell'
 import { EditorStore } from './state/store'
 import { StoreContext, useEditor, useStore } from './state/useStore'
 import { TimelineCanvas } from './timeline/TimelineCanvas'
@@ -206,6 +207,8 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   const chart = useEditor((s) => getChart(s.doc, s.activeChart))
   const playing = useEditor((s) => s.playing)
   const [creating, setCreating] = useState(false)
+  const mode = useLayoutMode()
+  const Shell = mode === 'phone-portrait' ? PortraitShell : DesktopShell
 
   // 디스코드 활동: 이 화면은 프로젝트를 열 때마다 새로 만들어지므로 처음 그린 시각 = 연 시각
   const [since] = useState(() => Date.now())
@@ -809,7 +812,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
 
   return (
     <div className={styles.screen} onDragEnter={onDragEnter} onDragLeave={onDragLeave} onDrop={onDrop}>
-      <DesktopShell
+      <Shell
         title={title}
         dirty={dirty}
         actions={actions}

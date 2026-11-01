@@ -1,0 +1,103 @@
+import { useState } from 'react'
+import { Gauge, LayoutGrid, Music, type LucideIcon } from 'lucide-react'
+import { BottomSheet, type SheetStage } from '../../ui'
+import { PanelBody, PanelTabs } from '../panels/RightPanel'
+import type { EditorState } from '../state/store'
+import { useEditor, useStore } from '../state/useStore'
+import { NoteKindPicker, PlayControls, SnapPicker, ToolButtons, useFreeChart, WidthControl } from '../toolbar/items'
+import styles from './PortraitShell.module.css'
+import type { ShellProps } from './shellProps'
+import { TopBar } from './TopBar'
+
+type PanelTab = EditorState['panelTab']
+
+/** 아래 둘째 줄의 탭 버튼. 390px 폭에 맞추려고 'BPM · 변속'은 '타이밍'으로 줄여 쓴다 (시트 안 탭 줄은 원래 이름) */
+const ROW_TABS: { value: PanelTab; label: string; icon: LucideIcon }[] = [
+  { value: 'song', label: '곡', icon: Music },
+  { value: 'timing', label: '타이밍', icon: Gauge },
+  { value: 'chart', label: '채보', icon: LayoutGrid }
+]
+
+/**
+ * 폰 세로 편집 틀: TopBar · (타임라인 + 미니맵) · 도구 줄 · 탭/스냅/재생 줄.
+ * 패널은 바텀시트로 열린다. 시트는 TopBar 아래 전체 영역(타임라인 + 아래 두 줄) 기준이라 full이 그 높이다.
+ */
+export function PortraitShell({ title, dirty, actions, timeline, minimap, inert }: ShellProps) {
+  const store = useStore()
+  const panelTab = useEditor((s) => s.panelTab)
+  const freeChart = useFreeChart()
+  // 시트 단계는 이 틀의 지역 상태 (store의 panelOpen은 데스크톱 패널용)
+  const [stage, setStage] = useState<SheetStage>('closed')
+
+  /** 탭을 누르면 그 탭을 연다. 이미 열려 있는 탭을 다시 누르면 닫는다 */
+  const onTab = (tab: PanelTab) => {
+    if (stage !== 'closed' && tab === panelTab) {
+      setStage('closed')
+      return
+    }
+    store.set({ panelTab: tab })
+    if (stage === 'closed') setStage('half')
+  }
+
+  return (
+    <>
+      <TopBar title={title} dirty={dirty} actions={actions} inert={inert} />
+      {/* 테스트 플레이 화면 아래의 편집 화면은 Tab 등으로 포커스되지 않게 한다 */}
+      <div className={styles.stage} inert={inert}>
+        <div className={styles.main}>
+          <div className={styles.timeline}>{timeline}</div>
+          {minimap}
+        </div>
+
+        <div className={`${styles.row} ${styles.scroll}`}>
+          <div className={styles.group}>
+            <ToolButtons />
+          </div>
+          {freeChart && (
+            <div className={styles.group}>
+              <NoteKindPicker placement="up" />
+            </div>
+          )}
+          {freeChart && (
+            <div className={styles.group} title="클릭으로 그릴 노트 폭 (가로로 끌면 걸친 칸만큼)">
+              <WidthControl />
+            </div>
+          )}
+        </div>
+
+        <div className={styles.row}>
+          <div className={`${styles.group} ${styles.tabs}`}>
+            {ROW_TABS.map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                type="button"
+                className={`${styles.tab} ${stage !== 'closed' && panelTab === value ? styles.selected : ''}`}
+                aria-pressed={stage !== 'closed' && panelTab === value}
+                onClick={() => onTab(value)}
+              >
+                <Icon size={16} strokeWidth={1.75} />
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className={styles.group}>
+            <SnapPicker placement="up" align="right" />
+          </div>
+          <div className={styles.group}>
+            <PlayControls actions={actions} />
+          </div>
+        </div>
+
+        <BottomSheet stage={stage} onStageChange={setStage} header={
+            <div className={styles.sheetHeader}>
+              <PanelTabs onTabClick={onTab} />
+            </div>
+          }>
+          <div className={styles.sheetBody}>
+            <PanelBody />
+          </div>
+        </BottomSheet>
+      </div>
+    </>
+  )
+}

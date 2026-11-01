@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { sheetHeightPx, stageAfterDrag, type SheetStage } from './sheetStage'
 import styles from './BottomSheet.module.css'
 
@@ -42,6 +42,13 @@ export function BottomSheet({ stage, onStageChange, header, children }: BottomSh
     return () => observer.disconnect()
   }, [closed])
 
+  // 끄는 중에 시트가 닫히면 손잡이가 사라져 up·cancel이 오지 않는다. 끌기 상태를 비워 다음 끌기를 막지 않게 한다
+  useEffect(() => {
+    if (!closed) return
+    drag.current = null
+    setDragHeight(null)
+  }, [closed])
+
   if (closed) return null
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
@@ -70,6 +77,14 @@ export function BottomSheet({ stage, onStageChange, header, children }: BottomSh
     if (next !== d.startStage) onStageChange(next)
   }
 
+  /** 끌기를 취소한다: 단계를 바꾸지 않고 시작 단계 높이로 돌아간다 (pointercancel·캡처를 잃은 경우) */
+  const cancel = (e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current
+    if (!d || d.pointerId !== e.pointerId) return
+    drag.current = null
+    setDragHeight(null)
+  }
+
   const height = dragHeight ?? sheetHeightPx(stage, available)
 
   return (
@@ -83,7 +98,8 @@ export function BottomSheet({ stage, onStageChange, header, children }: BottomSh
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={finish}
-        onPointerCancel={finish}
+        onPointerCancel={cancel}
+        onLostPointerCapture={cancel}
       >
         <span className={styles.grip} />
       </div>

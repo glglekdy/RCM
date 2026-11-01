@@ -1,0 +1,140 @@
+/* 시트가 이 영역(타임라인 + 아래 두 줄) 안에 붙는다 */
+.stage {
+  --row-h: 60px;
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.timeline {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.row {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: var(--row-h);
+  padding: 6px 8px;
+  background: var(--bg-app);
+  border-top: 1px solid var(--border);
+}
+
+/* 첫 줄은 항목이 넘치면 가로로 민다 (줄바꿈 없음, 스크롤바는 숨김) */
+.scroll {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.group {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* 둘째 줄: 탭 묶음은 남는 폭을 쓰고 줄어들 수 있다 */
+.tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tab {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  height: 36px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.tab svg {
+  flex: none;
+}
+
+.tab:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.selected,
+.selected:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.sheetHeader {
+  padding: 0 12px;
+}
+
+.sheetBody {
+  padding: 4px 12px 12px;
+}
+
+/* 폰: 아래 두 줄과 시트 안의 눌리는 것은 40px 이상 */
+:global(html[data-layout^='phone']) .row button,
+:global(html[data-layout^='phone']) .sheetHeader button,
+:global(html[data-layout^='phone']) .sheetBody button {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+:global(html[data-layout^='phone']) .row [role^='menuitem'] {
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+:global(html[data-layout^='phone']) .row [role='menu'] {
+  max-height: 60dvh;
+  overflow-y: auto;
+}
+
+/*
+ * 첫 줄은 가로로 스크롤되어 안의 펼침 목록(기믹 노트·플릭 방향)이 잘린다.
+ * 목록을 화면(viewport) 기준으로 두 줄 바로 위에 폭을 맞춰 띄운다.
+ */
+:global(html[data-layout^='phone']) .scroll [role='menu'],
+:global(html[data-layout^='phone']) .scroll [role='dialog'][aria-label] {
+  position: fixed;
+  top: auto;
+  right: 8px;
+  bottom: calc(var(--row-h) * 2 + 8px);
+  left: 8px;
+  width: auto;
+  max-height: 50dvh;
+  overflow-y: auto;
+}

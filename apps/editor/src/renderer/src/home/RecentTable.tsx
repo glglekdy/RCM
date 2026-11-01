@@ -79,7 +79,7 @@ export function RecentTable({
               key={p.dir}
               role="listitem"
               tabIndex={0}
-              aria-selected={selected ? checked : undefined}
+              aria-pressed={selected ? checked : undefined}
               className={`${styles.card} ${p.missing ? styles.missing : ''} ${checked ? styles.checked : ''} enter-drop`}
               style={stagger(i)}
               onClick={() => (selected ? onToggle?.(p) : onOpen(p))}

@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { isFreeChart, MAX_COLUMNS, SNAP_DIVISIONS, type FreeChart } from '@rcm/core'
 import { FREE_NOTE_COLORS } from '@rcm/playfield'
 import {
@@ -22,7 +21,6 @@ import { DEFAULT_PX_PER_MS } from '../minimap/geometry'
 import { fileMenuItems, type EditorActions } from '../editorActions'
 import { getChart } from '../state/doc'
 import { useEditor, useStore } from '../state/useStore'
-import { AddChartDialog } from './AddChartDialog'
 import styles from './BottomToolbar.module.css'
 import { GimmickList } from './GimmickList'
 import { zoomIn, zoomOut } from './zoom'
@@ -42,16 +40,17 @@ export function useFreeChart(): FreeChart | null {
 
 interface ChartPickerProps {
   onSelect: (file: string) => void
+  /** '난이도 추가'를 눌렀을 때. 추가 창은 편집 화면이 연다 */
+  onAdd: () => void
   /** tabs: 난이도 탭 줄 + 추가 버튼 / menu: 고른 난이도 이름이 적힌 드롭다운 */
   variant: 'tabs' | 'menu'
   /** menu의 펼치는 방향. 기본 'up' (화면 아래쪽 툴바용). tabs에서는 쓰지 않는다 */
   placement?: 'up' | 'down'
 }
 
-export function ChartPicker({ onSelect, variant, placement = 'up' }: ChartPickerProps) {
+export function ChartPicker({ onSelect, onAdd, variant, placement = 'up' }: ChartPickerProps) {
   const charts = useEditor((s) => s.doc.charts)
   const activeChart = useEditor((s) => s.activeChart)
-  const [adding, setAdding] = useState(false)
   const activeName = charts.find((c) => c.file === activeChart)?.chart.name ?? ''
 
   return (
@@ -68,7 +67,7 @@ export function ChartPicker({ onSelect, variant, placement = 'up' }: ChartPicker
               {c.chart.name}
             </button>
           ))}
-          <IconButton icon={Plus} label="난이도 추가" onClick={() => setAdding(true)} />
+          <IconButton icon={Plus} label="난이도 추가" onClick={onAdd} />
         </>
       ) : (
         <Menu
@@ -86,17 +85,8 @@ export function ChartPicker({ onSelect, variant, placement = 'up' }: ChartPicker
               checked: c.file === activeChart,
               onSelect: () => onSelect(c.file)
             })),
-            { key: '__add__', label: '난이도 추가', onSelect: () => setAdding(true) }
+            { key: '__add__', label: '난이도 추가', onSelect: onAdd }
           ]}
-        />
-      )}
-      {adding && (
-        <AddChartDialog
-          onClose={() => setAdding(false)}
-          onAdded={(file) => {
-            setAdding(false)
-            onSelect(file)
-          }}
         />
       )}
     </>

@@ -26,7 +26,7 @@ export function BottomToolbar({ actions, inert }: BottomToolbarProps) {
     <div className={styles.bar} inert={inert}>
       <div className={styles.side}>
         <div className={styles.group}>
-          <ChartPicker variant="tabs" onSelect={actions.selectChart} />
+          <ChartPicker variant="tabs" onSelect={actions.selectChart} onAdd={actions.addChart} />
         </div>
       </div>
 

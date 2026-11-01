@@ -64,7 +64,7 @@ export function LandscapeShell({ actions, timeline, minimap, inert }: ShellProps
         <aside className={styles.panel}>
           <div className={styles.fixed}>
             <div className={styles.picker}>
-              <ChartPicker variant="menu" placement="down" onSelect={actions.selectChart} />
+              <ChartPicker variant="menu" placement="down" onSelect={actions.selectChart} onAdd={actions.addChart} />
             </div>
             {freeChart && (
               <div className={styles.group} title="클릭으로 그릴 노트 폭 (가로로 끌면 걸친 칸만큼)">

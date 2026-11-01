@@ -40,6 +40,7 @@ import { PortraitShell } from './shells/PortraitShell'
 import { EditorStore } from './state/store'
 import { StoreContext, useEditor, useStore } from './state/useStore'
 import { TimelineCanvas } from './timeline/TimelineCanvas'
+import { AddChartDialog } from './toolbar/AddChartDialog'
 import { clampPlayheadMs } from './timeline/view'
 import type { EditorActions } from './editorActions'
 import styles from './EditorScreen.module.css'
@@ -208,6 +209,8 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   const chart = useEditor((s) => getChart(s.doc, s.activeChart))
   const playing = useEditor((s) => s.playing)
   const [creating, setCreating] = useState(false)
+  /** 난이도 추가 창: 화면 모드가 바뀌어 틀이 다시 만들어져도 열려 있게 여기서 가진다 */
+  const [addingChart, setAddingChart] = useState(false)
   const mode = useLayoutMode()
   const Shell =
     mode === 'phone-portrait' ? PortraitShell : mode === 'phone-landscape' ? LandscapeShell : DesktopShell
@@ -795,6 +798,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   const actions = useMemo<EditorActions>(
     () => ({
       selectChart,
+      addChart: () => setAddingChart(true),
       playPause: () => runActionRef.current('playPause'),
       record: () => runActionRef.current('record'),
       playtest: () => runActionRef.current('playtestHere'),
@@ -846,6 +850,15 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
           getTimeMs={getTimeMs}
           autoplay={playtestAuto}
           onExit={exitPlaytest}
+        />
+      )}
+      {addingChart && (
+        <AddChartDialog
+          onClose={() => setAddingChart(false)}
+          onAdded={(file) => {
+            setAddingChart(false)
+            selectChart(file)
+          }}
         />
       )}
       <NewProjectDialog

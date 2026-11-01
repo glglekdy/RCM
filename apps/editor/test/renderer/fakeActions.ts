@@ -5,6 +5,7 @@ import type { EditorActions } from '../../src/renderer/src/editor/editorActions'
 export function fakeActions(): EditorActions {
   return {
     selectChart: vi.fn(),
+    addChart: vi.fn(),
     playPause: vi.fn(),
     record: vi.fn(),
     playtest: vi.fn(),

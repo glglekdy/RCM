@@ -27,7 +27,7 @@ export function TopBar({ title, dirty, actions, inert }: TopBarProps) {
       <IconButton icon={ChevronLeft} label="홈으로" onClick={actions.home} />
       <h1 className={styles.title}>{title}</h1>
       <div className={styles.picker}>
-        <ChartPicker variant="menu" placement="down" onSelect={actions.selectChart} />
+        <ChartPicker variant="menu" placement="down" onSelect={actions.selectChart} onAdd={actions.addChart} />
       </div>
       <IconButton icon={Undo2} label="되돌리기" onClick={actions.undo} />
       <IconButton icon={Redo2} label="다시 하기" onClick={actions.redo} />

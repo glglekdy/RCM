@@ -3,6 +3,8 @@ import type { MenuItem } from '../ui/Menu'
 /** 툴바·메뉴가 편집 화면에 시키는 일. 단축키와 같은 경로로 처리된다. */
 export interface EditorActions {
   selectChart(file: string): void
+  /** 난이도 추가 창을 연다. 창은 편집 화면이 가지고 있어 화면 모드가 바뀌어도 열려 있다 */
+  addChart(): void
   playPause(): void
   record(): void
   playtest(): void

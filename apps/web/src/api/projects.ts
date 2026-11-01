@@ -245,7 +245,10 @@ export function createProjects(db: IDBDatabase, deps: ProjectDeps): WebProjects 
 
     async writeProjectFiles(dir, files) {
       const id = parseDir(dir)
-      for (const f of files) checkWritable(f.name)
+      for (const f of files) {
+        checkWritable(f.name)
+        if (typeof f.text !== 'string') throw new Error(`파일 내용이 올바르지 않아요: ${f.name}`)
+      }
       await tx(db, ['projects', 'files'], 'readwrite', async (t) => {
         await assertProject(t, id)
         await putFiles(
@@ -323,10 +326,12 @@ export function createProjects(db: IDBDatabase, deps: ProjectDeps): WebProjects 
         .sort((a, b) => b.lastOpened - a.lastOpened)
     },
 
+    /**
+     * 웹은 목록이 곧 저장소라 "목록에서 제거"가 곧 영구 삭제가 된다. 그래서 아무것도 지우지 않는다.
+     * 지우기는 확인을 거치는 trashProjects("영구 삭제")로만 한다. 형식이 틀린 dir은 PC와 같이 거절한다.
+     */
     async removeRecentProject(dir) {
-      const id = parseDir(dir)
-      if (held.has(id) || (await isLockedElsewhere(id))) throw new Error(BUSY)
-      await deleteProject(id)
+      parseDir(dir)
     },
 
     async trashProjects(dirs) {

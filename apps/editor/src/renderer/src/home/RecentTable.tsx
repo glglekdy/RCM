@@ -6,6 +6,7 @@ import { relativeTime } from './relativeTime'
 import { projectName } from './sortProjects'
 import styles from './RecentTable.module.css'
 import { stagger } from '../ui/motion'
+import { caps } from '../ui/platform'
 
 interface RecentTableProps {
   projects: RecentProject[]
@@ -142,7 +143,10 @@ export function RecentTable({
                   ...(onShowInExplorer
                     ? [{ label: '탐색기에서 보기', onSelect: () => onShowInExplorer(menu.project) }]
                     : []),
-                  { label: '목록에서 제거', danger: true, onSelect: () => onRemove(menu.project) }
+                  // 휴지통이 없는 환경(웹)은 목록이 곧 저장소라 제거 = 영구 삭제다. 삭제는 선택 삭제(확인)로만 한다
+                  ...(caps().trash
+                    ? [{ label: '목록에서 제거', danger: true, onSelect: () => onRemove(menu.project) }]
+                    : [])
                 ]
           }
         />

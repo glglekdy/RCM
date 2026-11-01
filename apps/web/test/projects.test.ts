@@ -77,6 +77,21 @@ describe('createProjects', () => {
     expect(after.songText).toBe(before.songText)
   })
 
+  it('텍스트가 아닌 파일 내용은 거부하고 아무것도 쓰지 않아요', async () => {
+    const { projects } = await setup()
+    const { dir } = await projects.createProject(newOpts(null))
+    const before = await projects.openProject(dir)
+    await expect(
+      projects.writeProjectFiles(dir, [
+        { name: 'song.json', text: '{"changed":true}' },
+        { name: 'x.chart.json', text: 42 as unknown as string }
+      ])
+    ).rejects.toThrow('파일 내용이 올바르지 않아요: x.chart.json')
+    const after = await projects.openProject(dir)
+    expect(after.songText).toBe(before.songText)
+    expect(after.charts.map((c) => c.file)).toEqual(before.charts.map((c) => c.file))
+  })
+
   it('저장 중 실패하면(없는 프로젝트) 아무것도 쓰지 않아요', async () => {
     const { projects } = await setup()
     await expect(projects.writeProjectFiles('web:nope', [{ name: 'song.json', text: '{}' }])).rejects.toThrow(
@@ -120,7 +135,23 @@ describe('createProjects', () => {
     expect(await projects.getRecentProjects()).toEqual([])
   })
 
-  it('다른 탭 잠금: 열 수 없고 지울 수도 없어요', async () => {
+  it('목록에서 제거는 아무것도 지우지 않아요 (삭제는 trashProjects만)', async () => {
+    const { projects } = await setup()
+    const { dir } = await projects.createProject(newOpts(registerPicked(audioFile())))
+    const before = await projects.openProject(dir)
+    await projects.closeProject(dir)
+    await projects.removeRecentProject(dir)
+    const recent = await projects.getRecentProjects()
+    expect(recent.map((p) => p.dir)).toEqual([dir])
+    const after = await projects.openProject(dir)
+    expect(after.songText).toBe(before.songText)
+    expect(after.charts).toEqual(before.charts)
+    expect(new Uint8Array(await projects.readAudio(`${dir}/봄날 (RCM).mp3`)).length).toBe(AUDIO.length)
+    // 형식이 틀린 dir은 PC처럼 거절한다
+    await expect(projects.removeRecentProject('C:\\x')).rejects.toThrow('프로젝트 경로가 올바르지 않아요')
+  })
+
+  it('다른 탭 잠금: 열 수 없고 삭제도 못 해요', async () => {
     const held = new Set<string>()
     const tabA = await setup(held)
     const { dir } = await tabA.projects.createProject(newOpts(null))
@@ -130,7 +161,6 @@ describe('createProjects', () => {
     const tabB = createProjects(tabA.db, { ...tabA.deps, locks: fakeLocks(held) })
     await expect(tabB.openProject(dir)).rejects.toThrow('다른 탭에서 열려 있어요')
     expect(await tabB.trashProjects([dir])).toEqual([{ dir, error: '다른 탭에서 열려 있어요' }])
-    await expect(tabB.removeRecentProject(dir)).rejects.toThrow('다른 탭에서 열려 있어요')
     // A가 닫으면 B가 열 수 있다
     await tabA.projects.closeProject(dir)
     expect(held.size).toBe(0)

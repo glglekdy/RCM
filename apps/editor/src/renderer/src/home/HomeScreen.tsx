@@ -130,10 +130,14 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
 
   const removeFromList = useCallback(
     async (p: RecentProject) => {
-      await window.rcm.removeRecentProject(p.dir)
+      try {
+        await window.rcm.removeRecentProject(p.dir)
+      } catch (err) {
+        await dialogs.alert('목록에서 제거할 수 없어요', err instanceof Error ? err.message : String(err))
+      }
       await refresh()
     },
-    [refresh]
+    [dialogs, refresh]
   )
 
   /** 찾을 수 없는 프로젝트를 옮겨 간 폴더에 다시 연결한다 */

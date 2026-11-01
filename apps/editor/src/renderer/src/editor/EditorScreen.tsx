@@ -42,7 +42,7 @@ import { StoreContext, useEditor, useStore } from './state/useStore'
 import { TimelineCanvas } from './timeline/TimelineCanvas'
 import { AddChartDialog } from './toolbar/AddChartDialog'
 import { clampPlayheadMs } from './timeline/view'
-import type { EditorActions } from './editorActions'
+import { EditorActionsContext, type EditorActions } from './editorActions'
 import styles from './EditorScreen.module.css'
 
 interface EditorScreenProps {
@@ -820,58 +820,60 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   )
 
   return (
-    <div className={styles.screen} onDragEnter={onDragEnter} onDragLeave={onDragLeave} onDrop={onDrop}>
-      <Shell
-        title={title}
-        dirty={dirty}
-        actions={actions}
-        inert={playtestFromMs !== null}
-        timeline={
-          <TimelineCanvas
-            tm={tm}
-            durationMs={engine.durationMs}
-            peaks={peaks}
-            recordingRef={recordingRef}
-          />
-        }
-        minimap={<Minimap tm={tm} durationMs={engine.durationMs} />}
-      />
-      {dropping && (
-        <div className={`${styles.dropOverlay} enter-fade`} aria-live="polite">
-          <div className={`${styles.dropBox} enter-pop`}>
-            <FileMusic size={36} />
-            <p className={styles.dropTitle}>놓으면 채보를 불러와요</p>
-            <p className={styles.dropHint}>채보 파일(.chart.json) · 여러 개도 돼요 · 새 난이도로 들어가요</p>
-          </div>
-        </div>
-      )}
-      {playtestFromMs !== null && (
-        <PlaytestOverlay
-          key={playtestRun}
-          fromMs={playtestFromMs}
-          tm={tm}
-          getTimeMs={getTimeMs}
-          autoplay={playtestAuto}
-          onExit={exitPlaytest}
+    <EditorActionsContext.Provider value={actions}>
+      <div className={styles.screen} onDragEnter={onDragEnter} onDragLeave={onDragLeave} onDrop={onDrop}>
+        <Shell
+          title={title}
+          dirty={dirty}
+          actions={actions}
+          inert={playtestFromMs !== null}
+          timeline={
+            <TimelineCanvas
+              tm={tm}
+              durationMs={engine.durationMs}
+              peaks={peaks}
+              recordingRef={recordingRef}
+            />
+          }
+          minimap={<Minimap tm={tm} durationMs={engine.durationMs} />}
         />
-      )}
-      {addingChart && (
-        <AddChartDialog
-          onClose={() => setAddingChart(false)}
-          onAdded={(file) => {
-            setAddingChart(false)
-            selectChart(file)
+        {dropping && (
+          <div className={`${styles.dropOverlay} enter-fade`} aria-live="polite">
+            <div className={`${styles.dropBox} enter-pop`}>
+              <FileMusic size={36} />
+              <p className={styles.dropTitle}>놓으면 채보를 불러와요</p>
+              <p className={styles.dropHint}>채보 파일(.chart.json) · 여러 개도 돼요 · 새 난이도로 들어가요</p>
+            </div>
+          </div>
+        )}
+        {playtestFromMs !== null && (
+          <PlaytestOverlay
+            key={playtestRun}
+            fromMs={playtestFromMs}
+            tm={tm}
+            getTimeMs={getTimeMs}
+            autoplay={playtestAuto}
+            onExit={exitPlaytest}
+          />
+        )}
+        {addingChart && (
+          <AddChartDialog
+            onClose={() => setAddingChart(false)}
+            onAdded={(file) => {
+              setAddingChart(false)
+              selectChart(file)
+            }}
+          />
+        )}
+        <NewProjectDialog
+          open={creating}
+          onClose={() => setCreating(false)}
+          onCreated={(dir) => {
+            setCreating(false)
+            void openDir(dir)
           }}
         />
-      )}
-      <NewProjectDialog
-        open={creating}
-        onClose={() => setCreating(false)}
-        onCreated={(dir) => {
-          setCreating(false)
-          void openDir(dir)
-        }}
-      />
-    </div>
+      </div>
+    </EditorActionsContext.Provider>
   )
 }

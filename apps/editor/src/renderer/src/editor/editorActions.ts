@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react'
 import type { MenuItem } from '../ui/Menu'
 
 /** 툴바·메뉴가 편집 화면에 시키는 일. 단축키와 같은 경로로 처리된다. */
@@ -31,4 +32,12 @@ export function fileMenuItems(actions: EditorActions, canChooseFolder: boolean):
     { label: '프로젝트 ZIP으로 내보내기', onSelect: actions.exportZip },
     { label: '홈으로', onSelect: actions.home }
   ]
+}
+
+export const EditorActionsContext = createContext<EditorActions | null>(null)
+
+export function useEditorActions(): EditorActions {
+  const actions = useContext(EditorActionsContext)
+  if (!actions) throw new Error('EditorScreen 안에서만 쓸 수 있어요')
+  return actions
 }

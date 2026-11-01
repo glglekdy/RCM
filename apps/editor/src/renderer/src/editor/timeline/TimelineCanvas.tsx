@@ -1,8 +1,12 @@
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { createPortal } from 'react-dom'
 import { isFreeChart, ScrollMap, type AnyChart, type SpeedPoint, type TimingMap, type Track } from '@rcm/core'
 import { keysLabel, type TrackKeymap } from '@rcm/playfield'
 import type { WaveformPeaks } from '../audio/waveform'
 import type { Recorder } from '../input/recorder'
+import { ContextMenu, type ContextMenuItem } from '../../ui/ContextMenu'
+import { removeMarker } from '../commands/markers'
+import { useEditorActions } from '../editorActions'
 import { getChart } from '../state/doc'
 import { useEditor, useStore } from '../state/useStore'
 import { drawFreeNotes } from './drawFree'
@@ -10,6 +14,7 @@ import { drawTimeline } from './drawTimeline'
 import { createFreeToolController } from './freeTools'
 import { createGestureRouter, LONG_PRESS_MS, type GestureEffect, type GesturePointer, type PointerKind } from './gesture'
 import { chipAt, type TimelineChip } from './hitTest'
+import { longPressMenuItems } from './longPressMenu'
 import { timelineTargetAt } from './target'
 import { createToolController, type ToolGeometry } from './tools'
 import {
@@ -65,6 +70,10 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
   // 스크롤 맵은 채보의 speeds나 tm이 바뀔 때만 새로 만든다 (재생 중에는 매 프레임 그린다)
   const scrollRef = useRef<ScrollCache | null>(null)
   const tool = useEditor((s) => s.tool)
+  const actions = useEditorActions()
+  /** 터치 길게 누르기 메뉴 (화면 좌표) */
+  const [menu, setMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
+  const closeMenu = useCallback(() => setMenu(null), [])
 
   // 그리기·지우기·선택 도구 (레인형, 자유형). 좌표계는 입력이 올 때의 화면 크기·상태로 계산한다
   const [{ laneTools, freeTools }] = useState(() => {
@@ -272,9 +281,32 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
           store.set({ selection: target.kind === 'note' ? new Set([target.key]) : new Set() })
           break
         }
-        case 'long-press':
-          // 메뉴는 Task 3에서 연결한다
+        case 'long-press': {
+          const wrap = wrapRef.current
+          const s = store.getState()
+          if (!wrap || s.playing || s.mode !== 'edit') break
+          const { tm } = propsRef.current
+          const { width, height } = sizeRef.current
+          const geometry: ToolGeometry = {
+            tm,
+            view: { playheadMs: s.playheadMs, pxPerMs: s.pxPerMs, height },
+            layout: layoutFor(width, getChart(s.doc, s.activeChart))
+          }
+          const target = timelineTargetAt(s.doc, s.activeChart, geometry, fx.x, fx.y)
+          // 선택에 없는 노트를 누르면 그 노트만 선택하고 메뉴를 연다
+          if (target.kind === 'note' && !s.selection.has(target.key)) store.set({ selection: new Set([target.key]) })
+          const now = store.getState()
+          const items = longPressMenuItems(target, actions, {
+            hasSelection: now.selection.size > 0,
+            canPaste: now.clipboard !== null,
+            deleteMarker: (i) => store.apply('마커 삭제', removeMarker(store.getState().doc, i))
+          })
+          if (items.length === 0) break
+          navigator.vibrate?.(10)
+          const rect = wrap.getBoundingClientRect()
+          setMenu({ x: rect.left + fx.x, y: rect.top + fx.y, items })
           break
+        }
       }
     }
     tools().refresh()
@@ -368,6 +400,11 @@ export function TimelineCanvas({ tm, durationMs, peaks, recordingRef }: Timeline
       onContextMenu={onContextMenu}
     >
       <canvas ref={canvasRef} className={styles.canvas} />
+      {menu &&
+        createPortal(
+          <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={closeMenu} armOnPointerUp />,
+          document.body
+        )}
     </div>
   )
 }

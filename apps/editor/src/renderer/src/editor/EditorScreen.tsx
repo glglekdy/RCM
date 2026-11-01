@@ -35,6 +35,7 @@ import { getChart, type ProjectDoc } from './state/doc'
 import { isDirty } from './state/dirty'
 import { loadProject } from './state/loadProject'
 import { DesktopShell } from './shells/DesktopShell'
+import { LandscapeShell } from './shells/LandscapeShell'
 import { PortraitShell } from './shells/PortraitShell'
 import { EditorStore } from './state/store'
 import { StoreContext, useEditor, useStore } from './state/useStore'
@@ -208,7 +209,8 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   const playing = useEditor((s) => s.playing)
   const [creating, setCreating] = useState(false)
   const mode = useLayoutMode()
-  const Shell = mode === 'phone-portrait' ? PortraitShell : DesktopShell
+  const Shell =
+    mode === 'phone-portrait' ? PortraitShell : mode === 'phone-landscape' ? LandscapeShell : DesktopShell
 
   // 디스코드 활동: 이 화면은 프로젝트를 열 때마다 새로 만들어지므로 처음 그린 시각 = 연 시각
   const [since] = useState(() => Date.now())

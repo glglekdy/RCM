@@ -9,7 +9,8 @@ import styles from './RightPanel.module.css'
 
 type PanelTab = EditorState['panelTab']
 
-const TABS: { value: PanelTab; label: string; icon: LucideIcon }[] = [
+/** 탭 목록. 폰 가로의 접힌 아이콘 줄도 같은 목록을 쓴다 */
+export const PANEL_TABS: { value: PanelTab; label: string; icon: LucideIcon }[] = [
   { value: 'song', label: '곡', icon: Music },
   { value: 'timing', label: 'BPM · 변속', icon: Gauge },
   { value: 'chart', label: '채보', icon: LayoutGrid }
@@ -25,7 +26,7 @@ export function PanelTabs({ onTabClick }: { onTabClick?: (tab: PanelTab) => void
 
   return (
     <div className={styles.tabs} role="tablist">
-      {TABS.map(({ value, label, icon: Icon }) => (
+      {PANEL_TABS.map(({ value, label, icon: Icon }) => (
         <button
           key={value}
           type="button"

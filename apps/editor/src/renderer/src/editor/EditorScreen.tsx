@@ -7,7 +7,7 @@ import {
   useSyncExternalStore,
   type DragEvent
 } from 'react'
-import { FileMusic, PanelRight } from 'lucide-react'
+import { FileMusic } from 'lucide-react'
 import { isFreeChart, noteStartTicks, serializeChart, serializeFreeChart, TimingMap } from '@rcm/core'
 import { trackForCode, trackForKey, type TrackKeymap } from '@rcm/playfield'
 import type { ProjectFiles } from '../../../shared/api'
@@ -20,7 +20,7 @@ import { addMarker, neighborMarkerMs } from './commands/markers'
 import { applyRecording, recordingMessage, type RecordSession } from './commands/record'
 import { runEditAction } from './commands/editActions'
 import { pushTap } from './commands/tap'
-import { IconButton, TitleBar, useDialogs, useToast } from '../ui'
+import { TitleBar, useDialogs, useToast } from '../ui'
 import { audioLoadError, caps, savedMessage } from '../ui/platform'
 import { AudioEngine } from './audio/AudioEngine'
 import { inputTimeMs } from './audio/inputTime'
@@ -30,17 +30,16 @@ import { computePeaks, type WaveformPeaks } from './audio/waveform'
 import { Recorder } from './input/recorder'
 import { resolveShortcut, resolveTypingShortcut, type Action } from './input/shortcuts'
 import { Minimap } from './minimap/Minimap'
-import { RightPanel } from './panels/RightPanel'
 import { PlaytestOverlay } from './playtest/PlaytestOverlay'
 import { getChart, type ProjectDoc } from './state/doc'
 import { isDirty } from './state/dirty'
 import { loadProject } from './state/loadProject'
+import { DesktopShell } from './shells/DesktopShell'
 import { EditorStore } from './state/store'
 import { StoreContext, useEditor, useStore } from './state/useStore'
 import { TimelineCanvas } from './timeline/TimelineCanvas'
 import { clampPlayheadMs } from './timeline/view'
 import type { EditorActions } from './editorActions'
-import { BottomToolbar } from './toolbar/BottomToolbar'
 import styles from './EditorScreen.module.css'
 
 interface EditorScreenProps {
@@ -206,7 +205,6 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   const song = useEditor((s) => s.doc.song)
   const chart = useEditor((s) => getChart(s.doc, s.activeChart))
   const playing = useEditor((s) => s.playing)
-  const panelOpen = useEditor((s) => s.panelOpen)
   const [creating, setCreating] = useState(false)
 
   // 디스코드 활동: 이 화면은 프로젝트를 열 때마다 새로 만들어지므로 처음 그린 시각 = 연 시각
@@ -811,30 +809,21 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
 
   return (
     <div className={styles.screen} onDragEnter={onDragEnter} onDragLeave={onDragLeave} onDrop={onDrop}>
-      <TitleBar title={title} dirty={dirty} />
-      {/* 테스트 플레이 화면 아래의 편집 화면은 Tab 등으로 포커스되지 않게 한다 */}
-      <div className={styles.main} inert={playtestFromMs !== null}>
-        <div className={styles.timeline}>
+      <DesktopShell
+        title={title}
+        dirty={dirty}
+        actions={actions}
+        inert={playtestFromMs !== null}
+        timeline={
           <TimelineCanvas
             tm={tm}
             durationMs={engine.durationMs}
             peaks={peaks}
             recordingRef={recordingRef}
           />
-          {!panelOpen && (
-            <div className={styles.panelToggle}>
-              <IconButton
-                icon={PanelRight}
-                label="패널 펼치기"
-                onClick={() => store.set({ panelOpen: true })}
-              />
-            </div>
-          )}
-        </div>
-        <Minimap tm={tm} durationMs={engine.durationMs} />
-        {panelOpen && <RightPanel />}
-      </div>
-      <BottomToolbar actions={actions} inert={playtestFromMs !== null} />
+        }
+        minimap={<Minimap tm={tm} durationMs={engine.durationMs} />}
+      />
       {dropping && (
         <div className={`${styles.dropOverlay} enter-fade`} aria-live="polite">
           <div className={`${styles.dropBox} enter-pop`}>

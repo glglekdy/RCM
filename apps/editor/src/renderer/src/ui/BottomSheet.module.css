@@ -1,0 +1,53 @@
+.sheet {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+  transition: height 0.2s ease;
+}
+
+/* 끄는 동안은 손가락을 바로 따라간다 */
+.dragging {
+  transition: none;
+}
+
+.handle {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.grip {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.header {
+  flex: none;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet {
+    transition: none;
+  }
+}

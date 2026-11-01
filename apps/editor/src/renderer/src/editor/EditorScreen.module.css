@@ -11,22 +11,6 @@
   min-height: 0;
 }
 
-.timeline {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-}
-
-.panelToggle {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  padding: 2px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-
 /* 채보 파일을 끌어 왔을 때 편집 화면 전체를 덮는 안내 (드래그 이벤트는 아래 요소가 받는다) */
 .dropOverlay {
   position: absolute;

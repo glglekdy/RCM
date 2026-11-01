@@ -54,6 +54,17 @@ export function EditorScreen({ files, onExit, onOpenProject }: EditorScreenProps
   const loaded = useMemo(() => loadProject(files), [files])
   const reported = useRef(false)
 
+  // 이 프로젝트를 떠나면 알린다: 웹은 탭 잠금을 푼다. 불러오기에 실패한 경우도 이미 열었으므로 여기서 한다
+  const projectDir = files.dir
+  useEffect(
+    () => () => {
+      window.rcm.closeProject(projectDir).catch(() => {
+        // 정리에 실패해도 화면은 그대로 떠난다
+      })
+    },
+    [projectDir]
+  )
+
   useEffect(() => {
     if (loaded.ok || reported.current) return
     reported.current = true
@@ -127,17 +138,6 @@ function LoadedEditor({ files, doc, onExit, onOpenProject }: LoadedEditorProps) 
 
   // 홈으로 돌아가면 닫기 보호를 해제한다 (닫기 요청 처리는 EditorBody가 한다)
   useEffect(() => () => window.rcm.setDirty(false), [])
-
-  // 이 프로젝트를 떠나면 알린다: 웹은 탭 잠금을 푼다
-  const projectDir = files.dir
-  useEffect(
-    () => () => {
-      window.rcm.closeProject(projectDir).catch(() => {
-        // 정리에 실패해도 화면은 그대로 떠난다
-      })
-    },
-    [projectDir]
-  )
 
   return (
     <StoreContext.Provider value={store}>

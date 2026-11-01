@@ -13,6 +13,8 @@ button.tapButton {
   height: 56px;
   margin-bottom: 8px;
   font-size: 16px;
+  /* 빠르게 연달아 눌러도 두 번 탭 확대로 보지 않는다 */
+  touch-action: manipulation;
 }
 
 .fileName {

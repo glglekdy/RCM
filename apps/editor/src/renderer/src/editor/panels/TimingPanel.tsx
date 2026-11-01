@@ -134,6 +134,8 @@ export function TimingPanel() {
           className={styles.tapButton}
           disabled={!playing}
           onPointerDown={(e) => {
+            // 오른쪽·가운데 버튼은 탭이 아니다
+            if (e.button !== 0) return
             e.preventDefault()
             actions.tap()
           }}

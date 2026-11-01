@@ -89,3 +89,54 @@ export function sanitizeHitEffectSettings(raw: unknown): HitEffectSettings {
   }
   return settings
 }
+
+/** 시트 이펙트로 복사해 둘 파일 이름 */
+export const SHEET_FILE = 'sheet.png'
+
+const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+
+/** 파일 이름 안의 숫자를 크기로 비교한다 (`f2` < `f10`), 대소문자 무시 */
+export function naturalCompare(a: string, b: string): number {
+  return collator.compare(a, b)
+}
+
+/** 프레임 `i`(0부터)를 복사해 둘 파일 이름: `0001.png`… */
+export const frameName = (i: number): string => `${String(i + 1).padStart(4, '0')}.png`
+
+/** 가져올 파일 중 실제로 쓸 것: 시트면 첫 장, 프레임이면 자연 정렬한 순서 */
+export function pickedHitEffectOrder(type: 'sheet' | 'frames', names: string[]): string[] {
+  return type === 'sheet' ? names.slice(0, 1) : [...names].sort(naturalCompare)
+}
+
+/** 새로 복사한 파일로 슬롯 설정을 만든다. 시트를 다시 넣으면 칸·줄·프레임 수를, 어느 쪽이든 fps를 이어 쓴다 */
+export function sourceWithFiles(
+  prev: HitEffectSource | undefined,
+  type: 'sheet' | 'frames',
+  names: string[]
+): HitEffectSource {
+  const fps = prev?.fps ?? DEFAULT_FPS
+  if (type === 'frames') return { type, files: names, fps }
+  if (prev?.type === 'sheet') return { ...prev, file: names[0] }
+  return { type, file: names[0], cols: 1, rows: 1, count: 1, fps }
+}
+
+/**
+ * renderer가 보낸(정리한) 설정에서 켜기·크기·합치기와 슬롯 숫자만 받는다.
+ * 슬롯의 형태와 파일 이름은 저장된 값을 지킨다 (파일은 `pick`·`clear`로만 바뀐다).
+ */
+export function withStoredFiles(stored: HitEffectSettings | undefined, incoming: HitEffectSettings): HitEffectSettings {
+  const merged: HitEffectSettings = { enabled: incoming.enabled, size: incoming.size, blend: incoming.blend }
+  for (const slot of HIT_EFFECT_SLOTS) {
+    const keep = stored?.[slot]
+    if (!keep) continue
+    const next = incoming[slot]
+    if (next?.type === 'sheet' && keep.type === 'sheet') {
+      merged[slot] = { ...keep, cols: next.cols, rows: next.rows, count: next.count, fps: next.fps }
+    } else if (next?.type === 'frames' && keep.type === 'frames') {
+      merged[slot] = { ...keep, fps: next.fps }
+    } else {
+      merged[slot] = keep
+    }
+  }
+  return merged
+}

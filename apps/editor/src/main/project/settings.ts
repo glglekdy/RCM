@@ -1,9 +1,28 @@
 import { promises as fs } from 'node:fs'
-import { MAX_SPEED, MIN_SPEED, sanitizeLayout, type PlayfieldLayout } from '@rcm/playfield'
-import { MAX_PRESET_ID_LENGTH, sanitizePresets, type TrackPreset } from '../../shared/presets'
+import { sanitizeLayout, type PlayfieldLayout } from '@rcm/playfield'
+import { sanitizePresets, type TrackPreset } from '../../shared/presets'
+import {
+  MAX_SEEN_ANNOUNCEMENTS,
+  isJudgeOffset,
+  isNoticeId,
+  isPlaytestSpeed,
+  isVersion,
+  presetsOf as presetsOfFields
+} from '../../shared/settingsRules'
 import { sanitizeHitEffectSettings, type HitEffectSettings } from '../../shared/hitEffects'
 import { sanitizeGuidePaths } from '../guide/guideFiles'
 import { writeFileAtomic } from './atomicWrite'
+
+export {
+  MAX_SEEN_ANNOUNCEMENTS,
+  addSeenAnnouncements,
+  validateAnnouncementIds,
+  validateLastPresetId,
+  validateLastSeenVersion,
+  validateNoticeId,
+  validatePlaytestSpeed,
+  validatePresets
+} from '../../shared/settingsRules'
 
 export interface RecentEntry {
   dir: string
@@ -32,6 +51,10 @@ export interface Settings {
   seenAnnouncements?: string[]
   /** 자동 문서 업데이트: 앱의 AI 가이드로 맞춰 둘 파일들 (사용자가 직접 넣은 `.md` 절대 경로) */
   guideFiles?: string[]
+  /** 판정 오프셋 (ms, -200~200). 웹 버전에서 쓴다. PC는 쓰지 않는다 */
+  judgeOffset?: number
+  /** 자동 저장. 웹 버전에서 쓴다. PC는 쓰지 않는다 */
+  autoSave?: boolean
 }
 
 const MAX_RECENT = 20
@@ -57,49 +80,6 @@ export function relinkRecent(list: RecentEntry[], from: string, to: string): Rec
 /** 설정 파일 내용이 깨짐 (JSON이 아니거나 형식이 틀림). 읽기 오류와 구별한다. */
 class SettingsFormatError extends Error {}
 
-function isPlaytestSpeed(raw: unknown): raw is number {
-  return typeof raw === 'number' && Number.isFinite(raw) && raw >= MIN_SPEED && raw <= MAX_SPEED
-}
-
-const isVersion = (raw: unknown): raw is string => typeof raw === 'string' && /^\d+\.\d+\.\d+$/.test(raw)
-
-/** renderer가 보낸 버전 검사. `X.Y.Z`가 아니면 throw. */
-export function validateLastSeenVersion(raw: unknown): string {
-  if (!isVersion(raw)) throw new Error('버전 값이 올바르지 않아요')
-  return raw
-}
-
-const isNoticeId = (raw: unknown): raw is string => typeof raw === 'string' && /^[a-z0-9-]{1,64}$/.test(raw)
-
-/** renderer가 보낸 공지 id 검사. 소문자·숫자·하이픈 1~64자가 아니면 throw. */
-export function validateNoticeId(raw: unknown): string {
-  if (!isNoticeId(raw)) throw new Error('공지 id가 올바르지 않아요')
-  return raw
-}
-
-/** 기억해 두는 본 공지사항 id 수. 넘치면 오래된 것부터 버린다 */
-export const MAX_SEEN_ANNOUNCEMENTS = 200
-
-/** renderer가 보낸 본 공지사항 id 목록 검사. 공지 id 형식이 아닌 값이 있으면 throw. */
-export function validateAnnouncementIds(raw: unknown): string[] {
-  if (!Array.isArray(raw) || raw.length > MAX_SEEN_ANNOUNCEMENTS || !raw.every(isNoticeId)) {
-    throw new Error('공지사항 id가 올바르지 않아요')
-  }
-  return raw
-}
-
-/** 본 공지사항 목록에 `ids`를 더한다. 이미 있는 것은 그대로, 넘치면 오래된 것부터 버린다 */
-export function addSeenAnnouncements(seen: string[], ids: string[]): string[] {
-  const added = ids.filter((id) => !seen.includes(id))
-  return [...seen, ...added].slice(-MAX_SEEN_ANNOUNCEMENTS)
-}
-
-/** renderer가 보낸 배속 검사. 범위 밖이거나 숫자가 아니면 throw. */
-export function validatePlaytestSpeed(raw: unknown): number {
-  if (!isPlaytestSpeed(raw)) throw new Error('배속 값이 올바르지 않아요')
-  return raw
-}
-
 function parseSettings(raw: unknown): Settings {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     throw new SettingsFormatError('설정 파일 형식이 올바르지 않아요')
@@ -117,6 +97,8 @@ function parseSettings(raw: unknown): Settings {
     dismissedNotices?: unknown
     seenAnnouncements?: unknown
     guideFiles?: unknown
+    judgeOffset?: unknown
+    autoSave?: unknown
   }
   const recent = Array.isArray(obj.recent)
     ? obj.recent.filter(
@@ -142,6 +124,8 @@ function parseSettings(raw: unknown): Settings {
     settings.seenAnnouncements = obj.seenAnnouncements.filter(isNoticeId).slice(-MAX_SEEN_ANNOUNCEMENTS)
   }
   if (obj.guideFiles !== undefined) settings.guideFiles = sanitizeGuidePaths(obj.guideFiles)
+  if (isJudgeOffset(obj.judgeOffset)) settings.judgeOffset = obj.judgeOffset
+  if (typeof obj.autoSave === 'boolean') settings.autoSave = obj.autoSave
   return settings
 }
 
@@ -213,26 +197,5 @@ export function updateSettings(file: string, mutate: (s: Settings) => void): Pro
 
 /** renderer에 줄 프리셋: 저장된 것을 정리하고, 없으면 기본 프리셋. */
 export function presetsOf(s: Settings): { presets: TrackPreset[]; lastPresetId: string | null } {
-  return { presets: sanitizePresets(s.presets), lastPresetId: s.lastPresetId ?? null }
-}
-
-/**
- * 항상 살아남는 프리셋. 입력이 모두 버려져 `sanitizePresets`가 기본 프리셋을 돌려주는 경우와
- * 구별하려고 입력 끝에 붙여 검사한다.
- */
-const SENTINEL: TrackPreset = { id: '\0', name: '-', tracks: [{ id: 'A', key: null }] }
-
-/** renderer가 보낸 프리셋 목록 검사. 정리하면서 하나라도 버려지면(또는 비었으면) throw. */
-export function validatePresets(raw: unknown): TrackPreset[] {
-  if (!Array.isArray(raw) || raw.length === 0) throw new Error('프리셋에 잘못된 값이 있어요')
-  const kept = sanitizePresets([...raw, SENTINEL])
-  if (kept.length !== raw.length + 1) throw new Error('프리셋에 잘못된 값이 있어요')
-  return kept.slice(0, -1)
-}
-
-export function validateLastPresetId(raw: unknown): string {
-  if (typeof raw !== 'string' || raw.length > MAX_PRESET_ID_LENGTH) {
-    throw new Error('프리셋 id가 올바르지 않아요')
-  }
-  return raw
+  return presetsOfFields(s)
 }

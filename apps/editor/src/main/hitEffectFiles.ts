@@ -3,25 +3,15 @@ import { extname, join } from 'node:path'
 import type { HitEffectSlot } from '@rcm/playfield'
 import {
   HIT_EFFECT_LIMITS,
-  HIT_EFFECT_SLOTS,
+  SHEET_FILE,
+  frameName,
   isSafeEffectFileName,
-  type HitEffectSettings,
-  type HitEffectSource
+  pickedHitEffectOrder
 } from '../shared/hitEffects'
 
+export { naturalCompare, sourceWithFiles, withStoredFiles } from '../shared/hitEffects'
+
 /** 타격 이펙트 PNG는 `<root>/<slot>/`에 복사해 둔다. 원본을 옮기거나 지워도 계속 쓸 수 있다 */
-
-const SHEET_FILE = 'sheet.png'
-const DEFAULT_FPS = 30
-
-const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
-
-/** 파일 이름 안의 숫자를 크기로 비교한다 (`f2` < `f10`), 대소문자 무시 */
-export function naturalCompare(a: string, b: string): number {
-  return collator.compare(a, b)
-}
-
-const frameName = (i: number): string => `${String(i + 1).padStart(4, '0')}.png`
 
 /** 복사 전에 모두 검사한다: 실패하면 슬롯 폴더는 그대로다 */
 async function checkSources(type: 'sheet' | 'frames', sources: string[]): Promise<void> {
@@ -47,7 +37,7 @@ export async function importHitEffectFiles(
   type: 'sheet' | 'frames',
   sources: string[]
 ): Promise<string[]> {
-  const picked = type === 'sheet' ? sources.slice(0, 1) : [...sources].sort(naturalCompare)
+  const picked = pickedHitEffectOrder(type, sources)
   await checkSources(type, picked)
   const dir = join(root, slot)
   await fs.rm(dir, { recursive: true, force: true })
@@ -69,37 +59,4 @@ export async function readHitEffectFiles(root: string, slot: HitEffectSlot, name
       return new Uint8Array(await fs.readFile(join(root, slot, name)))
     })
   )
-}
-
-/** 새로 복사한 파일로 슬롯 설정을 만든다. 시트를 다시 넣으면 칸·줄·프레임 수를, 어느 쪽이든 fps를 이어 쓴다 */
-export function sourceWithFiles(
-  prev: HitEffectSource | undefined,
-  type: 'sheet' | 'frames',
-  names: string[]
-): HitEffectSource {
-  const fps = prev?.fps ?? DEFAULT_FPS
-  if (type === 'frames') return { type, files: names, fps }
-  if (prev?.type === 'sheet') return { ...prev, file: names[0] }
-  return { type, file: names[0], cols: 1, rows: 1, count: 1, fps }
-}
-
-/**
- * renderer가 보낸(정리한) 설정에서 켜기·크기·합치기와 슬롯 숫자만 받는다.
- * 슬롯의 형태와 파일 이름은 저장된 값을 지킨다 (파일은 `pick`·`clear`로만 바뀐다).
- */
-export function withStoredFiles(stored: HitEffectSettings | undefined, incoming: HitEffectSettings): HitEffectSettings {
-  const merged: HitEffectSettings = { enabled: incoming.enabled, size: incoming.size, blend: incoming.blend }
-  for (const slot of HIT_EFFECT_SLOTS) {
-    const keep = stored?.[slot]
-    if (!keep) continue
-    const next = incoming[slot]
-    if (next?.type === 'sheet' && keep.type === 'sheet') {
-      merged[slot] = { ...keep, cols: next.cols, rows: next.rows, count: next.count, fps: next.fps }
-    } else if (next?.type === 'frames' && keep.type === 'frames') {
-      merged[slot] = { ...keep, fps: next.fps }
-    } else {
-      merged[slot] = keep
-    }
-  }
-  return merged
 }

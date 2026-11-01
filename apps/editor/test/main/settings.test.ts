@@ -5,12 +5,15 @@ import path from 'node:path'
 import { DEFAULT_LAYOUT } from '@rcm/playfield'
 import { DEFAULT_PRESETS, type TrackPreset } from '../../src/shared/presets'
 import {
+  addSeenAnnouncements,
   loadSettings,
+  MAX_SEEN_ANNOUNCEMENTS,
   presetsOf,
   relinkRecent,
   saveSettings,
   touchRecent,
   updateSettings,
+  validateAnnouncementIds,
   validateLastPresetId,
   validateLastSeenVersion,
   validateNoticeId,
@@ -132,6 +135,24 @@ describe('settings', () => {
     for (const bad of ['1.2', '0.5.2-beta', '', null, 1]) {
       expect(() => validateLastSeenVersion(bad), String(bad)).toThrow('버전 값이 올바르지 않아요')
     }
+  })
+
+  it('seenAnnouncements: 형식이 맞는 id만 읽음', async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rcm-settings-'))
+    const file = path.join(tmp, 'settings.json')
+    await fs.writeFile(file, JSON.stringify({ recent: [], seenAnnouncements: ['2026-11-01-0a1b2c3d', 'Bad Id', 3] }))
+    expect((await loadSettings(file)).seenAnnouncements).toEqual(['2026-11-01-0a1b2c3d'])
+  })
+
+  it('seenAnnouncements 저장 입력 검사와 합치기', () => {
+    expect(validateAnnouncementIds(['a-1', 'b'])).toEqual(['a-1', 'b'])
+    for (const bad of ['a', ['Bad'], [1], null, Array(MAX_SEEN_ANNOUNCEMENTS + 1).fill('a')]) {
+      expect(() => validateAnnouncementIds(bad), String(bad)).toThrow('공지사항 id가 올바르지 않아요')
+    }
+    expect(addSeenAnnouncements(['a', 'b'], ['b', 'c'])).toEqual(['a', 'b', 'c'])
+    const full = Array.from({ length: MAX_SEEN_ANNOUNCEMENTS }, (_, i) => `n${i}`)
+    expect(addSeenAnnouncements(full, ['new']).slice(-2)).toEqual([`n${MAX_SEEN_ANNOUNCEMENTS - 1}`, 'new'])
+    expect(addSeenAnnouncements(full, ['new'])).toHaveLength(MAX_SEEN_ANNOUNCEMENTS)
   })
 
   it('dismissedNotices: 형식이 맞는 id만 읽음', async () => {

@@ -9,6 +9,8 @@ import { loadPresets } from './presets/presetStore'
 import { DialogProvider, TitleBar, ToastProvider } from './ui'
 import { UpdateNotice } from './update/UpdateNotice'
 import { startUpdateStore } from './update/updateStore'
+import { AnnouncementsDialog } from './announcements/AnnouncementsDialog'
+import { refreshAnnouncements } from './announcements/announcementsStore'
 import { WhatsNewDialog } from './whatsNew/WhatsNewDialog'
 import { checkWhatsNew } from './whatsNew/whatsNewStore'
 
@@ -36,6 +38,8 @@ export function App() {
     checkWhatsNew().catch(() => {
       // 업데이트 내역을 못 띄워도 앱은 그대로 쓴다
     })
+    // 사이드바 공지사항 버튼의 새 글 표시용. 못 받아도 앱은 그대로 쓴다
+    void refreshAnnouncements()
   }, [])
 
   // 홈 화면에서는 디스코드에 곡 정보 없이 RCM만 보인다
@@ -66,6 +70,7 @@ export function App() {
         )}
         <UpdateNotice />
         <WhatsNewDialog />
+        <AnnouncementsDialog />
       </ToastProvider>
     </DialogProvider>
   )

@@ -125,6 +125,12 @@ export interface RcmApi {
   getDismissedNotices(): Promise<string[]>
   /** 공지를 닫은 것으로 저장한다. id 형식이 틀리면 reject. */
   dismissNotice(id: string): Promise<void>
+  /** 공개 저장소의 공지사항 파일(NOTICES.md) 내용. 받지 못하면 null, 파일이 없으면 빈 문자열. */
+  fetchAnnouncements(): Promise<string | null>
+  /** 이미 본 공지사항 id 목록. */
+  getSeenAnnouncements(): Promise<string[]>
+  /** 공지사항을 본 것으로 저장한다. id 형식이 틀리면 reject. */
+  markAnnouncementsSeen(ids: string[]): Promise<void>
   /** 테스트 플레이에서 마지막으로 쓴 배속. 저장된 값이 없으면 null. */
   getPlaytestSpeed(): Promise<number | null>
   /** 범위(1.0~9.0) 밖이면 reject. */

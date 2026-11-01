@@ -80,7 +80,8 @@ function CloseButton() {
   )
 }
 
-function Notes({ text }: { text: string }) {
+/** 업데이트 내역·공지사항 본문 */
+export function Notes({ text }: { text: string }) {
   return parseNotes(text).map((block, i) =>
     block.type === 'heading' ? (
       <h4 key={i} className={styles.heading}>

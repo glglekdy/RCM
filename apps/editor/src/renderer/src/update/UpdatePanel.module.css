@@ -41,6 +41,31 @@
 }
 
 /* 접은 사이드바에서 업데이트가 준비되면 아이콘을 강조색으로 */
-.restart button {
+.restart > button {
   color: var(--accent);
+}
+
+/* 공지사항 버튼의 새 글 표시 */
+.dotAnchor {
+  position: relative;
+  display: inline-flex;
+  align-self: flex-start;
+}
+
+.dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.dotInline {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
 }

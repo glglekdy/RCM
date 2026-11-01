@@ -1,0 +1,36 @@
+.title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.itemDate {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* 날짜가 있으면 화살표는 날짜 바로 옆에 둔다 */
+.itemDate + svg {
+  margin-left: 0;
+}
+
+.date {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.empty p {
+  margin: 0;
+}

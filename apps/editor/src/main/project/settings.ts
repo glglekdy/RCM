@@ -28,6 +28,8 @@ export interface Settings {
   lastSeenVersion?: string
   /** 홈에서 닫은 공지 id 목록 */
   dismissedNotices?: string[]
+  /** 이미 본 공지사항 id 목록 (사이드바 공지사항 버튼의 새 글 표시) */
+  seenAnnouncements?: string[]
   /** 자동 문서 업데이트: 앱의 AI 가이드로 맞춰 둘 파일들 (사용자가 직접 넣은 `.md` 절대 경로) */
   guideFiles?: string[]
 }
@@ -75,6 +77,23 @@ export function validateNoticeId(raw: unknown): string {
   return raw
 }
 
+/** 기억해 두는 본 공지사항 id 수. 넘치면 오래된 것부터 버린다 */
+export const MAX_SEEN_ANNOUNCEMENTS = 200
+
+/** renderer가 보낸 본 공지사항 id 목록 검사. 공지 id 형식이 아닌 값이 있으면 throw. */
+export function validateAnnouncementIds(raw: unknown): string[] {
+  if (!Array.isArray(raw) || raw.length > MAX_SEEN_ANNOUNCEMENTS || !raw.every(isNoticeId)) {
+    throw new Error('공지사항 id가 올바르지 않아요')
+  }
+  return raw
+}
+
+/** 본 공지사항 목록에 `ids`를 더한다. 이미 있는 것은 그대로, 넘치면 오래된 것부터 버린다 */
+export function addSeenAnnouncements(seen: string[], ids: string[]): string[] {
+  const added = ids.filter((id) => !seen.includes(id))
+  return [...seen, ...added].slice(-MAX_SEEN_ANNOUNCEMENTS)
+}
+
 /** renderer가 보낸 배속 검사. 범위 밖이거나 숫자가 아니면 throw. */
 export function validatePlaytestSpeed(raw: unknown): number {
   if (!isPlaytestSpeed(raw)) throw new Error('배속 값이 올바르지 않아요')
@@ -96,6 +115,7 @@ function parseSettings(raw: unknown): Settings {
     hitEffects?: unknown
     lastSeenVersion?: unknown
     dismissedNotices?: unknown
+    seenAnnouncements?: unknown
     guideFiles?: unknown
   }
   const recent = Array.isArray(obj.recent)
@@ -118,6 +138,9 @@ function parseSettings(raw: unknown): Settings {
   if (obj.hitEffects !== undefined) settings.hitEffects = sanitizeHitEffectSettings(obj.hitEffects)
   if (isVersion(obj.lastSeenVersion)) settings.lastSeenVersion = obj.lastSeenVersion
   if (Array.isArray(obj.dismissedNotices)) settings.dismissedNotices = obj.dismissedNotices.filter(isNoticeId)
+  if (Array.isArray(obj.seenAnnouncements)) {
+    settings.seenAnnouncements = obj.seenAnnouncements.filter(isNoticeId).slice(-MAX_SEEN_ANNOUNCEMENTS)
+  }
   if (obj.guideFiles !== undefined) settings.guideFiles = sanitizeGuidePaths(obj.guideFiles)
   return settings
 }

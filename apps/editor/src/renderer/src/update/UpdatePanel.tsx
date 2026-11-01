@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { RefreshCw, RotateCw } from 'lucide-react'
+import { Megaphone, RefreshCw, RotateCw } from 'lucide-react'
+import { hasUnseen, openAnnouncements, useAnnouncements } from '../announcements/announcementsStore'
 import { Button, IconButton } from '../ui'
 import { hasNotesFor, openWhatsNew } from '../whatsNew/whatsNewStore'
 import { useUpdateState } from './updateStore'
@@ -13,6 +14,7 @@ interface UpdatePanelProps {
 
 export function UpdatePanel({ compact }: UpdatePanelProps) {
   const state = useUpdateState()
+  const unseen = hasUnseen(useAnnouncements())
   const [version, setVersion] = useState('')
   const [packaged, setPackaged] = useState<boolean | null>(null)
 
@@ -34,6 +36,10 @@ export function UpdatePanel({ compact }: UpdatePanelProps) {
   if (compact) {
     return (
       <div className={`${styles.panel} ${restart ? styles.restart : ''}`}>
+        <span className={styles.dotAnchor}>
+          <IconButton icon={Megaphone} label={unseen ? '공지사항 · 새 글' : '공지사항'} onClick={openAnnouncements} />
+          {unseen && <span className={styles.dot} />}
+        </span>
         {restart ? (
           <IconButton icon={RotateCw} label="재시작해서 업데이트" onClick={() => window.rcm.installUpdate()} />
         ) : (
@@ -63,6 +69,10 @@ export function UpdatePanel({ compact }: UpdatePanelProps) {
           </button>
         )}
       </div>
+      <Button onClick={openAnnouncements}>
+        <Megaphone size={14} /> 공지사항
+        {unseen && <span className={styles.dotInline} aria-label="새 글" />}
+      </Button>
       {restart ? (
         <Button variant="primary" onClick={() => window.rcm.installUpdate()}>
           <RotateCw size={14} /> 재시작해서 업데이트

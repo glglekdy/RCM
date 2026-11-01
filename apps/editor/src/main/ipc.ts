@@ -34,12 +34,15 @@ import {
   summarizeProject,
   writeProjectFiles
 } from './project/projectFs'
+import { fetchAnnouncements } from './announcements'
 import {
+  addSeenAnnouncements,
   loadSettings,
   presetsOf,
   relinkRecent,
   touchRecent,
   updateSettings,
+  validateAnnouncementIds,
   validateLastPresetId,
   validateLastSeenVersion,
   validateNoticeId,
@@ -275,6 +278,20 @@ export function registerProjectIpc(): void {
     return updateSettings(settingsFile(), (settings) => {
       const dismissed = settings.dismissedNotices ?? []
       if (!dismissed.includes(id)) settings.dismissedNotices = [...dismissed, id]
+    })
+  })
+
+  ipcMain.handle('rcm:fetch-announcements', () => fetchAnnouncements())
+
+  ipcMain.handle(
+    'rcm:get-seen-announcements',
+    async () => (await loadSettings(settingsFile())).seenAnnouncements ?? []
+  )
+
+  ipcMain.handle('rcm:mark-announcements-seen', async (_e, raw: unknown) => {
+    const ids = validateAnnouncementIds(raw)
+    return updateSettings(settingsFile(), (settings) => {
+      settings.seenAnnouncements = addSeenAnnouncements(settings.seenAnnouncements ?? [], ids)
     })
   })
 

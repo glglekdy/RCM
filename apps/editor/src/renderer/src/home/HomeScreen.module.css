@@ -313,3 +313,148 @@
   color: var(--text-muted);
   font-size: 12px;
 }
+
+/*
+ * 폰: 사이드바 대신 위쪽 얇은 줄과 아래쪽 떠 있는 탭 바(FloatingTabBar)를 쓴다.
+ * --bar-space: 바에 가리지 않도록 내용 아래에 비워 둘 높이 (바 52 + 아래 간격 12 + 여유 24)
+ */
+.phoneTop {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  height: calc(48px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+}
+
+.brand {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.phoneTop button {
+  width: 44px;
+  height: 44px;
+  margin-right: -10px;
+}
+
+.phoneUpdate {
+  flex: none;
+  margin-top: 24px;
+}
+
+:global(html[data-layout^='phone']) .phoneUpdate button {
+  min-height: 40px;
+}
+
+:global(html[data-layout^='phone']) .home {
+  --bar-space: calc(52px + 12px + 24px + env(safe-area-inset-bottom));
+  flex-direction: column;
+}
+
+:global(html[data-layout^='phone']) .main {
+  min-height: 0;
+  padding: 0 max(16px, env(safe-area-inset-right)) var(--bar-space) max(16px, env(safe-area-inset-left));
+}
+
+/* 홈은 바 아래로 스크롤되고, 끝에서 바 높이만큼 비워 둔다 */
+/* 스크롤 줄이 화면 가장자리에 붙도록 좌우 여백은 homeContent가 둔다 */
+:global(html[data-layout^='phone']) .mainHome {
+  padding-right: 0;
+  padding-bottom: 0;
+  padding-left: 0;
+}
+
+:global(html[data-layout^='phone']) .homeContent {
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 max(16px, env(safe-area-inset-right)) var(--bar-space) max(16px, env(safe-area-inset-left));
+}
+
+:global(html[data-layout^='phone']) .homeContent > * {
+  flex: none;
+}
+
+:global(html[data-layout^='phone']) .welcome {
+  margin: 4px 0 20px;
+  font-size: 20px;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+:global(html[data-layout^='phone']) .notice {
+  margin-bottom: 20px;
+  overflow-wrap: anywhere;
+}
+
+:global(html[data-layout^='phone']) .noticeText code {
+  overflow-wrap: anywhere;
+}
+
+:global(html[data-layout^='phone']) .empty {
+  padding: 48px 0;
+}
+
+/* 머리줄: 한 줄에 맞지 않으면 도구가 다음 줄로 내려가고 검색 칸이 전체 폭을 쓴다 */
+:global(html[data-layout^='phone']) .listHead {
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+:global(html[data-layout^='phone']) .tools {
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+:global(html[data-layout^='phone']) .search {
+  flex: 1 1 160px;
+  order: -1;
+  min-width: 140px;
+}
+
+:global(html[data-layout^='phone']) .search input {
+  width: 100%;
+  height: 40px;
+  padding-left: 32px;
+}
+
+:global(html[data-layout^='phone']) .searchIcon {
+  top: 13px;
+  left: 11px;
+}
+
+:global(html[data-layout^='phone']) .tools button {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+:global(html[data-layout^='phone']) .tools [role^='menuitem'] {
+  min-height: 40px;
+}
+
+:global(html[data-layout^='phone']) .selectBar {
+  flex-wrap: wrap;
+}
+
+/* 고른 개수는 윗줄, 버튼 셋은 아랫줄에 고르게 나눈다 */
+:global(html[data-layout^='phone']) .selectCount {
+  flex: 1 1 100%;
+}
+
+:global(html[data-layout^='phone']) .selectBar button {
+  flex: 1 1 0;
+  justify-content: center;
+  min-height: 40px;
+}
+
+:global(html[data-layout^='phone']) .usage {
+  margin-top: 16px;
+}
+
+/* 비어 있는 홈에서 큰 버튼 */
+:global(html[data-layout^='phone']) .empty button {
+  min-height: 44px;
+}

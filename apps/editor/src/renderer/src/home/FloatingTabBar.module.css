@@ -1,0 +1,123 @@
+/*
+ * 폰 홈 아래쪽에 떠 있는 바. 화면 아래 가운데에 고정하고, 바 옆 빈 곳은 아래 내용을 누를 수 있게 둔다.
+ * z-index는 메뉴(100)·대화상자(1000)보다 아래다.
+ */
+.dock {
+  --tab: 44px;
+  --gap: 2px;
+  --inset: 4px;
+  position: fixed;
+  right: 0;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  left: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+  pointer-events: none;
+}
+
+.pill {
+  position: relative;
+  display: flex;
+  gap: var(--gap);
+  padding: var(--inset);
+  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  border-radius: 999px;
+  background: rgba(28, 28, 28, 0.82);
+  background: color-mix(in srgb, var(--bg-panel) 68%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.45),
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  pointer-events: auto;
+}
+
+.indicator {
+  position: absolute;
+  top: var(--inset);
+  left: var(--inset);
+  width: var(--tab);
+  height: var(--tab);
+  border-radius: 50%;
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+  transition: transform var(--dur) var(--ease-out);
+  pointer-events: none;
+}
+
+.tab {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--tab);
+  height: var(--tab);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color var(--dur-fast),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.tab:active {
+  transform: scale(0.88);
+}
+
+.tab:focus-visible,
+.add:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.active,
+.active:hover {
+  color: var(--accent);
+}
+
+/* AI 가이드에 새 내용이 있을 때: 아이콘 오른쪽 위 작은 점 */
+.badge {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 0 2px var(--bg-panel);
+  pointer-events: none;
+}
+
+.add {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  box-shadow:
+    0 8px 22px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 2px 6px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  cursor: default;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.add:active {
+  transform: scale(0.9);
+}

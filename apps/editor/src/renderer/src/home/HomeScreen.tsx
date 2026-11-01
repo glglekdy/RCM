@@ -1,21 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import {
   ArrowDownUp,
-  BookOpen,
-  Bot,
   FileArchive,
   FolderOpen,
-  House,
   Megaphone,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
   Search,
-  Settings,
-  SlidersHorizontal,
   Trash2,
-  X,
-  type LucideIcon
+  X
 } from 'lucide-react'
 import type { ProjectFiles, RecentProject, TrashFailure } from '../../../shared/api'
 import { AiGuidePage } from '../guide/AiGuidePage'
@@ -24,27 +18,23 @@ import { UserGuidePage } from '../guide/UserGuidePage'
 import { PresetsPage } from '../presets/PresetsPage'
 import { SettingsPage } from '../settings/SettingsPage'
 import { UpdatePanel } from '../update/UpdatePanel'
-import { Button, IconButton, Menu, TextField, useDialogs, useToast } from '../ui'
+import { Button, IconButton, Menu, TextField, useDialogs, useLayoutMode, useToast } from '../ui'
 import { caps, deleteCopy } from '../ui/platform'
+import { FloatingTabBar } from './FloatingTabBar'
 import { nextGreeting } from './greeting'
+import { NAV, type Page } from './homeNav'
 import { importZips, ipcErrorMessage } from './importZips'
 import { NewProjectDialog } from './NewProjectDialog'
 import { RecentTable } from './RecentTable'
 import { PROJECT_SORTS, sortProjects, type ProjectSort } from './sortProjects'
 import styles from './HomeScreen.module.css'
 
-type Page = 'home' | 'presets' | 'userGuide' | 'aiGuide' | 'settings'
-
 /** 사이드바 항목 높이 + 간격 (px). 선택 표시가 이만큼씩 움직인다 */
 const NAV_STEP = 34 + 8
 
-const NAV: { page: Page; icon: LucideIcon; label: string }[] = [
-  { page: 'home', icon: House, label: '홈' },
-  { page: 'presets', icon: SlidersHorizontal, label: '트랙 프리셋' },
-  { page: 'userGuide', icon: BookOpen, label: '유저 가이드' },
-  { page: 'aiGuide', icon: Bot, label: 'AI 가이드' },
-  { page: 'settings', icon: Settings, label: '설정' }
-]
+/** 새 내용 표시가 없을 때 쓰는 빈 집합 (매번 새로 만들지 않게) */
+const NO_BADGES: ReadonlySet<Page> = new Set()
+const AI_GUIDE_BADGE: ReadonlySet<Page> = new Set<Page>(['aiGuide'])
 
 interface HomeScreenProps {
   onOpened: (files: ProjectFiles) => void
@@ -52,6 +42,7 @@ interface HomeScreenProps {
 
 export function HomeScreen({ onOpened }: HomeScreenProps) {
   const dialogs = useDialogs()
+  const phone = useLayoutMode() !== 'desktop'
   const toast = useToast()
   const [recent, setRecent] = useState<RecentProject[] | null>(null)
   /** 저장소 사용량(바이트). 측정할 수 없는 환경(PC)이면 null */
@@ -302,57 +293,65 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
       onDragLeave={onDragLeave}
       onDrop={(e) => void onDrop(e)}
     >
-      <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
-        <div className={styles.sidebarTop}>
-          <IconButton
-            icon={collapsed ? PanelLeftOpen : PanelLeftClose}
-            label={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
-            onClick={toggleSidebar}
-          />
-        </div>
-        <Button variant="primary" title={collapsed ? '새 프로젝트' : undefined} onClick={() => setCreating(true)}>
-          <Plus size={16} />
-          <span className={styles.label}>새 프로젝트</span>
-        </Button>
-        {caps().chooseProjectFolder && (
-          <Button variant="ghost" title={collapsed ? '프로젝트 열기' : undefined} onClick={() => void pickAndOpen()}>
-            <FolderOpen size={16} />
-            <span className={styles.label}>프로젝트 열기</span>
+      {phone && (
+        <header className={styles.phoneTop}>
+          <span className={styles.brand}>RCM</span>
+          <IconButton icon={FileArchive} label="ZIP 가져오기" onClick={() => void pickAndImportZip()} />
+        </header>
+      )}
+      {!phone && (
+        <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
+          <div className={styles.sidebarTop}>
+            <IconButton
+              icon={collapsed ? PanelLeftOpen : PanelLeftClose}
+              label={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
+              onClick={toggleSidebar}
+            />
+          </div>
+          <Button variant="primary" title={collapsed ? '새 프로젝트' : undefined} onClick={() => setCreating(true)}>
+            <Plus size={16} />
+            <span className={styles.label}>새 프로젝트</span>
           </Button>
-        )}
-        <Button variant="ghost" title={collapsed ? 'ZIP 가져오기' : undefined} onClick={() => void pickAndImportZip()}>
-          <FileArchive size={16} />
-          <span className={styles.label}>ZIP 가져오기</span>
-        </Button>
-        <div className={styles.divider} />
-        <nav className={styles.nav}>
-          {/* 선택 표시: 누른 항목으로 미끄러지듯 옮겨 간다 */}
-          <span
-            className={styles.navIndicator}
-            style={{ transform: `translateY(${NAV.findIndex((n) => n.page === page) * NAV_STEP}px)` }}
-            aria-hidden
-          />
-          {NAV.map(({ page: p, icon: Icon, label }) => (
-            <button
-              key={p}
-              type="button"
-              className={`${styles.navItem} ${page === p ? styles.navActive : ''}`}
-              aria-current={page === p}
-              title={collapsed ? label : undefined}
-              aria-label={collapsed ? label : undefined}
-              onClick={() => goTo(p)}
-            >
-              <Icon size={16} />
-              <span className={styles.label}>{label}</span>
-              {p === 'aiGuide' && isNew(AI_GUIDE_NOTICE_ID) && (
-                <span className={`${styles.navBadge} enter-fade`} title="가이드가 바뀌었어요" aria-label="새 내용" />
-              )}
-            </button>
-          ))}
-        </nav>
-        <UpdatePanel compact={collapsed} />
-      </aside>
-      <main className={styles.main}>
+          {caps().chooseProjectFolder && (
+            <Button variant="ghost" title={collapsed ? '프로젝트 열기' : undefined} onClick={() => void pickAndOpen()}>
+              <FolderOpen size={16} />
+              <span className={styles.label}>프로젝트 열기</span>
+            </Button>
+          )}
+          <Button variant="ghost" title={collapsed ? 'ZIP 가져오기' : undefined} onClick={() => void pickAndImportZip()}>
+            <FileArchive size={16} />
+            <span className={styles.label}>ZIP 가져오기</span>
+          </Button>
+          <div className={styles.divider} />
+          <nav className={styles.nav}>
+            {/* 선택 표시: 누른 항목으로 미끄러지듯 옮겨 간다 */}
+            <span
+              className={styles.navIndicator}
+              style={{ transform: `translateY(${NAV.findIndex((n) => n.page === page) * NAV_STEP}px)` }}
+              aria-hidden
+            />
+            {NAV.map(({ page: p, icon: Icon, label }) => (
+              <button
+                key={p}
+                type="button"
+                className={`${styles.navItem} ${page === p ? styles.navActive : ''}`}
+                aria-current={page === p}
+                title={collapsed ? label : undefined}
+                aria-label={collapsed ? label : undefined}
+                onClick={() => goTo(p)}
+              >
+                <Icon size={16} />
+                <span className={styles.label}>{label}</span>
+                {p === 'aiGuide' && isNew(AI_GUIDE_NOTICE_ID) && (
+                  <span className={`${styles.navBadge} enter-fade`} title="가이드가 바뀌었어요" aria-label="새 내용" />
+                )}
+              </button>
+            ))}
+          </nav>
+          <UpdatePanel compact={collapsed} />
+        </aside>
+      )}
+      <main className={`${styles.main} ${page === 'home' ? styles.mainHome : ''}`}>
         {page === 'presets' ? (
           <PresetsPage />
         ) : page === 'userGuide' ? (
@@ -421,6 +420,7 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
                 {recent !== null && (
                   <RecentTable
                     projects={shown}
+                    variant={phone ? 'cards' : 'table'}
                     selected={selected ?? undefined}
                     onToggle={toggleSelected}
                     onOpen={(p) => void openRecent(p)}
@@ -441,6 +441,11 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
                 )}
               </>
             )}
+            {phone && (
+              <div className={styles.phoneUpdate}>
+                <UpdatePanel />
+              </div>
+            )}
             {usedBytes !== null && (
               <p className={styles.usage}>사용 중 {Math.round(usedBytes / (1024 * 1024))}MB</p>
             )}
@@ -457,6 +462,14 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
             <p className={styles.dropHint}>프로젝트 폴더를 압축한 ZIP 파일 · 여러 개도 돼요</p>
           </div>
         </div>
+      )}
+      {phone && (
+        <FloatingTabBar
+          page={page}
+          onNavigate={goTo}
+          onNewProject={() => setCreating(true)}
+          badges={isNew(AI_GUIDE_NOTICE_ID) ? AI_GUIDE_BADGE : NO_BADGES}
+        />
       )}
       <NewProjectDialog
         open={creating}

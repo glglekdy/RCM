@@ -97,7 +97,8 @@ function LoadedEditor({ files, doc, onExit, onOpenProject }: LoadedEditorProps) 
         if (cancelled) return
         silence()
         void dialogs.alert('음악을 열 수 없어요', [
-          audioLoadError(audio, err),
+          // ogg 안내는 브라우저에서만: PC(Chromium)는 ogg를 읽으므로 디코딩 오류는 파일이 깨진 것이다
+          caps().windowControls ? (err instanceof Error ? err.message : String(err)) : audioLoadError(audio, err),
           '음악 없이 열었어요. 곡 탭에서 음악을 다시 고를 수 있어요.'
         ])
       }

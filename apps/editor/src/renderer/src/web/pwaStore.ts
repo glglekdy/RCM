@@ -39,3 +39,43 @@ export function installNoticeKind(env: {
 export function isIos(ua: string, maxTouchPoints: number): boolean {
   return /iPhone|iPad|iPod/.test(ua) || (ua.includes('Macintosh') && maxTouchPoints > 1)
 }
+
+export type ApplyUpdate = (reload: boolean) => Promise<void>
+
+let updateReady: ApplyUpdate | null = null
+const updateListeners = new Set<() => void>()
+
+export function setUpdateReady(apply: ApplyUpdate | null): void {
+  updateReady = apply
+  updateListeners.forEach((l) => l())
+}
+
+export function subscribeUpdateReady(l: () => void): () => void {
+  updateListeners.add(l)
+  return () => {
+    updateListeners.delete(l)
+  }
+}
+
+export function getUpdateReady(): ApplyUpdate | null {
+  return updateReady
+}
+
+export function useUpdateReady(): ApplyUpdate | null {
+  return useSyncExternalStore(subscribeUpdateReady, getUpdateReady)
+}
+
+/** 저장에 성공했을 때만 새 버전으로 새로고침한다 */
+export async function applyUpdate(deps: {
+  save: () => Promise<void>
+  update: ApplyUpdate
+  onError: (err: unknown) => void
+}): Promise<void> {
+  try {
+    await deps.save()
+  } catch (err) {
+    deps.onError(err)
+    return
+  }
+  await deps.update(true)
+}

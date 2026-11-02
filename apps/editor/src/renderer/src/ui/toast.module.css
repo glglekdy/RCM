@@ -27,3 +27,17 @@
   color: var(--text);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
+
+.toast:has(.action) {
+  pointer-events: auto;
+}
+
+.action {
+  margin-left: 12px;
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  cursor: pointer;
+}

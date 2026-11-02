@@ -3,18 +3,20 @@ import styles from './toast.module.css'
 
 const DURATION_MS = 2500
 
-type ToastFn = (message: string) => void
+type ToastOptions = { action?: { label: string; onClick: () => void }; sticky?: boolean }
+type ToastFn = (message: string, options?: ToastOptions) => void
+type Item = { id: number; message: string; options?: ToastOptions }
 
 const ToastContext = createContext<ToastFn | null>(null)
 
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<{ id: number; message: string }[]>([])
+  const [toasts, setToasts] = useState<Item[]>([])
   const nextId = useRef(0)
 
-  const toast = useCallback<ToastFn>((message) => {
+  const toast = useCallback<ToastFn>((message, options) => {
     const id = nextId.current++
-    setToasts((t) => [...t, { id, message }])
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), DURATION_MS)
+    setToasts((t) => [...t, { id, message, options }])
+    if (!options?.sticky) setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), DURATION_MS)
   }, [])
 
   return (
@@ -24,6 +26,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((t) => (
           <div key={t.id} className={styles.toast}>
             {t.message}
+            {t.options?.action && (
+              <button
+                type="button"
+                className={styles.action}
+                onClick={() => {
+                  t.options?.action?.onClick()
+                  setToasts((l) => l.filter((x) => x.id !== t.id))
+                }}
+              >
+                {t.options.action.label}
+              </button>
+            )}
           </div>
         ))}
       </div>

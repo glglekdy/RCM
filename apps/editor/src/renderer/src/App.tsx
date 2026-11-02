@@ -16,6 +16,7 @@ import { AnnouncementsDialog } from './announcements/AnnouncementsDialog'
 import { refreshAnnouncements } from './announcements/announcementsStore'
 import { WhatsNewDialog } from './whatsNew/WhatsNewDialog'
 import { checkWhatsNew } from './whatsNew/whatsNewStore'
+import { UpdateReadyToast } from './web/UpdateReadyToast'
 
 /** `id`는 같은 폴더를 다시 열어도 편집 화면을 새로 만들기 위한 값이다. */
 type Screen = { screen: 'home' } | { screen: 'editor'; files: ProjectFiles; id: number }
@@ -79,6 +80,7 @@ export function App() {
             />
           )}
           {caps().autoUpdate && <UpdateNotice />}
+          {!caps().windowControls && <UpdateReadyToast />}
           <WhatsNewDialog />
           <AnnouncementsDialog />
         </ToastProvider>

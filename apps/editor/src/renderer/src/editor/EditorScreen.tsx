@@ -39,6 +39,9 @@ import {
 } from './playtest/playtestScreen'
 import { getChart, type ProjectDoc } from './state/doc'
 import { isDirty } from './state/dirty'
+import { autoSaveOnHidden } from './autoSave'
+import { setActiveSave } from './activeSave'
+import { getAutoSave } from '../settings/autoSaveStore'
 import { loadProject } from './state/loadProject'
 import { DesktopShell } from './shells/DesktopShell'
 import { LandscapeShell } from './shells/LandscapeShell'
@@ -515,6 +518,35 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [store])
+
+  // 웹: 화면이 가려지면(탭 전환, 앱 전환) 저장하지 않은 변경을 저장한다. 테스트 플레이 중에도 저장한다.
+  // 다른 화면(가져오기 등)이 저장을 요청할 수 있게 "변경이 있으면 저장"도 등록한다.
+  useEffect(() => {
+    setActiveSave(async () => {
+      if (store.isDirty()) {
+        commitFocusedField()
+        await store.save()
+      }
+    })
+    if (!caps().autoSave) return () => setActiveSave(null)
+    const onVisibility = () => {
+      void autoSaveOnHidden({
+        enabled: getAutoSave(),
+        hidden: document.visibilityState === 'hidden',
+        dirty: store.isDirty(),
+        save: () => {
+          commitFocusedField()
+          return store.save()
+        },
+        onError: (e) => toast(`자동 저장하지 못했어요: ${e instanceof Error ? e.message : String(e)}`)
+      })
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      setActiveSave(null)
+    }
+  }, [store, toast])
 
   // 입력 필드에 포커스가 있는 동안에도 닫기 보호를 켠다 (확정 안 된 값이 있을 수 있다)
   useEffect(() => {

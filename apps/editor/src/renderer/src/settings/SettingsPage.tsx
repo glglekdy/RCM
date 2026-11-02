@@ -9,6 +9,7 @@ import { PreviewFullscreen } from '../gameplay/PreviewFullscreen'
 import previewStyles from '../gameplay/LayoutPreview.module.css'
 import { Card, Switch, useToast } from '../ui'
 import { caps } from '../ui/platform'
+import { AutoSaveSettings } from './AutoSaveSettings'
 import styles from './SettingsPage.module.css'
 
 /** 시작 화면의 `설정` 페이지. 바꾸면 바로 설정 파일에 저장한다. */
@@ -46,6 +47,7 @@ export function SettingsPage() {
       <h1 className={styles.title}>설정</h1>
       <div className={styles.columns}>
         <div className={styles.cards}>
+          {caps().autoSave && <AutoSaveSettings />}
           {caps().discord && (
             <Card title="디스코드">
               <div className={styles.item}>

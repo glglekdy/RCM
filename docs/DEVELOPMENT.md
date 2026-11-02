@@ -35,6 +35,8 @@ npm run dev:web
 
 웹 버전은 서버 없이 브라우저 안에만 저장합니다. 프로젝트·설정·타격 이펙트는 브라우저 IndexedDB의 `rcm` 데이터베이스에 들어가고, 사이트 데이터를 지우면 함께 지워집니다. 기기를 옮길 때는 프로젝트 ZIP으로 내보내고 가져옵니다. 개발 중에 저장 내용을 비우려면 브라우저 개발자 도구 → Application → IndexedDB에서 `rcm`을 지웁니다.
 
+`apps/web`은 Electron API 대신 브라우저용 `RcmApi` 구현(IndexedDB 저장)을 끼워 넣습니다. 설치형 웹 앱(PWA)이라 빌드 결과에는 서비스 워커가 들어가 오프라인 캐시와 업데이트 안내를 맡지만, 개발 서버에서는 서비스 워커가 꺼져 있어 캐시 때문에 옛 화면이 남지 않습니다.
+
 ## 테스트
 
 ```
@@ -66,6 +68,8 @@ git push --follow-tags
 ```
 
 `npm run release`는 `apps/editor`의 버전을 올리고 `chore: release vX.Y.Z` 커밋과 `vX.Y.Z` 태그를 만들 뿐 push는 하지 않습니다. 태그 메시지에는 업데이트 내역이 들어가고, 같은 내용이 Release 본문에도 올라갑니다. 내역은 지난 태그 뒤의 커밋 중 `feat`(새 기능), `fix`(버그 수정), `perf`(성능 개선)를 종류별로 모아 자동으로 만들고, 실행할 때 화면에 보여 줍니다. 직접 쓴 내역을 쓰려면 Markdown 파일을 저장소 밖에 만들어 `npm run release -- X.Y.Z --notes <파일 경로>`로 넘기세요 (저장소 안에 두면 커밋 안 된 변경으로 보여 거부됩니다). 태그의 내역은 `git tag -n99 vX.Y.Z`로 볼 수 있습니다. 태그가 push되면 `.github/workflows/release.yml`이 Windows에서 태그와 앱 버전이 같은지 확인하고 테스트와 타입 검사를 돌린 뒤, 설치 파일(`RCM-Setup-X.Y.Z.exe`, `.blockmap`, `latest.yml`)을 초안 Release로 올리고, `latest.yml`과 설치 파일이 모두 있는지 확인한 뒤 정식 릴리스로 공개합니다. 공개되기 전의 초안은 사용자에게 보이지 않습니다. 그다음 같은 파일과 내역을 `RCM-Archive`에 보관하고, 보관이 확인된 이전 버전의 Release만 지웁니다 (태그는 남깁니다).
+
+릴리스 태그를 push하면 같은 `release.yml`의 `web` job(ubuntu)이 `release` job과 따로 돌면서 태그와 버전을 확인하고, 테스트와 타입 검사 뒤 웹 버전을 빌드해 `gh-pages` 브랜치의 `main/` 폴더만 교체해 커밋·push합니다(`https://glglekdy.github.io/RCM/main/`). 루트의 소개 페이지 등 다른 파일은 건드리지 않고, 바뀐 파일이 없으면 커밋을 건너뜁니다. 웹 배포가 실패하면 Actions에서 `web` job만 다시 실행하세요.
 
 ### 실패했을 때
 

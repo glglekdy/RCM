@@ -12,6 +12,8 @@ RCM makes two kinds of charts. **Vertical lane** charts have notes that fall dow
 
 ![Editing a lane chart](docs/images/editor-lanes.png)
 
+**[🌐 Use it in your browser](https://glglekdy.github.io/RCM/main/)**: edit on your phone or PC with no install. See [Web version](#web-version) below.
+
 ## Features
 
 ### Lane charts
@@ -46,6 +48,15 @@ RCM makes two kinds of charts. **Vertical lane** charts have notes that fall dow
 3. Place notes, press <kbd>F5</kbd> to test play, and press <kbd>Ctrl</kbd>+<kbd>S</kbd> to save.
 
 For detailed instructions and shortcuts, see **유저 가이드** (User guide) in the app's left menu.
+
+## Web version
+
+The same editor runs in a phone or PC browser at <https://glglekdy.github.io/RCM/main/>, with no install. It is always the same version as the desktop app.
+
+- Projects and settings are stored only in this browser (IndexedDB). To move between devices, export and import a project ZIP. Clearing site data deletes them, so keep ZIP backups.
+- There is no live recording, in-app update, Discord integration, or reveal-in-explorer.
+- It autosaves when you close the tab or switch apps (on by default, can be turned off in settings).
+- Install it to your home screen (PWA) to use it offline. On iPhone, install it: otherwise Safari may delete stored data after 7 days without use.
 
 ## Using your charts in a game
 

@@ -157,3 +157,56 @@ jobs:
             else { Write-Output "$tag Release 지움 (RCM-Archive에 보관됨, 태그는 남김)" }
           }
           if ($failed) { exit 1 }
+
+  # 웹 에디터를 gh-pages 브랜치의 main/ 폴더에만 올린다 (루트의 소개 페이지 등 다른 파일은 건드리지 않는다).
+  # 설치 파일 job(release)과 독립이라 한쪽이 실패해도 다른 쪽은 진행된다
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          # AI 가이드에 보이는 문서 수정 시각을 git 기록에서 읽는다 (얕은 checkout이면 릴리스 커밋 시각이 된다)
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: 태그와 앱 버전 일치 확인
+        run: node scripts/check-tag.mjs "$GITHUB_REF_NAME"
+
+      - run: npm test
+
+      # 타입 검사는 tsc만 쓰므로 Electron 실행 파일이 필요 없다
+      - run: npm run typecheck
+
+      - run: npm -w @rcm/web run build
+
+      - uses: actions/checkout@v7
+        with:
+          ref: gh-pages
+          path: site
+
+      - name: gh-pages의 main/ 교체
+        run: |
+          rm -rf site/main
+          mkdir site/main
+          cp -r apps/web/dist/. site/main/
+
+      - name: 변경이 있으면 커밋하고 올리기
+        working-directory: site
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898799+github-actions[bot]@users.noreply.github.com"
+          git add -A main
+          if git diff --cached --quiet; then
+            echo "바뀐 파일이 없어 건너뜀"
+          else
+            git commit -m "chore: deploy web ${GITHUB_REF_NAME}"
+            git push origin HEAD:gh-pages
+          fi

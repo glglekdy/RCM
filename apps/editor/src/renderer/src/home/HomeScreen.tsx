@@ -27,7 +27,6 @@ import { importZips, ipcErrorMessage } from './importZips'
 import { NewProjectDialog } from './NewProjectDialog'
 import { RecentTable } from './RecentTable'
 import { PROJECT_SORTS, sortProjects, type ProjectSort } from './sortProjects'
-import { readStorageUsage } from './storageUsage'
 import styles from './HomeScreen.module.css'
 
 /** 사이드바 항목 높이 + 간격 (px). 선택 표시가 이만큼씩 움직인다 */
@@ -46,8 +45,8 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
   const phone = useLayoutMode() !== 'desktop'
   const toast = useToast()
   const [recent, setRecent] = useState<RecentProject[] | null>(null)
-  /** 저장소 사용량 문구. 측정할 수 없는 환경(PC)이면 null */
-  const [usage, setUsage] = useState<string | null>(null)
+  /** 저장소 사용량(바이트). 측정할 수 없는 환경(PC)이면 null */
+  const [usedBytes, setUsedBytes] = useState<number | null>(null)
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<ProjectSort>('recent')
   // 삭제 모드에서 고른 프로젝트 폴더들. null이면 삭제 모드가 아니다
@@ -64,7 +63,10 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
   const refresh = useCallback(async () => {
     setRecent(await window.rcm.getRecentProjects())
     // 사용량은 못 읽어도 목록은 그대로 보인다
-    if (!caps().windowControls) void readStorageUsage().then(setUsage)
+    void window.rcm
+      .getStorageUsage()
+      .then((u) => setUsedBytes(u?.usedBytes ?? null))
+      .catch(() => {})
   }, [])
 
   // 홈으로 돌아오거나 창으로 돌아올 때마다 다시 읽는다: 탐색기에서 폴더를 옮기거나 지운 것이 바로 보이게
@@ -444,7 +446,9 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
                 <UpdatePanel />
               </div>
             )}
-            {usage !== null && <p className={styles.usage}>{usage}</p>}
+            {usedBytes !== null && (
+              <p className={styles.usage}>사용 중 {Math.round(usedBytes / (1024 * 1024))}MB</p>
+            )}
           </div>
         )}
       </main>

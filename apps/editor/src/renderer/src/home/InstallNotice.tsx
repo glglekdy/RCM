@@ -31,7 +31,7 @@ export function InstallNotice({ onClose }: { onClose: () => void }) {
           onClick={() => {
             const p = prompt
             setInstallPrompt(null)
-            void p?.prompt()
+            p?.prompt().catch(() => {})
           }}
         >
           앱으로 설치

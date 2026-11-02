@@ -163,6 +163,10 @@ jobs:
   web:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # gh-pages 푸시가 겹치지 않게 순서대로 실행 (진행 중인 배포는 취소하지 않는다)
+    concurrency:
+      group: gh-pages
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
         with:

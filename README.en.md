@@ -55,7 +55,7 @@ The same editor runs in a phone or PC browser at <https://glglekdy.github.io/RCM
 
 - Projects and settings are stored only in this browser (IndexedDB). To move between devices, export and import a project ZIP. Clearing site data deletes them, so keep ZIP backups.
 - There is no live recording, in-app update, Discord integration, or reveal-in-explorer.
-- It autosaves when you close the tab or switch apps (on by default, can be turned off in settings).
+- It autosaves when you switch apps or tabs or the screen turns off (hidden) (on by default, can be turned off in settings). Closing the tab with unsaved changes shows the browser warning.
 - Install it to your home screen (PWA) to use it offline. On iPhone, install it: otherwise Safari may delete stored data after 7 days without use.
 
 ## Using your charts in a game

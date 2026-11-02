@@ -18,7 +18,7 @@ export default defineConfig({
       registerType: 'prompt',
       injectRegister: false,
       manifest: {
-        name: 'RCM',
+        name: 'RCM 채보 에디터',
         short_name: 'RCM',
         display: 'standalone',
         background_color: '#141414',
@@ -31,8 +31,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg,woff2,ogg,mp3,json}'],
-        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024
+        globPatterns: ['**/*.{js,css,html,png,svg,woff2,ogg,mp3,json}']
       },
       devOptions: { enabled: false }
     })

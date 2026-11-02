@@ -97,7 +97,7 @@ function isAllowedFileName(name: string): boolean {
 function checkNames(dir: string, names: string[], allowed: (name: string) => boolean): void {
   const root = path.resolve(dir)
   for (const name of names) {
-    if (path.basename(name) !== name || path.dirname(path.resolve(root, name)) !== root || !allowed(name)) {
+    if (/[\\/]/.test(name) || path.basename(name) !== name || path.dirname(path.resolve(root, name)) !== root || !allowed(name)) {
       throw new Error(`허용되지 않는 파일 이름이에요: ${name}`)
     }
   }

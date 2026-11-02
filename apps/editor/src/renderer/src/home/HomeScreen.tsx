@@ -20,6 +20,7 @@ import { SettingsPage } from '../settings/SettingsPage'
 import { UpdatePanel } from '../update/UpdatePanel'
 import { Button, IconButton, Menu, TextField, useDialogs, useLayoutMode, useToast } from '../ui'
 import { caps, deleteCopy } from '../ui/platform'
+import { INSTALL_NOTICE_ID, InstallNotice } from './InstallNotice'
 import { FloatingTabBar } from './FloatingTabBar'
 import { nextGreeting } from './greeting'
 import { NAV, type Page } from './homeNav'
@@ -363,6 +364,7 @@ export function HomeScreen({ onOpened }: HomeScreenProps) {
         ) : (
           <div className={`${styles.homeContent} stagger-children`}>
             {isNew(RULE_NOTICE_ID) && <RuleNotice onClose={() => dismiss(RULE_NOTICE_ID)} />}
+            {isNew(INSTALL_NOTICE_ID) && <InstallNotice onClose={() => dismiss(INSTALL_NOTICE_ID)} />}
             <Greeting />
             {recent !== null && recent.length === 0 ? (
               <div className={styles.empty}>

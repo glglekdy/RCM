@@ -10,6 +10,19 @@ const withGimmick = (notes: Note[]): Chart => ({
 });
 
 describe('PlayState', () => {
+  it('rate 2: 곡 시간 80ms 늦어도 PERFECT, 놓침 판정은 240ms 뒤', () => {
+    const s = new PlayState(chart([{ tick: 480, track: 'Note_1', type: 'tap' }, { tick: 960, track: 'Note_1', type: 'tap' }]), tm, 0);
+    s.rate = 2;
+    expect(s.press(0, 580)[0].judgement).toBe('perfect');
+    expect(s.update(1240)).toEqual([]);
+    expect(s.update(1241)[0].judgement).toBe('miss');
+  });
+  it('rate 2: 롱노트는 끝보다 곡 시간 240ms 전까지 떼도 PERFECT', () => {
+    const s = new PlayState(chart([{ tick: 480, track: 'Note_1', type: 'hold', endTick: 1920 }]), tm, 0);
+    s.rate = 2;
+    s.press(0, 500);
+    expect(s.release(0, 2000 - 240)[0].judgement).toBe('perfect');
+  });
   it('기믹 레인 노트는 판정하지 않는다', () => {
     const s = new PlayState(withGimmick([
       { tick: 480, track: 'A', type: 'tap' },

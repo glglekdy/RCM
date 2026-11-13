@@ -28,6 +28,16 @@ describe('flickMatches', () => {
 });
 
 describe('FreePlayState', () => {
+  it('rate 2: 곡 시간 80ms 늦어도 PERFECT', () => {
+    const s = new FreePlayState(chart([{ tick: 480, type: 'tap', x: 4, width: 3 }]), tm, 0);
+    s.rate = 2;
+    expect(judgements(s.down(1, 5, 0, 580))).toEqual(['head:perfect']);
+  });
+  it('rate 0.5: 곡 시간 30ms 늦으면 GREAT', () => {
+    const s = new FreePlayState(chart([{ tick: 480, type: 'tap', x: 4, width: 3 }]), tm, 0);
+    s.rate = 0.5;
+    expect(judgements(s.down(1, 5, 0, 530))).toEqual(['head:great']);
+  });
   it('탭: 구간 안을 누르면 시각 차로 판정, 밖이면 무시', () => {
     const s = new FreePlayState(chart([{ tick: 480, type: 'tap', x: 4, width: 3 }]), tm, 0);
     expect(s.down(1, 0, 0, 500)).toEqual([]);

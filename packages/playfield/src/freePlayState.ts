@@ -82,6 +82,8 @@ export function flickMatches(dx: number, dy: number, dir: FlickDirection | undef
 export class FreePlayState {
   combo = 0;
   maxCombo = 0;
+  /** 배속 플레이. 판정 범위는 실제 시간 기준이라 곡 시간으로는 이 값만큼 늘거나 준다 */
+  rate = 1;
   readonly counts: Record<Judgement, number> = { perfect: 0, great: 0, good: 0, miss: 0 };
 
   private readonly playNotes: FreePlayNote[] = [];
@@ -177,10 +179,10 @@ export class FreePlayState {
     let bestDelta = Infinity;
     for (let i = this.advance(); i < this.playNotes.length; i++) {
       const n = this.playNotes[i];
-      if (n.startMs - ms > JUDGE_WINDOWS.good) break;
+      if (n.startMs - ms > JUDGE_WINDOWS.good * this.rate) break;
       if (n.headJudged || n.kind === 'trace' || this.claimed(i)) continue;
       const delta = Math.abs(ms - n.startMs);
-      if (delta > JUDGE_WINDOWS.good || !inSpan(col, n.x, n.width, TOUCH_MARGIN)) continue;
+      if (delta > JUDGE_WINDOWS.good * this.rate || !inSpan(col, n.x, n.width, TOUCH_MARGIN)) continue;
       if (delta < bestDelta) {
         best = i;
         bestDelta = delta;
@@ -243,7 +245,7 @@ export class FreePlayState {
       const span = this.slideSpan(n, ms);
       if (inSpan(p.col, span.x, span.width, SLIDE_MARGIN)) p.outSince = null;
       else if (p.outSince === null) p.outSince = ms;
-      else if (ms - p.outSince > HOLD_RELEASE_TOLERANCE) {
+      else if (ms - p.outSince > HOLD_RELEASE_TOLERANCE * this.rate) {
         events.push(...this.releaseSlide(i, ms, true));
         p.slide = -1;
         continue;
@@ -257,7 +259,7 @@ export class FreePlayState {
         n.tailJudged = true;
         p.slide = -1;
         events.push(this.record(i, 'perfect', 'tail', ms));
-      } else if (n.endFlick && ms > n.endMs! + JUDGE_WINDOWS.good) {
+      } else if (n.endFlick && ms > n.endMs! + JUDGE_WINDOWS.good * this.rate) {
         events.push(...this.releaseSlide(i, ms, true));
         p.slide = -1;
       }
@@ -266,7 +268,7 @@ export class FreePlayState {
     for (const p of this.pointers.values()) {
       if (p.flickNote < 0) continue;
       const n = this.playNotes[p.flickNote];
-      if (!n.headJudged && ms > n.startMs + JUDGE_WINDOWS.good) events.push(...this.judgeHead(p.flickNote, null, ms));
+      if (!n.headJudged && ms > n.startMs + JUDGE_WINDOWS.good * this.rate) events.push(...this.judgeHead(p.flickNote, null, ms));
       if (n.headJudged) p.flickNote = -1;
     }
     // 트레이스: 시각이 됐을 때 손가락이 올라가 있으면 친 것
@@ -274,7 +276,7 @@ export class FreePlayState {
     // 놓친 머리
     for (let i = this.advance(); i < this.playNotes.length; i++) {
       const n = this.playNotes[i];
-      if (ms <= n.startMs + JUDGE_WINDOWS.good) break;
+      if (ms <= n.startMs + JUDGE_WINDOWS.good * this.rate) break;
       if (n.headJudged || this.claimed(i)) continue;
       events.push(...this.judgeHead(i, null, ms));
     }
@@ -326,9 +328,9 @@ export class FreePlayState {
     if (p.slide >= 0) {
       const i = p.slide;
       const n = this.playNotes[i];
-      if (!n.endFlick || ms < n.endMs! - JUDGE_WINDOWS.good) return [];
+      if (!n.endFlick || ms < n.endMs! - JUDGE_WINDOWS.good * this.rate) return [];
       p.slide = -1;
-      return this.finishSlide(i, ms, flickMatches(dx, dy, n.direction) ? judgeDelta(ms - n.endMs!) : 'miss');
+      return this.finishSlide(i, ms, flickMatches(dx, dy, n.direction) ? judgeDelta(ms - n.endMs!, this.rate) : 'miss');
     }
     return [];
   }
@@ -338,7 +340,7 @@ export class FreePlayState {
     const n = this.playNotes[i];
     if (n.tailJudged) return [];
     // 끝 플릭이 아닌 슬라이드는 끝 직전에 떼면 봐준다 (레인형 롱노트와 같다)
-    const ok = !broke && !n.endFlick && ms >= n.endMs! - HOLD_RELEASE_TOLERANCE;
+    const ok = !broke && !n.endFlick && ms >= n.endMs! - HOLD_RELEASE_TOLERANCE * this.rate;
     return this.finishSlide(i, ms, ok ? 'perfect' : 'miss');
   }
 
@@ -361,7 +363,7 @@ export class FreePlayState {
     const events: FreeJudgeEvent[] = [];
     for (let i = this.advance(); i < this.playNotes.length; i++) {
       const n = this.playNotes[i];
-      if (n.startMs - ms > JUDGE_WINDOWS.perfect) break;
+      if (n.startMs - ms > JUDGE_WINDOWS.perfect * this.rate) break;
       if (n.kind !== 'trace' || n.headJudged || !inSpan(col, n.x, n.width, TOUCH_MARGIN)) continue;
       events.push(...this.judgeHead(i, Math.max(0, ms - n.startMs), ms));
     }
@@ -372,7 +374,7 @@ export class FreePlayState {
   private judgeHead(i: number, delta: number | null, ms: number): FreeJudgeEvent[] {
     const n = this.playNotes[i];
     n.headJudged = true;
-    const j = delta === null ? 'miss' : (judgeDelta(delta) ?? 'miss');
+    const j = delta === null ? 'miss' : (judgeDelta(delta, this.rate) ?? 'miss');
     const e = this.record(i, j, 'head', ms);
     const timing = delta === null ? null : timingOf(delta, j);
     if (timing) e.timing = timing;

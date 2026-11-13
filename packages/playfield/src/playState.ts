@@ -13,6 +13,8 @@ export interface PlayNote {
 export class PlayState {
   combo = 0;
   maxCombo = 0;
+  /** 배속 플레이. 판정 범위는 실제 시간 기준이라 곡 시간으로는 이 값만큼 늘거나 준다 */
+  rate = 1;
   readonly counts: Record<Judgement, number> = { perfect: 0, great: 0, good: 0, miss: 0 };
 
   private readonly playNotes: PlayNote[] = [];
@@ -63,9 +65,9 @@ export class PlayState {
       const idx = list[c];
       const n = this.playNotes[idx];
       if (n.headJudged) continue;
-      if (n.startMs - ms > JUDGE_WINDOWS.good) break;
+      if (n.startMs - ms > JUDGE_WINDOWS.good * this.rate) break;
       const delta = ms - n.startMs;
-      const j = judgeDelta(delta);
+      const j = judgeDelta(delta, this.rate);
       if (j === null) continue;
       n.headJudged = true;
       if (n.endMs === undefined) n.tailJudged = true;
@@ -85,7 +87,7 @@ export class PlayState {
     const n = this.playNotes[idx];
     this.holding[lane] = -1;
     n.tailJudged = true;
-    const j: Judgement = ms < n.endMs! - HOLD_RELEASE_TOLERANCE ? 'miss' : 'perfect';
+    const j: Judgement = ms < n.endMs! - HOLD_RELEASE_TOLERANCE * this.rate ? 'miss' : 'perfect';
     return [this.record(lane, j, 'tail', ms)];
   }
 
@@ -103,7 +105,7 @@ export class PlayState {
       for (let c = this.advance(lane); c < list.length; c++) {
         const n = this.playNotes[list[c]];
         if (n.headJudged) continue;
-        if (ms <= n.startMs + JUDGE_WINDOWS.good) break;
+        if (ms <= n.startMs + JUDGE_WINDOWS.good * this.rate) break;
         n.headJudged = true;
         pending.push({ idx: list[c], part: 0, lane, judgement: 'miss' });
         if (n.endMs !== undefined) {

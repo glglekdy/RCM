@@ -15,11 +15,12 @@ export interface JudgeEvent {
 }
 
 /** 입력 시각 - 노트 시각(ms)을 판정으로 바꾼다. 창 밖이면 null (치지 않은 것으로 본다). */
-export function judgeDelta(deltaMs: number): Judgement | null {
+export function judgeDelta(deltaMs: number, rate = 1): Judgement | null {
+  // 시각은 곡 시간이고 범위는 실제 시간이라, 배속 플레이(rate)만큼 범위를 곡 시간으로 늘리거나 줄인다
   const d = Math.abs(deltaMs);
-  if (d <= JUDGE_WINDOWS.perfect) return 'perfect';
-  if (d <= JUDGE_WINDOWS.great) return 'great';
-  if (d <= JUDGE_WINDOWS.good) return 'good';
+  if (d <= JUDGE_WINDOWS.perfect * rate) return 'perfect';
+  if (d <= JUDGE_WINDOWS.great * rate) return 'great';
+  if (d <= JUDGE_WINDOWS.good * rate) return 'good';
   return null;
 }
 

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { isFreeChart, type TimingMap } from '@rcm/core'
 import {
+  clampRate,
   clampSpeed,
   DEFAULT_PLAYFIELD_COLORS,
   FreePlayfield,
   Playfield,
+  RATE_STEP,
   SPEED_STEP,
   type FreeAspect,
   type Judgement
@@ -19,6 +21,7 @@ import { getLayout } from '../../gameplay/layoutStore'
 import { useLayoutMode } from '../../ui'
 import { caps } from '../../ui/platform'
 import { orientationTarget, type ScreenOrientationTarget } from './playtestScreen'
+import { getPlaytestRate, setPlaytestRate } from './rateStore'
 import { getPlaytestSpeed, setPlaytestSpeed } from './speedStore'
 import styles from './PlaytestOverlay.module.css'
 
@@ -35,6 +38,8 @@ interface PlaytestOverlayProps {
   getTimeMs: () => number
   /** 자동 플레이 (F4로 켜고 끈다) */
   autoplay: boolean
+  /** 배속 플레이를 바꿨을 때 음악 시계의 빠르기를 맞춘다 */
+  onRateChange: (rate: number) => void
   onExit: () => void
   /** 처음부터 다시 시작 (F5와 같다) */
   onRestart: () => void
@@ -62,6 +67,7 @@ export function PlaytestOverlay({
   tm,
   getTimeMs,
   autoplay,
+  onRateChange,
   onExit,
   onRestart,
   onToggleAutoplay,
@@ -81,6 +87,10 @@ export function PlaytestOverlay({
   const [speed, setSpeed] = useState(getPlaytestSpeed)
   const speedRef = useRef(speed)
   speedRef.current = speed
+  // 배속 플레이: 곡이 재생되는 빠르기. 다시 시작해도 이어진다
+  const [rate, setRate] = useState(getPlaytestRate)
+  const rateRef = useRef(rate)
+  rateRef.current = rate
   const autoplayRef = useRef(autoplay)
   autoplayRef.current = autoplay
   const hitEffects = useHitEffects()
@@ -97,6 +107,7 @@ export function PlaytestOverlay({
       getTimeMs,
       fromMs,
       speed: speedRef.current,
+      rate: rateRef.current,
       layout: getLayout(),
       judgeOffsetMs: getJudgeOffset(),
       autoplay: autoplayRef.current,
@@ -163,6 +174,18 @@ export function PlaytestOverlay({
   }
   const changeSpeedRef = useRef(changeSpeed)
   changeSpeedRef.current = changeSpeed
+  const changeRate = (step: number) => {
+    const next = clampRate(rateRef.current + step)
+    if (next === rateRef.current) return
+    rateRef.current = next
+    setRate(next)
+    setPlaytestRate(next)
+    // 음악 시계와 플레이 화면이 같은 순간에 바뀌어야 판정과 연출이 어긋나지 않는다
+    onRateChange(next)
+    playfieldRef.current?.setRate(next)
+  }
+  const changeRateRef = useRef(changeRate)
+  changeRateRef.current = changeRate
   const toggleAspect = () => setAspect((a) => (a === 'portrait' ? 'landscape' : 'portrait'))
 
   useEffect(() => {
@@ -175,6 +198,11 @@ export function PlaytestOverlay({
       if (e.code === 'F6') {
         e.preventDefault()
         setAspect((a) => (a === 'portrait' ? 'landscape' : 'portrait'))
+        return
+      }
+      if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+        e.preventDefault()
+        changeRateRef.current(e.code === 'ArrowRight' ? RATE_STEP : -RATE_STEP)
         return
       }
       if (e.code !== 'ArrowUp' && e.code !== 'ArrowDown') return
@@ -228,6 +256,23 @@ export function PlaytestOverlay({
             >
               배속 +
             </button>
+            <button
+              type="button"
+              className={styles.phoneButton}
+              aria-label="배속 플레이 내리기"
+              onClick={() => changeRate(-RATE_STEP)}
+            >
+              플레이 −
+            </button>
+            <span className={styles.phoneSpeed}>{rate.toFixed(1)}x</span>
+            <button
+              type="button"
+              className={styles.phoneButton}
+              aria-label="배속 플레이 올리기"
+              onClick={() => changeRate(RATE_STEP)}
+            >
+              플레이 +
+            </button>
             {free && (
               <button type="button" className={styles.phoneButton} onClick={toggleAspect}>
                 {aspect === 'portrait' ? '세로' : '가로'}
@@ -250,6 +295,8 @@ export function PlaytestOverlay({
         <div className={styles.hud}>
           <div className={styles.controls}>
             <span>배속 {speed.toFixed(1)} (↑/↓)</span>
+            <span className={styles.dot}>·</span>
+            <span>배속 플레이 {rate.toFixed(1)}x (←/→)</span>
             <span className={styles.dot}>·</span>
             <span>F5 다시 시작</span>
             <span className={styles.dot}>·</span>

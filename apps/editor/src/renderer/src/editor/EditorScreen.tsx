@@ -31,6 +31,7 @@ import { Recorder } from './input/recorder'
 import { resolveShortcut, resolveTypingShortcut, type Action } from './input/shortcuts'
 import { Minimap } from './minimap/Minimap'
 import { PlaytestOverlay } from './playtest/PlaytestOverlay'
+import { getPlaytestRate } from './playtest/rateStore'
 import {
   enterPlaytestScreen,
   orientationTarget,
@@ -355,7 +356,9 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
         : s.playheadMs
       // 효과음 없이, 준비 시간을 두고 재생한다 (음수 위치는 AudioEngine이 지연으로 처리)
       engine.setHits([])
-      engine.play(fromMs - PLAYTEST_LEAD_IN_MS)
+      // 준비 시간은 실제 시간이라, 곡 시간으로는 배속 플레이만큼 늘리거나 줄인다
+      const rate = getPlaytestRate()
+      engine.play(fromMs - PLAYTEST_LEAD_IN_MS * rate, rate)
       if (!engine.playing) return
       // 툴바 버튼에 포커스가 남아 Enter 등으로 눌리지 않게 한다
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
@@ -372,7 +375,8 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   const restartPlaytest = useCallback(() => {
     if (store.getState().mode !== 'playtest' || playtestFromMs === null) return
     engine.stop()
-    engine.play(playtestFromMs - PLAYTEST_LEAD_IN_MS)
+    const rate = getPlaytestRate()
+    engine.play(playtestFromMs - PLAYTEST_LEAD_IN_MS * rate, rate)
     setPlaytestRun((n) => n + 1)
   }, [engine, store, playtestFromMs])
 
@@ -387,6 +391,8 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
   }, [engine, store])
 
   const getTimeMs = useCallback(() => engine.positionMs(), [engine])
+  /** 테스트 플레이 도중 배속 플레이를 바꾼다 */
+  const setPlaytestEngineRate = useCallback((rate: number) => engine.setRate(rate), [engine])
 
   // 폰(웹)의 전체 화면·Wake Lock·방향 고정은 테스트 플레이 한 판 동안 하나로 이어 간다.
   // 다시 시작해 오버레이가 새로 만들어져도 나갔다 들어가지 않는다.
@@ -920,6 +926,7 @@ function EditorBody({ engine, onExit, onOpenProject }: EditorBodyProps) {
             tm={tm}
             getTimeMs={getTimeMs}
             autoplay={playtestAuto}
+            onRateChange={setPlaytestEngineRate}
             onExit={exitPlaytest}
             onRestart={() => runActionRef.current('playtestRestart')}
             onToggleAutoplay={() => runActionRef.current('playtestAuto')}

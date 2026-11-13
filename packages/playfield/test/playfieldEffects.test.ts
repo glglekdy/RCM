@@ -77,7 +77,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 const laneChart = (notes: Note[]): Chart => ({ formatVersion: 1, name: 't', level: 1, tracks: basicTracks(4), notes });
 
-function lanePlayfield(notes: Note[], autoplay: boolean, hitEffects: HitEffects = effects) {
+function lanePlayfield(notes: Note[], autoplay: boolean, hitEffects: HitEffects = effects, rate?: number) {
   const pf = new Playfield(canvas, {
     chart: laneChart(notes),
     tm,
@@ -87,6 +87,7 @@ function lanePlayfield(notes: Note[], autoplay: boolean, hitEffects: HitEffects 
     keymap: new Map(),
     autoplay,
     hitEffects,
+    rate,
   });
   pf.start();
   return pf;
@@ -124,6 +125,29 @@ describe('Playfield 타격 이펙트', () => {
     expect(frameAt(500)).toHaveLength(1);
     pf.setHitEffects({ ...effects, enabled: false });
     expect(frameAt(510)).toEqual([]);
+  });
+
+  it('rate 2: 이펙트는 실제 1초(곡 2초) 동안 보인다', () => {
+    lanePlayfield([{ tick: 480, track: 'Note_1', type: 'tap' }], true, effects, 2);
+    expect(frameAt(500)).toHaveLength(1);
+    expect(frameAt(2400)).toHaveLength(1);
+    expect(frameAt(2600)).toEqual([]);
+  });
+
+  it('rate 0.5: 롱노트 반복 이펙트는 실제 150ms(곡 75ms)마다', () => {
+    lanePlayfield([{ tick: 480, track: 'Note_2', type: 'hold', endTick: 960 }], true, effects, 0.5);
+    expect(frameAt(500)).toHaveLength(1);
+    expect(frameAt(570)).toHaveLength(1);
+    expect(frameAt(575)).toHaveLength(2);
+  });
+
+  it('setRate로 도중에 바꿔도 이미 터진 이펙트가 튀지 않는다', () => {
+    const pf = lanePlayfield([{ tick: 480, track: 'Note_1', type: 'tap' }], true);
+    expect(frameAt(500)).toHaveLength(1);
+    now = 900; // 실제 400ms 지남
+    pf.setRate(2);
+    expect(frameAt(2000)).toHaveLength(1); // 실제 950ms
+    expect(frameAt(2200)).toEqual([]); // 실제 1050ms
   });
 
   it('옵션이 없으면 기본 이펙트 (스프라이트 없음)', () => {

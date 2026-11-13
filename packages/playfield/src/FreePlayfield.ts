@@ -4,6 +4,7 @@ import { DEFAULT_LAYOUT, sanitizeLayout, type PlayfieldLayout } from './layout';
 import { DEFAULT_PLAYFIELD_COLORS, type PlayfieldColors } from './Playfield';
 import { FreePlayState, type FreeJudgeEvent, type FreePlayNote } from './freePlayState';
 import { freeGimmickNotes, type FreeGimmickNote } from './gimmick';
+import { clampRate, RateClock } from './rate';
 import { DEFAULT_HIT_EFFECTS, HitEffectLayer, HoldRepeater, slotFor, type HitEffects } from './hitEffects';
 import { freeFieldRect, pointToCell, type FreeAspect, type FreeFieldRect } from './freeView';
 import {
@@ -43,6 +44,8 @@ export interface FreePlayfieldOptions {
   hitEffects?: HitEffects;
   /** 판정 보정(ms): 판정 시계를 이만큼 늦춘다 (판정 시각 = 현재 시각 - 이 값). 그리기는 화면 시계 그대로. 없으면 0 */
   judgeOffsetMs?: number;
+  /** 배속 플레이: 곡이 재생되는 빠르기 (0.1~5.0). 없으면 1. `setRate`로 바꿀 수 있다 */
+  rate?: number;
 }
 
 const FRAME_COLOR = '#1b1b1b';
@@ -103,6 +106,8 @@ export class FreePlayfield {
   private pendingBursts: { note: number; judgement: Judgement; ms: number }[] = [];
   private raf = 0;
   private running = false;
+  /** 판정 글자·이펙트는 배속 플레이와 상관없이 실제 시간 빠르기로 보이게 한다 */
+  private readonly fx: RateClock;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -125,6 +130,8 @@ export class FreePlayfield {
     this.autoplay = opts.autoplay === true;
     this.aspect = opts.aspect ?? 'portrait';
     this.hitEffects = opts.hitEffects ?? DEFAULT_HIT_EFFECTS;
+    this.fx = new RateClock(clampRate(opts.rate ?? 1));
+    this.state.rate = this.fx.rate;
   }
 
   start(): void {
@@ -153,6 +160,12 @@ export class FreePlayfield {
     cancelAnimationFrame(this.raf);
     this.pendingBursts = [];
     this.effectLayer.clear();
+  }
+
+  /** 배속 플레이를 바꾼다. 음악 시계의 빠르기를 바꾸는 것과 같은 순간에 부른다. */
+  setRate(rate: number): void {
+    this.fx.setRate(clampRate(rate), this.opts.getTimeMs());
+    this.state.rate = this.fx.rate;
   }
 
   setSpeed(speed: number): void {
@@ -210,13 +223,18 @@ export class FreePlayfield {
     for (const id of this.state.pointerIds()) this.show(this.state.up(id, now));
   };
 
+  /** 판정 보정은 실제 시간(ms)이라 곡 시간으로는 배속 플레이만큼 늘거나 준다 */
+  private judgeOffset(): number {
+    return (this.opts.judgeOffsetMs ?? 0) * this.fx.rate;
+  }
+
   /** 판정에 쓰는 시계: 화면 시계에서 판정 보정만큼 늦춘 값 */
   private clock(): number {
-    return judgeClockMs(this.opts.getTimeMs(), this.opts.judgeOffsetMs ?? 0);
+    return judgeClockMs(this.opts.getTimeMs(), this.judgeOffset());
   }
 
   /** 판정 이벤트의 시각은 판정 시계라, 판정 글자·이펙트는 화면 시계로 되돌려 시작한다. */
-  private show(events: FreeJudgeEvent[], offset = this.opts.judgeOffsetMs ?? 0): void {
+  private show(events: FreeJudgeEvent[], offset = this.judgeOffset()): void {
     for (const e of events) {
       if (e.part === 'head') this.headJudgement.set(e.note, e.judgement);
       if (slotFor(e.judgement)) this.pendingBursts.push({ ...e, ms: e.ms + offset });
@@ -293,7 +311,7 @@ export class FreePlayfield {
       ctx.font = `600 12px ${FONT}`;
       ctx.fillText('COMBO', centerX, rows.comboLabel);
     }
-    if (this.last && now - this.last.ms < JUDGEMENT_SHOW_MS) {
+    if (this.last && this.fx.toReal(now) - this.fx.toReal(this.last.ms) < JUDGEMENT_SHOW_MS) {
       ctx.fillStyle = colors[this.last.judgement];
       ctx.font = `800 28px ${FONT}`;
       ctx.fillText(JUDGEMENT_TEXT[this.last.judgement], centerX, rows.judgement);
@@ -344,10 +362,10 @@ export class FreePlayfield {
       if (judgement === 'miss') return;
       const n = notes[i];
       const span = n.kind === 'slide' ? this.state.slideSpan(n, spanMs) : n;
-      this.effectLayer.spawn(rect.fieldX + (span.x + span.width / 2) * rect.colPx, judgeY, judgement, ms);
+      this.effectLayer.spawn(rect.fieldX + (span.x + span.width / 2) * rect.colPx, judgeY, judgement, this.fx.toReal(ms));
     };
     // 판정 이벤트: 판정 시계에서 나온 시각을 화면 시계로 옮겨 둔 것이라 경로 위치는 되돌려 구한다
-    const offset = this.opts.judgeOffsetMs ?? 0;
+    const offset = this.judgeOffset();
     for (const b of this.pendingBursts) spawn(b.note, b.judgement, b.ms, b.ms - offset);
     this.pendingBursts = [];
     const nowPos = this.scroll.positionAt(now);
@@ -356,10 +374,10 @@ export class FreePlayfield {
       const n = notes[i];
       if (n.kind !== 'slide' || !n.headJudged || n.tailJudged) continue;
       const held = this.state.isHeld(i) || (this.autoplay && this.state.autoHolding(i));
-      if (held && this.holdRepeat.tick(i, now)) spawn(i, this.headJudgement.get(i) ?? 'perfect', now, now);
+      if (held && this.holdRepeat.tick(i, this.fx.toReal(now))) spawn(i, this.headJudgement.get(i) ?? 'perfect', now, now);
     }
     this.holdRepeat.sweep();
-    this.effectLayer.draw(this.ctx, now, this.hitEffects, this.colors);
+    this.effectLayer.draw(this.ctx, this.fx.toReal(now), this.hitEffects, this.colors);
   }
 
   /** 기믹 노트는 치는 노트 아래에 테두리로만 그린다 */

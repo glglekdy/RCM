@@ -112,7 +112,7 @@ function makeChart(notes: Note[], lanes = 4, gimmickIndex?: number): Chart {
 
 function make(
   notes: Note[],
-  extra: { lanes?: number; gimmickIndex?: number; autoplay?: boolean; judgeOffsetMs?: number } = {},
+  extra: { lanes?: number; gimmickIndex?: number; autoplay?: boolean; judgeOffsetMs?: number; rate?: number } = {},
 ) {
   const pf = new Playfield(canvas, {
     chart: makeChart(notes, extra.lanes, extra.gimmickIndex),
@@ -123,6 +123,7 @@ function make(
     keymap: new Map(),
     autoplay: extra.autoplay,
     judgeOffsetMs: extra.judgeOffsetMs,
+    rate: extra.rate,
   });
   pf.start();
   frameAt(0);
@@ -266,6 +267,13 @@ describe('Playfield 터치 입력', () => {
     expect(pf.state.counts.perfect).toBe(1);
   });
 
+  it('rate 2: 판정 보정은 실제 시간이라 곡 시간으로 두 배 늦춘다', () => {
+    const pf = make([{ tick: 480, track: 'Note_2', type: 'tap' }], { judgeOffsetMs: 100, rate: 2 });
+    frameAt(700);
+    send('pointerdown', touch(1, centerX(1)));
+    expect(pf.state.counts.perfect).toBe(1);
+  });
+
   it('MISS도 오프셋만큼 늦게 난다', () => {
     // 화면 시각 650: 오프셋 100이면 판정 시각 550(노트 500 + 120 안)이라 MISS가 아니고, 오프셋이 없으면 MISS
     const withOffset = make([{ tick: 480, track: 'Note_2', type: 'tap' }], { judgeOffsetMs: 100 });
@@ -323,7 +331,7 @@ describe('FreePlayfield 판정 오프셋', () => {
     notes,
   });
 
-  function makeFree(judgeOffsetMs: number) {
+  function makeFree(judgeOffsetMs: number, rate?: number) {
     const pf = new FreePlayfield(canvas, {
       chart: freeChart([{ tick: 480, type: 'tap', x: 4, width: 2 }]),
       tm,
@@ -331,6 +339,7 @@ describe('FreePlayfield 판정 오프셋', () => {
       fromMs: 0,
       speed: 2,
       judgeOffsetMs,
+      rate,
     });
     pf.start();
     frameAt(0);
@@ -342,6 +351,13 @@ describe('FreePlayfield 판정 오프셋', () => {
   it('오프셋만큼 늦게 친 입력은 PERFECT', () => {
     const pf = makeFree(100);
     frameAt(600);
+    tapAt(1);
+    expect(pf.state.counts.perfect).toBe(1);
+  });
+
+  it('rate 2: 판정 보정은 실제 시간이라 곡 시간으로 두 배 늦춘다', () => {
+    const pf = makeFree(100, 2);
+    frameAt(700);
     tapAt(1);
     expect(pf.state.counts.perfect).toBe(1);
   });

@@ -6,6 +6,7 @@ import { gimmickNotes, type GimmickNote } from './gimmick';
 import { DEFAULT_HIT_EFFECTS, HitEffectLayer, HoldRepeater, slotFor, type HitEffects } from './hitEffects';
 import { DEFAULT_LAYOUT, sanitizeLayout, type PlayfieldLayout } from './layout';
 import { PlayState } from './playState';
+import { clampRate, RateClock } from './rate';
 import { TouchLanes, type LaneMove } from './touchInput';
 import {
   clampSpeed,
@@ -95,6 +96,8 @@ export interface PlayfieldOptions {
    * 그리기는 화면 시계 그대로. 없으면 0
    */
   judgeOffsetMs?: number;
+  /** 배속 플레이: 곡이 재생되는 빠르기 (0.1~5.0). 없으면 1. `setRate`로 바꿀 수 있다 */
+  rate?: number;
 }
 
 const NOTE_RADIUS = 3;
@@ -157,6 +160,8 @@ export class Playfield {
   private touchView: { cols: { x: number; width: number }[]; judgeY: number; height: number; scale: number } | null = null;
   private raf = 0;
   private running = false;
+  /** 판정 글자·이펙트는 배속 플레이와 상관없이 실제 시간 빠르기로 보이게 한다 */
+  private readonly fx: RateClock;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -182,6 +187,8 @@ export class Playfield {
     this.layout = sanitizeLayout(opts.layout ?? DEFAULT_LAYOUT);
     this.autoplay = opts.autoplay === true;
     this.hitEffects = opts.hitEffects ?? DEFAULT_HIT_EFFECTS;
+    this.fx = new RateClock(clampRate(opts.rate ?? 1));
+    this.state.rate = this.fx.rate;
   }
 
   /** 그리기 루프와 키 입력을 시작한다. */
@@ -216,6 +223,12 @@ export class Playfield {
     cancelAnimationFrame(this.raf);
     this.pendingBursts = [];
     this.effectLayer.clear();
+  }
+
+  /** 배속 플레이를 바꾼다. 음악 시계의 빠르기를 바꾸는 것과 같은 순간에 부른다. */
+  setRate(rate: number): void {
+    this.fx.setRate(clampRate(rate), this.opts.getTimeMs());
+    this.state.rate = this.fx.rate;
   }
 
   setSpeed(speed: number): void {
@@ -262,9 +275,14 @@ export class Playfield {
     return id === null ? -1 : this.opts.chart.tracks.findIndex(t => t.id === id);
   }
 
+  /** 판정 보정은 실제 시간(ms)이라 곡 시간으로는 배속 플레이만큼 늘거나 준다 */
+  private judgeOffset(): number {
+    return (this.opts.judgeOffsetMs ?? 0) * this.fx.rate;
+  }
+
   /** 판정에 쓰는 시계: 화면 시계에서 판정 보정만큼 늦춘 값 */
   private clock(): number {
-    return judgeClockMs(this.opts.getTimeMs(), this.opts.judgeOffsetMs ?? 0);
+    return judgeClockMs(this.opts.getTimeMs(), this.judgeOffset());
   }
 
   private trackKey(pointerId: number): string {
@@ -340,7 +358,7 @@ export class Playfield {
   }
 
   /** 판정 이벤트의 시각은 판정 시계라, 판정 글자·이펙트는 화면 시계로 되돌려 시작한다. */
-  private show(events: JudgeEvent[], offset = this.opts.judgeOffsetMs ?? 0): void {
+  private show(events: JudgeEvent[], offset = this.judgeOffset()): void {
     for (const e of events) {
       if (e.part === 'head') this.holdJudgement[e.lane] = e.judgement;
       if (slotFor(e.judgement)) this.pendingBursts.push({ ...e, ms: e.ms + offset });
@@ -438,7 +456,7 @@ export class Playfield {
       ctx.font = `600 12px ${FONT}`;
       ctx.fillText('COMBO', centerX, rows.comboLabel);
     }
-    if (this.last && now - this.last.ms < JUDGEMENT_SHOW_MS) {
+    if (this.last && this.fx.toReal(now) - this.fx.toReal(this.last.ms) < JUDGEMENT_SHOW_MS) {
       ctx.fillStyle = colors[this.last.judgement];
       ctx.font = `800 28px ${FONT}`;
       ctx.fillText(JUDGEMENT_TEXT[this.last.judgement], centerX, rows.judgement);
@@ -536,17 +554,17 @@ export class Playfield {
   private drawEffects(now: number, cols: readonly { x: number; width: number }[], judgeY: number): void {
     const spawn = (lane: number, judgement: Judgement, ms: number) => {
       if (judgement === 'miss') return;
-      this.effectLayer.spawn(cols[lane].x + cols[lane].width / 2, judgeY, judgement, ms);
+      this.effectLayer.spawn(cols[lane].x + cols[lane].width / 2, judgeY, judgement, this.fx.toReal(ms));
     };
     for (const b of this.pendingBursts) spawn(b.lane, b.judgement, b.ms);
     this.pendingBursts = [];
     for (let lane = 0; lane < this.lanes; lane++) {
-      if (this.state.heldNote(lane) >= 0 && this.holdRepeat.tick(lane, now)) {
+      if (this.state.heldNote(lane) >= 0 && this.holdRepeat.tick(lane, this.fx.toReal(now))) {
         spawn(lane, this.holdJudgement[lane] ?? 'perfect', now);
       }
     }
     this.holdRepeat.sweep();
-    this.effectLayer.draw(this.ctx, now, this.hitEffects, this.colors);
+    this.effectLayer.draw(this.ctx, this.fx.toReal(now), this.hitEffects, this.colors);
   }
 
   /** 키를 누르고 있거나 자동 플레이가 롱노트를 잡고 있는 레인 (키빔) */

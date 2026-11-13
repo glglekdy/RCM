@@ -11,3 +11,4 @@ export * from './freePlayState';
 export * from './freeView';
 export * from './FreePlayfield';
 export * from './Playfield';
+export * from './rate';
